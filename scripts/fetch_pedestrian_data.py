@@ -41,16 +41,18 @@ def fetch_pedestrian_data():
             last_timestamp = None
             print("📅 No previous records found")
         
-        # Fetch from Melbourne API
+        # Fetch from Melbourne API (API v2.1 format - no order_by)
         params = {
-            'limit': RECORDS_LIMIT,
-            'order_by': 'date_time DESC'
+            'limit': 100,  # API v2.1 max limit
         }
         
+        # Add timestamp filter if we have a last seen timestamp
         if last_timestamp:
             params['where'] = f"date_time > '{last_timestamp}'"
         
         print(f"🌐 Fetching from API: {PEDESTRIAN_API_URL}")
+        print(f"📋 Parameters: {params}")
+        
         response = requests.get(PEDESTRIAN_API_URL, params=params, timeout=30)
         response.raise_for_status()
         
@@ -65,40 +67,62 @@ def fetch_pedestrian_data():
         
         # Transform data for Supabase
         transformed_records = []
+        skipped_count = 0
+        
         for item in records:
-            transformed_records.append({
-                'location_id': item.get('sensor_id'),
-                'sensor_name': item.get('sensor_name'),
-                'melbourne_time': item.get('date_time'),
-                'pedestrian_count': item.get('hourly_counts'),
-                'year': item.get('year'),
-                'month': item.get('month'),
-                'day': item.get('day'),
-                'hour': item.get('time'),
-                'latitude': item.get('latitude'),
-                'longitude': item.get('longitude'),
-                'fetched_at': datetime.now(timezone.utc).isoformat()
-            })
+            try:
+                transformed_records.append({
+                    'location_id': item.get('sensor_id'),
+                    'sensor_name': item.get('sensor_name'),
+                    'melbourne_time': item.get('date_time'),
+                    'pedestrian_count': item.get('hourly_counts'),
+                    'year': item.get('year'),
+                    'month': item.get('month'),
+                    'day': item.get('day'),
+                    'hour': item.get('time'),
+                    'latitude': item.get('latitude'),
+                    'longitude': item.get('longitude'),
+                    'created_at': datetime.now(timezone.utc).isoformat()
+                })
+            except Exception as e:
+                skipped_count += 1
+                continue
         
-        # Insert into Supabase
-        result = supabase.table('pedestrian_counts').insert(transformed_records).execute()
+        if skipped_count > 0:
+            print(f"⚠️  Skipped {skipped_count} records with missing data")
         
-        inserted_count = len(result.data) if result.data else 0
-        print(f"✅ Successfully inserted {inserted_count} pedestrian records")
+        if not transformed_records:
+            print("ℹ️ No valid records to insert")
+            return 0
+        
+        print(f"📊 Upserting {len(transformed_records)} records...")
+        
+        # Upsert into Supabase
+        result = supabase.table('pedestrian_counts').upsert(
+            transformed_records,
+            on_conflict='location_id,melbourne_time'
+        ).execute()
+        
+        inserted_count = len(result.data) if result.data else len(transformed_records)
+        print(f"✅ Successfully upserted {inserted_count} pedestrian records")
         
         return inserted_count
         
     except requests.exceptions.RequestException as e:
         print(f"❌ API request failed: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"📄 Response content: {e.response.text[:500]}")
         sys.exit(1)
     except Exception as e:
         print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == '__main__':
     try:
         count = fetch_pedestrian_data()
-        print(f"🎉 Pedestrian data fetch completed! Inserted {count} records")
+        print(f"🎉 Pedestrian data fetch completed! Upserted {count} records")
     except KeyboardInterrupt:
         print("\n⚠️ Fetch interrupted by user")
         sys.exit(0)

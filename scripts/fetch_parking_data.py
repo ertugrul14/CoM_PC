@@ -41,16 +41,18 @@ def fetch_parking_data():
             last_timestamp = None
             print("📅 No previous records found, fetching all available data")
         
-        # Fetch from Melbourne API
+        # Fetch from Melbourne API (API v2.1 format)
         params = {
-            'limit': RECORDS_LIMIT,
-            'order_by': 'status_timestamp DESC'
+            'limit': 100,  # API v2.1 max limit
         }
         
+        # Add timestamp filter if we have a last seen timestamp
         if last_timestamp:
             params['where'] = f"status_timestamp > '{last_timestamp}'"
         
         print(f"🌐 Fetching from API: {PARKING_API_URL}")
+        print(f"📋 Parameters: {params}")
+        
         response = requests.get(PARKING_API_URL, params=params, timeout=30)
         response.raise_for_status()
         
@@ -63,39 +65,68 @@ def fetch_parking_data():
         
         print(f"📦 Received {len(records)} records from API")
         
-        # Transform data for Supabase
+        # Transform data for Supabase (matching runner.py format)
         transformed_records = []
+        skipped_count = 0
+        
         for item in records:
-            transformed_records.append({
-                'zone_number': item.get('zone_number'),
-                'kerbsideid': item.get('kerbsideid'),
-                'status_description': item.get('status_description'),
-                'status_timestamp': item.get('status_timestamp'),
-                'latitude': item.get('latitude'),
-                'longitude': item.get('longitude'),
-                'lastupdated': item.get('lastupdated'),
-                'fetched_at': datetime.now(timezone.utc).isoformat()
-            })
+            try:
+                # Skip records without required fields
+                if not item.get('zone_number'):
+                    skipped_count += 1
+                    continue
+                
+                location = item.get('location', {})
+                
+                transformed_records.append({
+                    'zone_number': item.get('zone_number'),
+                    'kerbsideid': item.get('kerbsideid'),
+                    'status_description': item.get('status_description'),
+                    'status_timestamp': item.get('status_timestamp'),
+                    'latitude': location.get('lat') if location else None,
+                    'longitude': location.get('lon') if location else None,
+                    'lastupdated': item.get('lastupdated'),
+                    'created_at': datetime.now(timezone.utc).isoformat()
+                })
+            except Exception as e:
+                skipped_count += 1
+                continue
         
-        # Insert into Supabase (batch insert)
-        result = supabase.table('parking_bay_sensors').insert(transformed_records).execute()
+        if skipped_count > 0:
+            print(f"⚠️  Skipped {skipped_count} records with missing data")
         
-        inserted_count = len(result.data) if result.data else 0
-        print(f"✅ Successfully inserted {inserted_count} parking records")
+        if not transformed_records:
+            print("ℹ️ No valid records to insert")
+            return 0
+        
+        print(f"📊 Upserting {len(transformed_records)} records...")
+        
+        # Upsert into Supabase (batch insert)
+        result = supabase.table('parking_bay_sensors').upsert(
+            transformed_records,
+            on_conflict='zone_number,kerbsideid,status_timestamp'
+        ).execute()
+        
+        inserted_count = len(result.data) if result.data else len(transformed_records)
+        print(f"✅ Successfully upserted {inserted_count} parking records")
         
         return inserted_count
         
     except requests.exceptions.RequestException as e:
         print(f"❌ API request failed: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"📄 Response content: {e.response.text[:500]}")
         sys.exit(1)
     except Exception as e:
         print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == '__main__':
     try:
         count = fetch_parking_data()
-        print(f"🎉 Parking data fetch completed! Inserted {count} records")
+        print(f"🎉 Parking data fetch completed! Upserted {count} records")
     except KeyboardInterrupt:
         print("\n⚠️ Fetch interrupted by user")
         sys.exit(0)

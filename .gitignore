@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Environment variables (IMPORTANT - never commit!)
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/*.log
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker (if you use it later)
+docker-compose.yml
+Dockerfile
+.dockerignore
+fly.toml
+
+# Large data files (don't commit to GitHub)
+*.csv
+*.xlsx
+*.parquet
+*.db
+*.sqlite
+
+# Analysis outputs (optional - you can commit these if you want)
+# Uncomment if you DON'T want to push analysis files:
+# analysis/*.html
+# analysis/*.png
+# analysis/*.pdf
+
+# Temporary files
+*.tmp
+*.temp
+folder_structure.txt
+structure.txt

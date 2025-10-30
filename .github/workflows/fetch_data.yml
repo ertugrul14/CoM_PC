@@ -21,24 +21,22 @@ jobs:
       
       - name: 📦 Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
       
       - name: 🅿️ Fetch parking data
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          cd scripts
-          python fetch_parking_data.py
+          python scripts/fetch_parking_data.py
       
       - name: 🚶 Fetch pedestrian data
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          cd scripts
-          python fetch_pedestrian_data.py
+          python scripts/fetch_pedestrian_data.py
       
       - name: ✅ Summary
         run: |

@@ -2,10 +2,7 @@ name: Fetch Melbourne Data
 
 on:
   schedule:
-    # Run every hour at :00
     - cron: '0 * * * *'
-  
-  # Allow manual trigger
   workflow_dispatch:
 
 jobs:

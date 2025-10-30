@@ -28,7 +28,7 @@ def fetch_pedestrian_data():
         print("✅ Connected to Supabase")
         
         # Get the last fetched timestamp
-        last_record = supabase.table('pedestrian_counts') \
+        last_record = supabase.table('pedestrian_counts_minute') \
             .select('melbourne_time') \
             .order('melbourne_time', desc=True) \
             .limit(1) \
@@ -146,7 +146,7 @@ def fetch_pedestrian_data():
             batch_num = i // upsert_batch_size + 1
             
             try:
-                result = supabase.table('pedestrian_counts').upsert(
+                result = supabase.table('pedestrian_counts_minute').upsert(
                     batch,
                     on_conflict='location_id,melbourne_time'
                 ).execute()

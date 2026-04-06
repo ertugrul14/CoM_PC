@@ -1,0 +1,32 @@
+{
+  "baseline_mae": 4.0246,
+  "feature_importance": {
+    "ped_flow": 41.1318,
+    "total_jobs": 1.7091,
+    "bar_count": 1.705,
+    "cafe_count": 1.6077,
+    "poi_total": 1.451,
+    "dining_capacity": 1.2989,
+    "hour_cos": 1.2964,
+    "business_count": 1.152,
+    "ped_confidence": 1.0912,
+    "cafe_total_seats": 0.8094,
+    "bar_patron_capacity": 0.7533,
+    "hour_sin": 0.5074,
+    "is_public_holiday": 0.4608,
+    "occupancy_rate": 0.3118,
+    "is_weekend": 0.2335,
+    "wind_speed_10m": 0.211,
+    "temperature_2m": 0.1993,
+    "dow_cos": 0.1916,
+    "precipitation": 0.0768,
+    "is_school_holiday": -0.0347,
+    "area_m2": -0.0817,
+    "dow_sin": -0.0994,
+    "relative_humidity_2m": -0.1403
+  },
+  "branch_contribution": {
+    "spatial_branch_delta_mae": 11.8679,
+    "semantic_branch_delta_mae": 8.127
+  }
+}

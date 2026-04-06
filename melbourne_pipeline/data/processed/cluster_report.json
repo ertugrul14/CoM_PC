@@ -1,0 +1,32 @@
+{
+  "k": 4,
+  "bic": {
+    "2": -52482.6,
+    "3": -63016.5,
+    "4": -64705.1,
+    "5": -63148.6,
+    "6": -63541.9,
+    "7": -63977.8,
+    "8": -63022.5,
+    "9": -62291.6,
+    "10": -61027.0
+  },
+  "ari": 0.9643,
+  "silhouette": 0.6511,
+  "pca_components": 20,
+  "pca_variance_explained": 0.9939,
+  "archetype_map": {
+    "0": "morning_pedestrianisation",
+    "1": "morning_pedestrianisation",
+    "2": "evening_outdoor_dining",
+    "3": "weekend_leisure"
+  },
+  "cluster_sizes": {
+    "0": 185,
+    "1": 135,
+    "2": 1055,
+    "3": 22
+  },
+  "n_uncertain": 3,
+  "n_with_flex_windows": 1074
+}

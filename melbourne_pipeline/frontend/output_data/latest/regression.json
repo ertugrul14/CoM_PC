@@ -1,0 +1,42 @@
+{
+  "generated": "2026-04-06 16:14:30 UTC",
+  "source": "parking_associations.json (real pipeline output)",
+  "time_blocks": {
+    "night": {
+      "coefficients": {},
+      "rf_importance": {},
+      "cv_r2_mean": 0,
+      "cv_r2_std": 0
+    },
+    "morning": {
+      "coefficients": {},
+      "rf_importance": {},
+      "cv_r2_mean": 0,
+      "cv_r2_std": 0
+    },
+    "work_am": {
+      "coefficients": {},
+      "rf_importance": {},
+      "cv_r2_mean": 0,
+      "cv_r2_std": 0
+    },
+    "afternoon": {
+      "coefficients": {},
+      "rf_importance": {},
+      "cv_r2_mean": 0,
+      "cv_r2_std": 0
+    },
+    "evening": {
+      "coefficients": {},
+      "rf_importance": {},
+      "cv_r2_mean": 0,
+      "cv_r2_std": 0
+    },
+    "nightlife": {
+      "coefficients": {},
+      "rf_importance": {},
+      "cv_r2_mean": 0,
+      "cv_r2_std": 0
+    }
+  }
+}

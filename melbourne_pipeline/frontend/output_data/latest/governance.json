@@ -1,0 +1,29 @@
+{
+  "generated": "2026-04-06 16:14:30 UTC",
+  "pipeline_version": "3.0_complete_pipeline",
+  "data_sources": {
+    "parking": "Supabase parking_melbourne",
+    "pedestrian": "Supabase ped_melbourne",
+    "polygons": "data/polygons/*.geojson"
+  },
+  "processing_stats": {
+    "streets_analyzed": 1397,
+    "run_summary": {}
+  },
+  "model_info": {
+    "clustering": "KMeans with silhouette validation",
+    "associations": "Ridge regression + Random Forest (permutation importance)",
+    "forecasting": {
+      "architecture": "GRU(2-layer) + GAT(4-head x2) + MLP",
+      "evaluation": {},
+      "training": {}
+    },
+    "simulation": "Gravity-based reallocation with Monte Carlo CI"
+  },
+  "caveats": [
+    "Association analysis shows correlations, not causal relationships",
+    "Simulation results are model-based scenarios, not predictions",
+    "Confidence intervals reflect parameter uncertainty only",
+    "ST-GNN learns baseline patterns; it does NOT learn intervention effects"
+  ]
+}

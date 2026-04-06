@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spatio-Temporal Modelling of Urban Pedestrian Flow for Curbside Reallocation in Melbourne CBD</title>
+<style>
+  /* ── Typography & Reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Georgia", "Times New Roman", serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: #111;
+    background: #fff;
+    max-width: 170mm;
+    margin: 0 auto;
+    padding: 20mm 0;
+  }
+
+  /* ── Header / Title block ── */
+  .paper-header { text-align: center; margin-bottom: 18pt; }
+  .journal-name {
+    font-family: "Arial", sans-serif;
+    font-size: 8pt;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #555;
+    margin-bottom: 6pt;
+    border-bottom: 1px solid #aaa;
+    padding-bottom: 4pt;
+  }
+  h1.title {
+    font-family: "Arial", sans-serif;
+    font-size: 16pt;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 12pt 0 8pt;
+    color: #000;
+  }
+  .authors {
+    font-size: 10pt;
+    font-style: italic;
+    margin-bottom: 4pt;
+  }
+  .affiliation {
+    font-size: 8.5pt;
+    color: #444;
+    margin-bottom: 10pt;
+  }
+  .doi-line {
+    font-size: 8pt;
+    color: #666;
+    font-family: "Arial", sans-serif;
+  }
+
+  /* ── Abstract box ── */
+  .abstract-box {
+    border: 1px solid #bbb;
+    padding: 10pt 14pt;
+    margin: 14pt 0;
+    background: #fafafa;
+  }
+  .abstract-box h2 {
+    font-family: "Arial", sans-serif;
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6pt;
+  }
+  .abstract-text {
+    font-size: 9.5pt;
+    line-height: 1.5;
+    text-align: justify;
+  }
+  .keywords {
+    margin-top: 8pt;
+    font-size: 9pt;
+  }
+  .keywords span { font-weight: bold; }
+
+  /* ── Section headings ── */
+  h2.section {
+    font-family: "Arial", sans-serif;
+    font-size: 11.5pt;
+    font-weight: 700;
+    margin: 20pt 0 8pt;
+    padding-bottom: 3pt;
+    border-bottom: 1.5px solid #222;
+    page-break-after: avoid;
+  }
+  h3.subsection {
+    font-family: "Arial", sans-serif;
+    font-size: 10.5pt;
+    font-weight: 700;
+    margin: 14pt 0 5pt;
+    page-break-after: avoid;
+  }
+  h4.subsubsection {
+    font-family: "Arial", sans-serif;
+    font-size: 10pt;
+    font-weight: 700;
+    font-style: italic;
+    margin: 10pt 0 4pt;
+    page-break-after: avoid;
+  }
+
+  /* ── Body text ── */
+  p { margin-bottom: 7pt; text-align: justify; }
+  p + p { text-indent: 1.5em; }
+  .no-indent { text-indent: 0 !important; }
+
+  /* ── Footnotes ── */
+  sup.fn { font-size: 7pt; color: #c00; vertical-align: super; }
+  .footnote-section {
+    border-top: 0.5px solid #aaa;
+    margin-top: 18pt;
+    padding-top: 6pt;
+    font-size: 8pt;
+    color: #333;
+  }
+  .footnote-section ol { padding-left: 16pt; }
+  .footnote-section li { margin-bottom: 3pt; }
+
+  /* ── Tables ── */
+  .tbl-wrap { margin: 12pt 0; page-break-inside: avoid; }
+  .tbl-caption {
+    font-size: 9pt;
+    font-family: "Arial", sans-serif;
+    font-weight: 700;
+    margin-bottom: 5pt;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+  thead tr { background: #e8e8e8; }
+  th {
+    font-family: "Arial", sans-serif;
+    font-weight: 700;
+    padding: 5pt 7pt;
+    text-align: left;
+    border-top: 1.5px solid #333;
+    border-bottom: 1px solid #555;
+  }
+  td {
+    padding: 4pt 7pt;
+    border-bottom: 0.5px solid #ddd;
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: 1.5px solid #333; }
+  .tbl-note {
+    font-size: 8pt;
+    color: #444;
+    margin-top: 4pt;
+    font-style: italic;
+  }
+
+  /* ── Figures / code blocks ── */
+  .fig-wrap { margin: 14pt 0; page-break-inside: avoid; }
+  .fig-caption {
+    font-size: 9pt;
+    font-family: "Arial", sans-serif;
+    font-weight: 700;
+    margin-top: 5pt;
+  }
+  .fig-placeholder {
+    border: 1px dashed #aaa;
+    background: #f4f4f4;
+    padding: 14pt;
+    text-align: center;
+    font-family: "Arial", sans-serif;
+    font-size: 8.5pt;
+    color: #555;
+    min-height: 70pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .equation {
+    margin: 8pt 30pt;
+    font-style: italic;
+    font-family: "Georgia", serif;
+    font-size: 10pt;
+  }
+  .eq-label { float: right; font-style: normal; }
+
+  /* ── Pipeline diagram (ASCII-style) ── */
+  .pipeline-box {
+    font-family: "Courier New", monospace;
+    font-size: 8pt;
+    background: #f6f6f6;
+    border: 1px solid #ccc;
+    padding: 10pt 14pt;
+    line-height: 1.6;
+    overflow: hidden;
+  }
+
+  /* ── Bibliography ── */
+  .bibliography { margin-top: 18pt; }
+  .bibliography h2 { border-bottom: 1.5px solid #222; }
+  .bib-list { list-style: none; padding: 0; margin-top: 8pt; }
+  .bib-list li {
+    padding-left: 2em;
+    text-indent: -2em;
+    margin-bottom: 6pt;
+    font-size: 9.5pt;
+  }
+
+  /* ── Print / PDF ── */
+  @media print {
+    body { max-width: 100%; padding: 0; }
+    .no-print { display: none; }
+    h2.section, h3.subsection { page-break-after: avoid; }
+    .tbl-wrap, .fig-wrap { page-break-inside: avoid; }
+  }
+
+  /* ── Running header simulation ── */
+  .running-head {
+    font-family: "Arial", sans-serif;
+    font-size: 8pt;
+    color: #666;
+    text-align: right;
+    border-bottom: 0.5px solid #ccc;
+    padding-bottom: 3pt;
+    margin-bottom: 14pt;
+    letter-spacing: 0.3px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════════════════════════════ -->
+<div class="paper-header">
+  <div class="journal-name">Journal of Urban Informatics &amp; Computational Transport Research &mdash; Preprint</div>
+  <h1 class="title">Spatio-Temporal Modelling of Urban Pedestrian Flow for Curbside Reallocation in Melbourne's Central Business District</h1>
+  <div class="authors">Ertugrul Akdemir</div>
+  <div class="affiliation">Melbourne CBD Urban Intelligence Research Group</div>
+  <div class="doi-line">Manuscript submitted for review &mdash; 2026</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     ABSTRACT
+═══════════════════════════════════════════════════════════════════ -->
+<div class="abstract-box">
+  <h2>Abstract</h2>
+  <p class="abstract-text">
+    Urban curbside space is among the most contested and economically significant resources within modern central business districts. As cities grapple with the competing demands of parking, pedestrianisation, outdoor dining, and goods delivery, evidence-based frameworks for reallocating this space remain scarce. This paper presents a complete end-to-end computational pipeline for Melbourne's Central Business District (CBD) that integrates multi-source sensor data, graph-based street network representation, spatio-temporal deep learning, and unsupervised street typology classification to support data-driven curbside reallocation decisions. The pipeline processes 149 days of 15-minute-resolution parking occupancy and pedestrian sensor readings across 1,397 arterial streets, complemented by land-use data from the Census of Land Use and Employment (CLUE) and meteorological inputs. A dual-branch Graph Convolutional Network (GCN) architecture combined with a Gated Recurrent Unit (GRU) temporal encoder and per-node learned bias achieves a test-set coefficient of determination (R²) of 0.927 for pedestrian flow prediction, substantially outperforming single-branch baselines. Unsupervised clustering using Gaussian Mixture Models on 84-dimensional temporal activity profiles, supplemented by five engineered behavioural scores, yields four stable and interpretable street archetypes (Silhouette = 0.651, Adjusted Rand Index = 0.964). Together, these outputs generate spatially explicit intervention opportunity maps that identify streets suitable for morning pedestrianisation, evening outdoor dining expansion, parking reallocation, and weekend leisure activation. The methodology is transferable to other instrumented urban centres and offers a replicable framework for evidence-based urban mobility planning.
+  </p>
+  <div class="keywords"><span>Keywords:</span> spatio-temporal graph neural networks; pedestrian flow prediction; curbside reallocation; urban mobility; graph convolutional network; Gaussian mixture model; Melbourne CBD; urban data science</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SECTION 1 — INTRODUCTION
+═══════════════════════════════════════════════════════════════════ -->
+<h2 class="section">1. Introduction</h2>
+
+<h3 class="subsection">1.1 Background and Context</h3>
+<p>
+  Urban curbside space — the strip of road immediately adjacent to the footpath — has historically been allocated to private vehicle parking. This allocation reflects planning assumptions from the mid-twentieth century that prioritised automobile access to commercial precincts. In contemporary high-density central business districts, however, this assumption is increasingly untenable. Pedestrian footfall has become the dominant driver of retail and hospitality revenue; shared mobility services, last-kilometre delivery fleets, and outdoor dining have emerged as legitimate competing uses; and evidence from both Europe and Australia suggests that pedestrianisation and outdoor seating materially increase economic activation per square metre compared to equivalent parking provision.<sup class="fn">1</sup>
+</p>
+<p>
+  Melbourne's CBD exemplifies these tensions. The city's Hoddle Grid — a dense network of laneways, arterial streets, and mixed-use corridors — generates foot traffic patterns that are highly heterogeneous across space and time. A street serving a morning commuter precinct behaves very differently from one adjacent to a late-night hospitality cluster, yet both may carry identical parking allocation under current policy. The City of Melbourne has committed, through its Transport Strategy 2030 and various local precinct plans, to progressively reallocating curbside space toward higher-value uses; however, such decisions have predominantly been made on the basis of aggregate pedestrian counts and qualitative local knowledge rather than granular, evidence-grounded modelling.<sup class="fn">2</sup>
+</p>
+
+<h3 class="subsection">1.2 Problem Statement and Research Gap</h3>
+<p>
+  Two interlocking challenges limit evidence-based curbside reallocation. First, the city's pedestrian sensor network, while extensive, covers only 68 of 1,397 arterial streets directly; the remainder must be inferred. Second, even where pedestrian data exist, the temporal and spatial heterogeneity of street activity is rarely captured in a form that enables systematic comparison across the network. Existing approaches either rely on static count-based surveys — which are expensive, infrequent, and spatially sparse — or apply coarse zoning classifications that mask within-zone variation.
+</p>
+<p>
+  Graph neural networks have demonstrated strong performance in urban traffic and pedestrian prediction tasks by explicitly modelling the relational structure of street networks.<sup class="fn">3</sup> However, most published architectures treat spatial proximity as the only meaningful relational signal. Streets that share functional characteristics — similar land-use composition, employment density, and hospitality mix — influence one another's pedestrian dynamics in ways that pure proximity does not capture. A dual-graph formulation that jointly models topographic adjacency and semantic (land-use) similarity has not, to the authors' knowledge, been applied to curbside reallocation opportunity scoring at the street segment level.
+</p>
+
+<h3 class="subsection">1.3 Research Aims and Contributions</h3>
+<p>
+  This paper describes and evaluates a complete pipeline — from raw sensor ingestion to spatially explicit intervention maps — that addresses both challenges. The specific contributions are:
+</p>
+<p class="no-indent">(1) A dual-branch GCN–GRU architecture combining spatial proximity graphs and semantic land-use similarity graphs, augmented with per-node learned bias terms, that achieves test R² = 0.927 for 15-minute-ahead pedestrian flow prediction across 1,397 streets.</p>
+<p class="no-indent">(2) An XGBoost-based pedestrian imputation approach that extends sensor coverage from 68 observed streets to the full 1,397-street network, using spatial lag features derived from the proximity graph.</p>
+<p class="no-indent">(3) A temporal aggregation and Gaussian Mixture Model clustering procedure that identifies four stable street archetypes from 84-dimensional weekly activity profiles, supplemented by five interpretable behavioural score dimensions.</p>
+<p class="no-indent">(4) An intervention opportunity scoring module that translates model outputs and street archetypes into actionable curbside reallocation recommendations at the individual street segment level.</p>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SECTION 2 — CONTEXT AND CONCEPTUAL FOUNDATION
+═══════════════════════════════════════════════════════════════════ -->
+<h2 class="section">2. Context and Conceptual Foundation</h2>
+
+<h3 class="subsection">2.1 Study Area</h3>
+<p>
+  The study area is the Melbourne Central Business District, bounded approximately by the Yarra River to the south, Spring Street to the east, La Trobe Street to the north, and Spencer Street to the west. This area encompasses the Hoddle Grid, major retail precincts (Bourke Street, Swanston Street), the financial core (Collins Street), and a high-density hospitality and entertainment zone. It is among the highest-footfall urban precincts in Australia, with pre-pandemic pedestrian counts exceeding 100,000 persons per hour on peak blocks during peak times.<sup class="fn">4</sup>
+</p>
+<p>
+  The street network is represented as a polygon layer of 1,397 eligible arterial and council major streets, filtered from approximately 3,975 total CBD street segments. Each street polygon contains centroid coordinates used for spatial graph construction and serves as the fundamental unit of analysis. Streets classified as intersections are excluded to avoid double-counting at junction points.
+</p>
+
+<h3 class="subsection">2.2 Key Terminology</h3>
+<p>
+  Several domain-specific and technical terms recur throughout this paper. <em>Pedestrian flow</em> (ped_flow) denotes the count of pedestrian movements recorded by an automated sensor within a 15-minute interval; it is the primary prediction target. <em>Parking occupancy rate</em> is the proportion of parking bays on a street that are occupied at a given 15-minute interval, derived from event-level parking sensor records. <em>Time bin</em> refers to a specific 15-minute interval within the study window; there are 14,400 such bins over 149 days. A <em>street profile</em> is a vector of aggregated temporal features — mean pedestrian flow and parking occupancy across each of 42 day-of-week/time-block combinations — representing the behavioural signature of a single street. An <em>archetype</em> is a cluster label assigned to a group of streets that share a characteristic temporal activity pattern, and which implies a corresponding type of curbside intervention that would likely generate the greatest benefit for that group.
+</p>
+
+<h3 class="subsection">2.3 Curbside Reallocation as an Urban Decision Problem</h3>
+<p>
+  Curbside reallocation refers to the administrative and physical conversion of on-street parking to an alternative use — footpath widening, protected cycling lanes, outdoor dining platforms, loading zones, or pedestrian plazas. Such decisions involve multi-stakeholder trade-offs among economic activation, traffic flow, disability access, and community amenity. The decision problem this research addresses is: given a street segment, which type of reallocation (if any) would produce the greatest net benefit, and during which time periods is that intervention most appropriate?
+</p>
+<p>
+  This framing differs from conventional traffic engineering in two important respects. First, the outcome variable is pedestrian welfare (captured as flow) rather than vehicle throughput. Second, the street typology is derived empirically from observed behavioural data rather than assumed from zoning classifications, enabling finer-grained targeting of interventions.
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SECTION 3 — RELATED WORK
+═══════════════════════════════════════════════════════════════════ -->
+<h2 class="section">3. Related Work</h2>
+
+<h3 class="subsection">3.1 Graph Neural Networks for Urban Flow Prediction</h3>
+<p>
+  The application of graph neural networks to traffic and pedestrian forecasting has grown rapidly since the publication of the Diffusion Convolutional Recurrent Neural Network (DCRNN) by Li et al.<sup class="fn">5</sup> DCRNN encodes road network topology as a directed diffusion process over a graph, enabling spatial dependencies to propagate bidirectionally through the network. Subsequent architectures — STGCN (Yu et al.),<sup class="fn">6</sup> AGCRN (Bai et al.),<sup class="fn">7</sup> and Graph WaveNet (Wu et al.)<sup class="fn">8</sup> — have progressively integrated adaptive graph learning, gated convolutional temporal encoders, and dilated causal convolutions. These approaches consistently outperform purely temporal baselines (ARIMA, LSTM) on traffic prediction benchmarks.
+</p>
+<p>
+  Pedestrian-specific prediction is less studied than vehicle traffic prediction. Existing work tends to focus on crowd density estimation from camera feeds or social force simulation, rather than sensor-network-based forecasting at the street segment level. The closest methodological precursors are studies of subway station pedestrian volumes (e.g., Su et al.)<sup class="fn">9</sup> and retail precinct foot-traffic modelling (e.g., Gong et al.),<sup class="fn">10</sup> but neither applies dual-branch graph architectures to CBD-scale curbside analysis.
+</p>
+
+<h3 class="subsection">3.2 Street Typology and Urban Clustering</h3>
+<p>
+  Unsupervised classification of urban street segments has been explored through various lenses: morphological (street width, connectivity), functional (land-use mix), and temporal (activity rhythm). Hao et al.<sup class="fn">11</sup> use k-means clustering on temporally aggregated mobile phone data to derive activity archetypes for Shanghai blocks. Zhao and Zhang<sup class="fn">12</sup> apply spectral clustering to GPS trajectory density surfaces for Beijing ring roads. Both studies demonstrate that temporal activity profiles are more discriminating than static features alone.
+</p>
+<p>
+  Gaussian Mixture Models (GMMs) have seen limited but growing use in urban street classification because they provide soft probabilistic assignments and naturally accommodate elliptical cluster shapes that are common in activity-profile feature space. The use of Bayesian Information Criterion (BIC) for GMM model selection is well established in the statistical clustering literature<sup class="fn">13</sup> and is adopted here.
+</p>
+
+<h3 class="subsection">3.3 Curbside and Pedestrianisation Planning</h3>
+<p>
+  Empirical research on the economic and mobility effects of curbside reallocation is largely concentrated in European cities. Gehl and Svarre's observational work<sup class="fn">14</sup> established that footpath widening and seating provision consistently increase dwell time and spending in commercial precincts. More recently, Litman<sup class="fn">15</sup> provided a comprehensive cost-benefit framework for parking versus active use trade-offs, while Cervero et al.<sup class="fn">16</sup> demonstrated significant pedestrian flow increases following parking removal in San Francisco's SoMa district. Australian evidence remains sparse, although the City of Melbourne's own before-after studies of laneway and street activation projects support broadly similar conclusions.
+</p>
+<p>
+  This paper advances the literature by coupling quantitative spatio-temporal modelling with typology-driven intervention scoring, enabling the prioritisation of reallocation candidates across an entire CBD street network rather than individual case studies.
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SECTION 4 — DATA AND STUDY SETTING
+═══════════════════════════════════════════════════════════════════ -->
+<h2 class="section">4. Data and Study Setting</h2>
+
+<h3 class="subsection">4.1 Study Period and Temporal Resolution</h3>
+<p>
+  Data were collected for 149 days from 1 November 2025 to 30 March 2026 (UTC), encompassing the Melbourne summer season. All time series are discretised into 15-minute bins, yielding T = 14,400 timesteps. This resolution balances granularity (capturing intra-hour pedestrian dynamics) against data volume and model memory constraints. The summer window captures university holiday periods, the Christmas–New Year retail peak, and the Australia Day public holiday, providing a behaviorally varied training corpus.
+</p>
+
+<h3 class="subsection">4.2 Parking Sensor Data</h3>
+<p>
+  Parking occupancy data were sourced from the City of Melbourne's IoT sensor network via a Supabase backend, comprising approximately 2.4 million raw parking event records across 1,981 individual bay sensors. Each record encodes an event type (Present or Unoccupied), a timestamp, and a sensor identifier. Occupancy rates are reconstructed by pairing Present and Unoccupied events with a two-hour maximum duration cap to prevent erroneous long-duration artefacts from unpaired sensors. The resulting time series reports the fraction of occupied bays per street segment per 15-minute interval. Of the 1,397 arterial streets in the study area, 138 have at least one parking sensor.
+</p>
+
+<h3 class="subsection">4.3 Pedestrian Sensor Data</h3>
+<p>
+  Pedestrian counts are collected from 99 automated pedestrian counting sensors installed at key footpath locations across the CBD. These sensors — primarily infrared beam-break or stereo-vision units — record hourly counts that are disaggregated to 15-minute resolution using proportional allocation. Of the 1,397 study streets, 68 lie within the catchment of at least one pedestrian sensor. Table 1 summarises the key data dimensions.
+</p>
+
+<div class="tbl-wrap">
+  <div class="tbl-caption">Table 1. Summary of Primary Data Sources</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Source</th>
+        <th>Records</th>
+        <th>Coverage</th>
+        <th>Resolution</th>
+        <th>Streets covered</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Parking events (IoT)</td><td>~2.4M events</td><td>Nov 2025–Mar 2026</td><td>Event-level</td><td>138 / 1,397</td></tr>
+      <tr><td>Pedestrian counts</td><td>~9.4M readings</td><td>Nov 2025–Mar 2026</td><td>15-min bins</td><td>68 / 1,397</td></tr>
+      <tr><td>Weather (Open-Meteo)</td><td>14,400 hourly obs.</td><td>Nov 2025–Mar 2026</td><td>Hourly → 15-min</td><td>All (city-wide)</td></tr>
+      <tr><td>CLUE land-use</td><td>11 datasets</td><td>2023 release</td><td>Point/polygon</td><td>All (spatially joined)</td></tr>
+    </tbody>
+  </table>
+  <div class="tbl-note">CLUE = Census of Land Use and Employment (City of Melbourne).</div>
+</div>
+
+<h3 class="subsection">4.4 Land-Use and Static Features</h3>
+<p>
+  The Census of Land Use and Employment (CLUE) is the City of Melbourne's annual comprehensive audit of business activity, employment, and land use within the municipality. Eleven CLUE dataset layers were spatially joined to the street polygon layer, yielding nine static per-street features: <em>total_jobs</em> (employment density), <em>cafe_count</em>, <em>cafe_total_seats</em>, <em>bar_count</em>, <em>bar_patron_capacity</em>, <em>business_count</em>, <em>poi_total</em> (points of interest), <em>dining_capacity</em> (total restaurant seats), and <em>area_m2</em> (street polygon area). These features capture the land-use character of each street and serve as both static model inputs and semantic graph construction signals.
+</p>
+
+<h3 class="subsection">4.5 Feature Engineering: Temporal and Cyclic Encodings</h3>
+<p>
+  Four cyclic temporal features are constructed to represent the periodic structure of pedestrian activity. Hour-of-day is encoded as sin(2πh/24) and cos(2πh/24); day-of-week as sin(2πd/7) and cos(2πd/7). These trigonometric encodings ensure that temporal adjacency is preserved in feature space — for instance, 23:45 and 00:15 are represented as similar, as are Sunday and Monday — without requiring the model to learn ordinal adjacency implicitly. Binary flags for weekends, Victorian public holidays, and school holiday periods complete the temporal feature set.
+</p>
+
+<div class="tbl-wrap">
+  <div class="tbl-caption">Table 2. Feature Vector for Each Street–Timestep Observation (F = 23)</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Index</th>
+        <th>Feature name</th>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>ped_flow</td><td>Time-varying</td><td>Pedestrian count per 15 min (prediction target)</td></tr>
+      <tr><td>1</td><td>occupancy_rate</td><td>Time-varying</td><td>Fraction of parking bays occupied [0,1]</td></tr>
+      <tr><td>2</td><td>ped_confidence</td><td>Time-varying</td><td>Sensor confidence tier (1.0 = observed, 0.5 = imputed)</td></tr>
+      <tr><td>3–4</td><td>hour_sin, hour_cos</td><td>Time-varying</td><td>Cyclic encoding of hour-of-day</td></tr>
+      <tr><td>5–6</td><td>dow_sin, dow_cos</td><td>Time-varying</td><td>Cyclic encoding of day-of-week</td></tr>
+      <tr><td>7</td><td>is_weekend</td><td>Time-varying</td><td>Binary: 1 on Saturday/Sunday</td></tr>
+      <tr><td>8</td><td>is_public_holiday</td><td>Time-varying</td><td>Binary: 1 on Victorian public holidays</td></tr>
+      <tr><td>9</td><td>is_school_holiday</td><td>Time-varying</td><td>Binary: 1 during school holiday periods</td></tr>
+      <tr><td>10–13</td><td>temperature, humidity, wind, precipitation</td><td>Time-varying</td><td>Meteorological observations (city-wide)</td></tr>
+      <tr><td>14</td><td>total_jobs</td><td>Static</td><td>Employment count within street polygon</td></tr>
+      <tr><td>15–16</td><td>cafe_count, cafe_total_seats</td><td>Static</td><td>Number of cafes and their seating capacity</td></tr>
+      <tr><td>17–18</td><td>bar_count, bar_patron_capacity</td><td>Static</td><td>Bars and their patron capacity</td></tr>
+      <tr><td>19–20</td><td>business_count, poi_total</td><td>Static</td><td>Business establishments and points of interest</td></tr>
+      <tr><td>21</td><td>dining_capacity</td><td>Static</td><td>Total restaurant/dining seating capacity</td></tr>
+      <tr><td>22</td><td>area_m2</td><td>Static</td><td>Street polygon area (m²)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 class="subsection">4.6 Data Quality Considerations</h3>
+<p>
+  Parking sensor data exhibit several quality issues typical of IoT deployments: unpaired events (a Present without a subsequent Unoccupied), sensor dropouts, and erroneous long-duration occupancies. A two-hour maximum duration cap addresses the last of these. Streets without parking sensors receive occupancy_rate = 0.0 throughout, which introduces a systematic zero-imputation bias for those streets; this is flagged via the <em>valid_parking</em> indicator in downstream outputs.
+</p>
+<p>
+  The pedestrian sensor network covers only 4.9% of study streets directly (68 of 1,397). The remaining 95.1% of streets receive imputed pedestrian flow values generated by an XGBoost gradient boosting model trained on the observed streets (see Section 5.3). All imputed values carry a <em>ped_confidence</em> of 0.5, compared to 1.0 for observed streets, enabling downstream components to weight or discount imputed values as appropriate.
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SECTION 5 — METHODOLOGY
+═══════════════════════════════════════════════════════════════════ -->
+<h2 class="section">5. Methodology</h2>
+
+<h3 class="subsection">5.1 Pipeline Overview</h3>
+<p>
+  The end-to-end pipeline comprises twelve sequential steps, illustrated conceptually in Figure 1. Steps 1–3 handle data ingestion and feature engineering; Steps 4–5 construct the street graph and impute missing pedestrian observations; Steps 6–7 aggregate temporal profiles and classify streets into archetypes; Steps 8–10 assemble the model input tensor, train the spatio-temporal model, and compute feature importance; Steps 11–12 score intervention opportunities and export outputs for the web-based visualisation interface.
+</p>
+
+<div class="fig-wrap">
+  <div class="fig-placeholder">
+    FIGURE 1 PLACEHOLDER<br><br>
+    [Pipeline flowchart: 12 sequential steps from left to right, each as a labelled box connected by arrows.<br>
+    Row 1 (Data): Step 1 Ingest → Step 2 Snap Sensors → Step 3 Temporal Features<br>
+    Row 2 (Graph+ML): Step 4 Graph Construction → Step 5 Ped Imputation → Step 6 Aggregate Profiles → Step 7 Cluster<br>
+    Row 3 (Model): Step 8 Assemble Cube → Step 9 Train GCN-GRU → Step 10 Feature Importance<br>
+    Row 4 (Output): Step 11 Score Opportunities → Step 12 Export<br>
+    Annotations: input data sources on left (Supabase, Open-Meteo, CLUE); output artefacts on right (best_model.pt, opportunities.json, GeoJSON exports)]
+  </div>
+  <div class="fig-caption">Figure 1. Overview of the Melbourne CBD Curbside Reallocation Pipeline. Arrows indicate data flow between steps. Grey boxes denote data artefacts; coloured boxes denote processing steps.</div>
+</div>
+
+<h3 class="subsection">5.2 Graph Construction (Step 4)</h3>
+
+<h4 class="subsubsection">5.2.1 Spatial Proximity Graph</h4>
+<p>
+  The spatial graph encodes geographic adjacency among streets. For each street centroid, the eight nearest centroids (k = 8) are identified using Euclidean distance, yielding directed edges. Edge weights are assigned via exponential decay:
+</p>
+<div class="equation">w<sub>ij</sub> = exp(−d<sub>ij</sub> / σ) <span class="eq-label">(1)</span></div>
+<p class="no-indent">
+  where d<sub>ij</sub> is the centroid-to-centroid distance in metres and σ is set to the median pairwise distance within the k-neighbourhood. This ensures that proximate streets contribute strongly to their neighbours' representations while distant streets are effectively excluded. Exponential decay is preferred over inverse-distance weighting because it produces a smoother gradient and avoids the singularity at d = 0.
+</p>
+<p>
+  Physically, the spatial graph captures the fact that adjacent streets share pedestrian demand sources — a commuter or tourist walking through a precinct will pass through multiple consecutive streets, creating correlated pedestrian flows. If one street experiences elevated activity, its immediate neighbours are likely to as well.
+</p>
+
+<h4 class="subsubsection">5.2.2 Semantic Similarity Graph</h4>
+<p>
+  The semantic graph connects streets with similar land-use compositions, regardless of spatial proximity. Seven activity features are used: total_jobs, cafe_count, cafe_total_seats, bar_count, bar_patron_capacity, business_count, and poi_total. An edge is created between streets i and j if at least two of these features are both active (non-zero) in both streets, the fraction of shared active features meets a minimum ratio threshold (60%), and the log-ratio similarity of shared features is below a threshold of 0.70:
+</p>
+<div class="equation">sim<sub>ij</sub> = mean<sub>k∈S</sub> |log(x<sub>ik</sub>/x<sub>jk</sub>)|, edge if sim<sub>ij</sub> ≤ 0.70 <span class="eq-label">(2)</span></div>
+<p class="no-indent">
+  where S is the set of features active in both streets and x<sub>ik</sub> is the normalised value of feature k for street i. The semantic graph captures functional homogeneity: a hospitality-intensive laneway street and a similarly characterised street on the other side of the CBD may have correlated pedestrian dynamics during evening hours even though they are not spatially adjacent.
+</p>
+
+<h3 class="subsection">5.3 Pedestrian Flow Imputation (Step 5)</h3>
+<p>
+  Because only 68 of 1,397 streets have direct pedestrian sensor coverage, a supervised imputation model is necessary to extend coverage to the full street network. An XGBoost gradient boosting model is trained using GroupKFold cross-validation with five folds, where the grouping variable is the street identifier. This ensures that streets are held out entirely in their assigned test fold, testing the model's cross-street (rather than within-street) generalisation ability.
+</p>
+<p>
+  The imputation target is the log1p-transformed pedestrian flow, addressing the right-skewed distribution of raw counts. Input features include all F = 23 features plus a spatial lag feature: the mean pedestrian flow of the k = 8 nearest neighbours in the spatial graph at the same timestep. Interaction terms between cyclic time encodings and the weekend indicator are also included. The log1p transformation (log(1 + x)) is applied because it stabilises variance and prevents the model from being dominated by a small number of very high-count streets; the inverse transformation exp(x) − 1 is applied to recover counts.
+</p>
+
+<h3 class="subsection">5.4 Temporal Profile Aggregation (Step 6)</h3>
+<p>
+  To characterise each street's behavioural signature for clustering purposes, 15-minute time series are aggregated into weekly profiles. The day is partitioned into six time blocks: night (00:00–05:59), morning (06:00–09:59), work_am (10:00–11:59), midday (12:00–13:59), work_pm (14:00–17:59), and evening (18:00–23:59). These blocks reflect the natural rhythm of Melbourne CBD activity — commute peaks, retail trading hours, and hospitality periods. Over seven days and six blocks, each signal (pedestrian flow and parking occupancy) yields 42 features per street, for a 84-dimensional profile vector.
+</p>
+<p>
+  Five engineered behavioural scores supplement the raw profile vectors. <em>score_morning</em> is the mean pedestrian flow across weekday morning and work_am blocks; <em>score_midday</em> averages weekday midday and work_pm blocks; <em>score_evening</em> averages all-day evening blocks; <em>score_weekend_ratio</em> is the ratio of mean weekend flow to mean weekday flow (clipped to [0, 5]), capturing relative weekend activation; and <em>score_parking_flex</em> is the fraction of time blocks in which parking occupancy falls below 30%, indicating available physical capacity for conversion. These scores provide explicit axes that enable the clustering algorithm to distinguish streets more reliably than from the 84-dimensional raw profile alone.
+</p>
+<p>
+  A critical design decision was to <em>not</em> normalise pedestrian profile vectors by each street's overall mean flow (row-normalisation). Initial experiments with row-normalisation produced a Silhouette score of 0.083 — near random — because dividing each street's profile by its own mean destroys the between-street variance in absolute activity level that is the primary discriminant for curbside intervention planning. A high-footfall entertainment street and a low-footfall residential street may have similar normalised profiles despite requiring entirely different interventions. Retaining raw flow values and applying global z-score standardisation in the clustering step preserves this information.
+</p>
+
+<h3 class="subsection">5.5 Street Clustering (Step 7)</h3>
+<p>
+  Prior to clustering, all 89 profile features (84 temporal + 5 scores) are standardised using z-score normalisation (zero mean, unit variance). Principal Component Analysis (PCA) is then applied to reduce dimensionality to 20 components, which collectively explain 99.39% of total variance. The PCA step is applied for two reasons: first, it removes collinearity among time-block features (e.g., Tuesday morning and Wednesday morning are strongly correlated); second, it reduces the feature space to a compact representation that improves GMM convergence.
+</p>
+<p>
+  A Gaussian Mixture Model (GMM) is fitted for k values from 2 to 10. For each k, the Bayesian Information Criterion (BIC) is computed; the optimal k minimises BIC. The BIC penalises model complexity (number of free parameters) against goodness of fit (log-likelihood), selecting the model that best explains the data without over-fitting. The optimal k = 4 achieves BIC = −64,705.1, compared to BIC = +7,043.2 with row-normalised profiles under the same procedure.
+</p>
+<p>
+  Cluster stability is assessed via bootstrap ARI (Adjusted Rand Index) over 20 re-runs. The ARI measures the agreement between two clustering assignments, corrected for chance; a value near 1.0 indicates near-identical cluster membership across runs. The mean ARI of 0.9643 confirms high stability, meaning that the four-cluster solution is robust to random initialisation.
+</p>
+<p>
+  Archetype labels are assigned based on two dimensions: overall activity level (mean pedestrian flow z-score across all time blocks) and parking flexibility (score_parking_flex). Streets with activity z-score greater than 1.0 standard deviation above the mean are labelled <em>major_pedestrian_corridors</em>. Streets with activity z-score below −0.5 are labelled <em>latent_activation_potential</em>, indicating underutilised streets with scope for demand generation. Among medium-activity streets, those with parking flexibility below 85% are labelled <em>parking_reallocation_priority</em>, and the remainder are labelled <em>midday_retail_activation</em>.
+</p>
+
+<h3 class="subsection">5.6 Data Cube Assembly (Step 8)</h3>
+<p>
+  The model input is a three-dimensional tensor of shape N × T × F = 1,397 × 14,400 × 23, referred to as the data cube. Fifteen continuous features (all features except binary flags and the cyclic encodings) are standardised using global z-scores computed over the training period only, preventing information leakage from the validation or test periods. The sparse adjacency matrices for both graphs are symmetrically normalised using the Chebyshev renormalisation trick:
+</p>
+<div class="equation">Â = D̃<sup>−1/2</sup> Ã D̃<sup>−1/2</sup> <span class="eq-label">(3)</span></div>
+<p class="no-indent">
+  where Ã = A + I is the adjacency matrix with self-loops added and D̃ is the corresponding degree matrix. This normalisation ensures that node representations are weighted averages of their neighbours (rather than sums), stabilising gradient flow during training.
+</p>
+
+<h3 class="subsection">5.7 Spatio-Temporal Model Architecture (Step 9)</h3>
+<p>
+  The prediction model — referred to as MultiGCN — is a dual-branch spatio-temporal graph neural network. Its architecture is illustrated in Figure 2. The model takes as input a window of W = 96 consecutive 15-minute timesteps (spanning 24 hours) for all N streets simultaneously, and outputs a single-step prediction of pedestrian flow at t+1 for each street.
+</p>
+
+<div class="fig-wrap">
+  <div class="fig-placeholder">
+    FIGURE 2 PLACEHOLDER<br><br>
+    [Model architecture diagram. Show as a vertical data-flow diagram:<br>
+    Input: [B × W × N × F] (8 × 96 × 1397 × 23)<br>
+    ↓<br>
+    Branch 1 (Spatial GCN): Linear F→H, then sparse matmul with A_spatial, ReLU → [B×W×N×H=64]<br>
+    Branch 2 (Semantic GCN): Linear F→H, then sparse matmul with A_semantic, ReLU → [B×W×N×H=64]<br>
+    ↓ Concatenate along feature dim<br>
+    [B × W × N × 2H=128]  →  reshape to [B×N × W × 2H]<br>
+    ↓<br>
+    GRU Encoder: input_size=128, hidden_size=64, num_layers=2, dropout=0.1 → [B×N × H=64]<br>
+    ↓<br>
+    Linear head: H→1 → [B × N × 1]<br>
+    ↓<br>
+    + Per-node bias: learned parameter [N × 1]<br>
+    ↓<br>
+    Output: [B × N × 1] pedestrian flow prediction]
+  </div>
+  <div class="fig-caption">Figure 2. MultiGCN Architecture. Dual GCN branches process spatial and semantic graph signals independently; outputs are concatenated and encoded temporally by a two-layer GRU; a per-node learned bias corrects for systematic street-level prediction offsets.</div>
+</div>
+
+<h4 class="subsubsection">5.7.1 Graph Convolutional Branches</h4>
+<p>
+  Each GCN branch applies a single graph convolution to the F-dimensional input features, projecting them to a H = 64-dimensional hidden representation:
+</p>
+<div class="equation">H = ReLU(Â · X · W<sub>gcn</sub>) <span class="eq-label">(4)</span></div>
+<p class="no-indent">
+  where X ∈ ℝ<sup>N×F</sup> is the node feature matrix at a single timestep, W<sub>gcn</sub> ∈ ℝ<sup>F×H</sup> is the learnable weight matrix, and Â is the normalised adjacency as defined in Equation (3). The multiplication ÂX computes for each node a weighted average of its neighbourhood's features, enabling the model to incorporate spatial context. The two branches use identical architectures but separate weight matrices and separate adjacency matrices (spatial vs. semantic). Their outputs are concatenated to form a 2H = 128-dimensional representation at each (street, timestep) position.
+</p>
+<p>
+  The practical implication is that each street's representation encodes not only its own features but also a summary of what its geographic neighbours and its functionally similar counterparts are doing. A street seeing unusual pedestrian activity because of a nearby event will propagate that signal to adjacent streets via the spatial branch.
+</p>
+
+<h4 class="subsubsection">5.7.2 GRU Temporal Encoder</h4>
+<p>
+  The Gated Recurrent Unit (GRU) is a recurrent neural network architecture that maintains a hidden state across timesteps using learned gating mechanisms. Unlike a standard recurrent network, the GRU's update and reset gates allow it to selectively remember or forget prior context, making it well-suited to time series with varying temporal dependencies. A two-layer GRU with hidden_size = 64 and dropout = 0.1 between layers is applied to the W = 96 timestep sequence for each street independently. Only the final hidden state (representing the end of the 24-hour input window) is passed to the prediction head.
+</p>
+<p>
+  In practical terms, the GRU enables the model to recognise patterns such as "this street had elevated activity in the morning rush, so it is likely to show elevated activity at lunchtime" — temporal context that a purely spatial model cannot capture. The two-layer design allows the first layer to capture short-range temporal dependencies (e.g., within an hour) and the second to capture longer-range patterns (e.g., morning-to-afternoon correlation).
+</p>
+
+<h4 class="subsubsection">5.7.3 Per-Node Bias</h4>
+<p>
+  The prediction head applies a linear transformation from H = 64 to a scalar prediction and adds a per-node learned bias term b<sub>i</sub> ∈ ℝ for each street i. The bias is initialised to zero and learned jointly with all other model parameters. This allows the model to correct for systematic over- or under-prediction on specific streets — for instance, a very high-footfall shopping corridor where the global model consistently under-predicts, or a peripheral street where it consistently over-predicts. Without this term, such street-level biases would need to be absorbed by the GCN or GRU layers, reducing their generalisation capacity.
+</p>
+<p>
+  The addition of per-node bias terms increased validation R² from approximately 0.88 to 0.935 in ablation experiments, representing the single most impactful architectural modification during development.
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SECTION 6 — EXPERIMENTAL SETUP
+═══════════════════════════════════════════════════════════════════ -->
+<h2 class="section">6. Experimental Setup</h2>
+
+<h3 class="subsection">6.1 Training Configuration</h3>
+<p>
+  The model is trained on a CPU-only environment (Intel-based workstation, no GPU acceleration). A chronological 70/15/15 split is applied: the first 70% of timesteps (bins 0–10,079, corresponding to 1 November 2025–13 February 2026) constitute the training set; the following 15% (bins 10,080–12,239, 14 February–8 March 2026) form the validation set; and the final 15% (bins 12,240–14,399, 9–30 March 2026) are held out as the test set. This chronological partitioning prevents any form of temporal leakage from future observations into the training distribution.
+</p>
+<p>
+  At each training iteration, a mini-batch of B = 8 non-overlapping windows of length W = 96 is randomly sampled from the training range. A total of 256 gradient steps are performed per epoch. The Adam optimiser (Kingma and Ba)<sup class="fn">17</sup> is used with learning rate η = 10<sup>−3</sup>; a ReduceLROnPlateau scheduler halves the learning rate when validation MAE fails to improve for 8 consecutive epochs. Gradient clipping at norm 1.0 prevents destabilising gradient explosions. Training stops after a maximum of 200 epochs or when validation MAE fails to improve for 25 consecutive epochs (early stopping).
+</p>
+
+<div class="tbl-wrap">
+  <div class="tbl-caption">Table 3. Model Hyperparameter Configuration</div>
+  <table>
+    <thead>
+      <tr><th>Parameter</th><th>Value</th><th>Rationale</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Window length (W)</td><td>96 bins (24 h)</td><td>Captures full diurnal cycle</td></tr>
+      <tr><td>Hidden dimension (H)</td><td>64</td><td>Balance of capacity vs. training speed</td></tr>
+      <tr><td>GRU layers</td><td>2</td><td>Multi-scale temporal dependencies</td></tr>
+      <tr><td>Dropout</td><td>0.1</td><td>Light regularisation</td></tr>
+      <tr><td>Batch size</td><td>8 windows</td><td>CPU memory constraint</td></tr>
+      <tr><td>Gradient steps / epoch</td><td>256</td><td>Sufficient data coverage per epoch</td></tr>
+      <tr><td>Learning rate</td><td>10<sup>−3</sup></td><td>Adam default; reduced on plateau</td></tr>
+      <tr><td>LR schedule</td><td>×0.5 if plateau 8 epochs</td><td>Fine-tunes after initial convergence</td></tr>
+      <tr><td>Early stopping patience</td><td>25 epochs</td><td>Tolerates LR reduction cycles</td></tr>
+      <tr><td>Loss function</td><td>L1 (MAE)</td><td>Robust to outlier counts</td></tr>
+      <tr><td>Gradient clipping</td><td>1.0 (L2 norm)</td><td>Stabilises training</td></tr>
+      <tr><td>Random seed</td><td>42</td><td>Reproducibility</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 class="subsection">6.2 Validation Protocol</h3>
+<p>
+  To ensure stable early stopping, validation is performed on a fixed set of 128 evenly-spaced window starts within the validation range, reused identically every epoch. This design eliminates the ±3 MAE epoch-to-epoch noise observed with randomly sampled validation windows, enabling reliable convergence detection. Test evaluation uses a different set of 128 fixed windows within the held-out test range and is performed only once, after training completes, to preserve the integrity of the test set.
+</p>
+
+<h3 class="subsection">6.3 Baselines and Evaluation Metrics</h3>
+<p>
+  Three evaluation metrics are reported. Mean Absolute Error (MAE) measures the average absolute difference between predicted and actual pedestrian counts per 15-minute interval per street; a lower MAE directly translates to more reliable operational predictions. Root Mean Squared Error (RMSE) penalises large errors more heavily than MAE and is sensitive to peak-period prediction failures. The coefficient of determination R² represents the proportion of variance in the observed pedestrian flow that the model explains; a value closer to 1.0 indicates a better fit.
+</p>
+<p>
+  The three metrics are defined formally:
+</p>
+<div class="equation">MAE = (1/n) Σ |ŷ<sub>i</sub> − y<sub>i</sub>| <span class="eq-label">(5)</span></div>
+<div class="equation">RMSE = √[(1/n) Σ (ŷ<sub>i</sub> − y<sub>i</sub>)²] <span class="eq-label">(6)</span></div>
+<div class="equation">R² = 1 − [Σ(ŷ<sub>i</sub> − y<sub>i</sub>)²] / [Σ(y<sub>i</sub> − ȳ)²] <span class="eq-label">(7)</span></div>
+<p class="no-indent">
+  In the context of pedestrian flow prediction, a MAE of 4 pedestrians per 15-minute interval can be interpreted as an average street-level prediction error of approximately 16 people per hour — acceptable for curbside planning purposes, where decisions operate at the level of typical daily or weekly flow rather than individual intervals.
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SECTION 7 — RESULTS
+═══════════════════════════════════════════════════════════════════ -->
+<h2 class="section">7. Results</h2>
+
+<h3 class="subsection">7.1 Training Convergence</h3>
+<p>
+  The model was trained for 194 epochs before early stopping was triggered. Figure 3 shows the validation MAE trajectory across training. The model converges smoothly, with the steepest improvement in the first 50 epochs (MAE declining from approximately 16.3 to 5.7). Improvement continues more gradually through epochs 50–150 as the learning rate schedule reduces the step size, before stabilising near the final value. No significant overfitting — as measured by divergence between training and validation loss — was observed.
+</p>
+
+<div class="fig-wrap">
+  <div class="fig-placeholder">
+    FIGURE 3 PLACEHOLDER<br><br>
+    [Line chart: x-axis = Epoch (0–200), y-axis = Validation MAE (pedestrians / 15-min).<br>
+    Curve starts at ~16.3, drops steeply to ~5.7 at epoch 50, continues declining to ~4.2 at epoch 194.<br>
+    Mark the early stopping point at epoch 194 with a vertical dashed line.<br>
+    Secondary y-axis or annotation: show learning rate reduction events (×0.5 steps) as tick marks.]
+  </div>
+  <div class="fig-caption">Figure 3. Validation MAE across training epochs. The curve shows smooth convergence with no overfitting. Learning rate reductions (×0.5) accelerate later-stage fine-tuning.</div>
+</div>
+
+<div class="tbl-wrap">
+  <div class="tbl-caption">Table 4. Training Convergence Milestones</div>
+  <table>
+    <thead>
+      <tr><th>Epoch</th><th>Val MAE</th><th>Val RMSE</th><th>Val R²</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>16.34</td><td>—</td><td>0.341</td></tr>
+      <tr><td>10</td><td>8.37</td><td>—</td><td>0.774</td></tr>
+      <tr><td>50</td><td>5.70</td><td>—</td><td>0.895</td></tr>
+      <tr><td>100</td><td>4.57</td><td>—</td><td>0.914</td></tr>
+      <tr><td>194 (best)</td><td>4.23</td><td>17.89</td><td>0.935</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 class="subsection">7.2 Predictive Performance</h3>
+<p>
+  Table 5 presents the final evaluation results on both the validation and held-out test sets. The model achieves test R² = 0.927, indicating that 92.7% of the variance in observed pedestrian flow across all 1,397 streets and 2,160 test timesteps is explained by the model. The close alignment between validation and test metrics (R² = 0.935 vs. 0.927) demonstrates that the model generalises well to the held-out March 2026 period, which was entirely unseen during training and hyperparameter tuning.
+</p>
+
+<div class="tbl-wrap">
+  <div class="tbl-caption">Table 5. Model Evaluation — Validation and Test Sets</div>
+  <table>
+    <thead>
+      <tr><th>Split</th><th>Period</th><th>MAE</th><th>RMSE</th><th>R²</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Validation</td><td>14 Feb – 8 Mar 2026</td><td>4.23</td><td>17.89</td><td>0.935</td></tr>
+      <tr><td>Test</td><td>9 – 30 Mar 2026</td><td>4.16</td><td>18.99</td><td>0.927</td></tr>
+    </tbody>
+  </table>
+  <div class="tbl-note">MAE and RMSE in units of pedestrians per 15-minute interval. R² computed over all 1,397 streets and 128 fixed evaluation windows.</div>
+</div>
+
+<h3 class="subsection">7.3 Feature Importance</h3>
+<p>
+  Table 6 reports permutation feature importance, computed by replacing each feature with Gaussian noise and measuring the resulting increase in validation MAE over three independent repeats. Features with larger importance values are more critical to model performance; negative values indicate features that marginally harm performance and could be removed without loss.
+</p>
+<p>
+  Lagged pedestrian flow dominates (ΔMAE = +41.13), confirming strong temporal autocorrelation in pedestrian counts — the single best predictor of pedestrian activity at time t is the activity observed 15 minutes prior. Land-use features occupy the next tier: employment density, bar presence, cafe count, and points of interest each contribute 1.3–1.7 MAE units. This confirms that the urban fabric of a street — its concentration of employment, food, and hospitality establishments — is a persistent determinant of pedestrian attraction. The cyclic hour encoding (hour_cos, +1.30) also contributes meaningfully, capturing the diurnal rhythm of urban activity. Meteorological variables (temperature, wind, precipitation) contribute modestly (0.1–0.2 MAE), suggesting that Melbourne CBD pedestrian patterns are dominated by habitual commuting and scheduled activity rather than weather responsiveness.
+</p>
+
+<div class="tbl-wrap">
+  <div class="tbl-caption">Table 6. Permutation Feature Importance (Top 15, Val MAE Baseline = 4.02)</div>
+  <table>
+    <thead>
+      <tr><th>Rank</th><th>Feature</th><th>ΔMAE</th><th>% of baseline</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>ped_flow (lagged)</td><td>+41.13</td><td>+1,022%</td></tr>
+      <tr><td>2</td><td>total_jobs</td><td>+1.71</td><td>+42%</td></tr>
+      <tr><td>3</td><td>bar_count</td><td>+1.71</td><td>+42%</td></tr>
+      <tr><td>4</td><td>cafe_count</td><td>+1.61</td><td>+40%</td></tr>
+      <tr><td>5</td><td>poi_total</td><td>+1.45</td><td>+36%</td></tr>
+      <tr><td>6</td><td>dining_capacity</td><td>+1.30</td><td>+32%</td></tr>
+      <tr><td>7</td><td>hour_cos</td><td>+1.30</td><td>+32%</td></tr>
+      <tr><td>8</td><td>business_count</td><td>+1.15</td><td>+29%</td></tr>
+      <tr><td>9</td><td>ped_confidence</td><td>+1.09</td><td>+27%</td></tr>
+      <tr><td>10</td><td>cafe_total_seats</td><td>+0.81</td><td>+20%</td></tr>
+      <tr><td>11</td><td>bar_patron_capacity</td><td>+0.75</td><td>+19%</td></tr>
+      <tr><td>12</td><td>hour_sin</td><td>+0.51</td><td>+13%</td></tr>
+      <tr><td>13</td><td>is_public_holiday</td><td>+0.46</td><td>+11%</td></tr>
+      <tr><td>14</td><td>occupancy_rate</td><td>+0.31</td><td>+8%</td></tr>
+      <tr><td>15</td><td>is_weekend</td><td>+0.23</td><td>+6%</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 class="subsection">7.4 Graph Branch Contribution</h3>
+<p>
+  To assess the independent contribution of each graph branch, ablation experiments were conducted by removing each branch entirely (replacing its output with zeros). Removing the spatial GCN branch increased validation MAE by +11.87 (a 2.95× increase over the baseline of 4.02), while removing the semantic branch increased MAE by +8.13 (2.02×). Both branches are essential; the spatial branch contributes more, consistent with the observation that geographic proximity is the dominant signal in urban pedestrian propagation. However, the semantic branch's substantial contribution (+8.13) validates the hypothesis that land-use functional similarity provides non-redundant predictive information.
+</p>
+
+<h3 class="subsection">7.5 Street Clustering Results</h3>
+<p>
+  The GMM selected k = 4 clusters with BIC = −64,705.1. Table 7 summarises the cluster composition and assigned archetypes. Figure 4 illustrates the BIC curve across k = 2 to 10.
+</p>
+
+<div class="tbl-wrap">
+  <div class="tbl-caption">Table 7. Cluster Composition and Street Archetypes</div>
+  <table>
+    <thead>
+      <tr><th>Cluster</th><th>Size (streets)</th><th>% of network</th><th>Archetype</th><th>Characteristic pattern</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>185</td><td>13.2%</td><td>Morning Pedestrianisation</td><td>High weekday morning/commute pedestrian flow; moderate evening; parking underutilised after 10am</td></tr>
+      <tr><td>1</td><td>135</td><td>9.7%</td><td>Latent Activation Potential</td><td>Below-average pedestrian flow across all periods; high parking flexibility; potential for demand generation</td></tr>
+      <tr><td>2</td><td>1,055</td><td>75.5%</td><td>Midday–Evening Retail / Dining</td><td>Majority cluster; moderate pedestrian flows peaking midday–evening; variable parking availability</td></tr>
+      <tr><td>3</td><td>22</td><td>1.6%</td><td>Parking Reallocation Priority</td><td>High pedestrian demand; persistently high parking occupancy; physical capacity most constrained</td></tr>
+    </tbody>
+  </table>
+  <div class="tbl-note">Silhouette score = 0.651; Adjusted Rand Index (bootstrap stability) = 0.964. Archetype assignment based on activity-level z-score and parking flexibility score.</div>
+</div>
+
+<div class="fig-wrap">
+  <div class="fig-placeholder">
+    FIGURE 4 PLACEHOLDER<br><br>
+    [Line chart: x-axis = Number of Clusters k (2–10), y-axis = BIC score.<br>
+    Curve decreases from k=2 (BIC ≈ −52,483) to k=4 (BIC ≈ −64,705, minimum), then increases slightly to k=10 (BIC ≈ −61,027).<br>
+    Mark the optimal k=4 with a filled circle and annotation "Optimal k=4, BIC=−64,705".<br>
+    Add a reference annotation showing the contrast with row-normalised BIC (+7,043 at k=4).]
+  </div>
+  <div class="fig-caption">Figure 4. GMM BIC curve for k = 2–10 clusters. The minimum at k = 4 identifies the optimal cluster count. BIC values are negative, indicating that the data exhibit genuine structure; compare to positive BIC ≈ +7,043 obtained under row-normalised profiles, which implied noise-level structure.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SECTION 8 — DISCUSSION
+═══════════════════════════════════════════════════════════════════ -->
+<h2 class="section">8. Discussion</h2>
+
+<h3 class="subsection">8.1 Model Performance in Context</h3>
+<p>
+  A test R² of 0.927 is high relative to the published spatio-temporal forecasting literature. DCRNN reported R² values of approximately 0.82–0.90 on METR-LA and PEMS-BAY traffic benchmarks; Graph WaveNet achieved approximately 0.91–0.93.<sup class="fn">8</sup> The MultiGCN result is broadly comparable to the upper range of these benchmarks, which is encouraging given that pedestrian flows have a substantially higher coefficient of variation than vehicle traffic (due to event-driven spikes and laneway micro-environments). The per-node bias mechanism appears to be the key enabler, as it allows the model to correct for systematic street-level prediction offsets without requiring additional network capacity.
+</p>
+<p>
+  The relatively modest RMSE (18.99) compared to MAE (4.16) — a ratio of approximately 4.6 — suggests the presence of intermittent large errors on peak-activity streets or event-driven periods. This is consistent with the Melbourne summer calendar: events such as the Australian Open, Melbourne Cup, and New Year's Eve produce street-level pedestrian spikes that are difficult to predict purely from the regular temporal cycle. Future work should incorporate event calendars as additional binary indicator features.
+</p>
+
+<h3 class="subsection">8.2 The Role of Graph Structure</h3>
+<p>
+  The ablation results confirm that both graph branches contribute non-redundant information. The spatial branch's greater contribution (+11.87 vs. +8.13 for semantic) is consistent with classic urban mobility theory: spatial proximity governs pedestrian route choice, and a street's activity is strongly influenced by its immediate neighbours. However, the semantic branch's substantial contribution indicates that purely proximity-based models systematically under-predict for streets with specific land-use profiles — particularly hospitality-intensive streets, where activity is driven by destination choice rather than through-routing. The dual-branch design effectively separates these two mechanisms.
+</p>
+
+<h3 class="subsection">8.3 Clustering Methodology and the Normalisation Choice</h3>
+<p>
+  The decision to retain absolute pedestrian flow values in the profile vectors was the most consequential methodological choice in the clustering pipeline. When profiles are row-normalised, every street's activity pattern is expressed as a relative distribution across time blocks, independent of overall activity level. Under Melbourne summer conditions — where the CBD's dominant activity mode is midday and evening-weighted for the majority of streets — this produces a situation where almost all streets appear similar in shape, even if their absolute footfall differs by two orders of magnitude. The GMM then finds no genuine cluster structure (BIC > 0, Silhouette ≈ 0.08).
+</p>
+<p>
+  Retaining raw flow values and applying global standardisation preserves the between-street variance in overall activity level, which is the principal axis along which streets differ for curbside planning purposes. A high-footfall corridor and a peripheral service street have very different reallocation needs; this difference should drive the clustering, not be removed by normalisation.
+</p>
+
+<h3 class="subsection">8.4 Intervention Opportunity Implications</h3>
+<p>
+  The four-cluster typology maps naturally onto a decision framework for curbside reallocation. The 22 streets classified as Parking Reallocation Priority are candidates for immediate action: their combination of high pedestrian demand and persistently occupied parking indicates a genuine physical bottleneck where pedestrian space is competing with parking for the same kerb. The 185 Morning Pedestrianisation streets have concentrated commute-period demand, suggesting time-of-day flexible curbside regulations (e.g., no parking 7am–10am) would maximise benefit with minimal impact on off-peak parking. The 135 Latent Activation Potential streets present a longer-term planning opportunity: they currently attract low pedestrian flows, but their parking flexibility and land-use context may support activation through pop-up markets, temporary seating, or programming.
+</p>
+<p>
+  The dominance of the Midday–Evening Retail cluster (75.5% of streets) is not a clustering failure but a reflection of Melbourne CBD reality: the majority of arterial streets serve a broadly similar mixed-use retail and hospitality function with moderate and relatively homogeneous pedestrian profiles. The clustering correctly identifies the four interpretable poles of variation from this broad base.
+</p>
+
+<h3 class="subsection">8.5 Limitations</h3>
+<p>
+  Several limitations of the present work should be acknowledged. First, the study period (149 days, November–March) captures only the Melbourne summer. This is a behaviourally distinctive period — school holidays, major events, and warm weather all influence CBD pedestrian patterns differently from autumn or winter. The absence of winter data means the model may generalise poorly to cooler-month predictions without retraining. Future work should extend the study window to a full calendar year.
+</p>
+<p>
+  Second, imputation of pedestrian flows via XGBoost for 1,329 streets (95.1% of the network) introduces systematic uncertainty. While GroupKFold cross-validation tests cross-street generalisation, the imputation model cannot observe the true pedestrian behaviour on unmonitored streets, and its confidence intervals are not propagated through the GCN–GRU model. A Bayesian or ensemble approach that carries forward imputation uncertainty to final predictions would strengthen the framework's reliability for high-stakes decisions.
+</p>
+<p>
+  Third, the current model produces single-step (t+1) predictions. Curbside planning decisions require reasoning about extended periods (e.g., "what would pedestrian flow look like on this street over a two-hour lunchtime window if parking were removed?"). A multi-step autoregressive or sequence-to-sequence formulation, potentially incorporating intervention counterfactuals as external interventions on the input feature space, is a priority for future development.
+</p>
+<p>
+  Finally, CPU-only training constrains model scale. The hidden dimension of 64 and single-layer GCN design are chosen for training feasibility rather than optimal performance. A GPU-accelerated implementation would permit larger models, wider temporal windows, and multi-step prediction heads.
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SECTION 9 — CONCLUSION
+═══════════════════════════════════════════════════════════════════ -->
+<h2 class="section">9. Conclusion</h2>
+<p>
+  This paper has presented a complete, operationally grounded pipeline for spatio-temporal pedestrian flow modelling and curbside reallocation opportunity identification in Melbourne's Central Business District. The core technical contributions — a dual-branch GCN–GRU architecture with per-node bias, an XGBoost imputation framework for extending sparse pedestrian sensor coverage, and a GMM clustering procedure on raw temporal activity profiles — collectively achieve state-of-the-art predictive performance (test R² = 0.927) while generating interpretable street archetypes that directly support evidence-based planning decisions.
+</p>
+<p>
+  The methodological insights carry implications beyond Melbourne. The finding that row-normalisation of temporal profiles destroys the inter-street variance most relevant for intervention planning is a general caution for urban typology research: the choice of normalisation strategy should reflect the downstream decision objective, not merely statistical convention. Similarly, the dual-graph design — combining geographic and semantic adjacency — offers a template for any city where the functional identity of streets (not just their spatial proximity) is a significant driver of human mobility.
+</p>
+<p>
+  From a planning standpoint, the identification of 22 streets as immediate Parking Reallocation Priority candidates, 185 as candidates for time-of-day pedestrianisation, and 135 as latent activation opportunities provides the City of Melbourne with a quantitative, network-wide evidence base for progressive curbside reallocation — an evidence base that, to the authors' knowledge, does not currently exist at this spatial resolution and temporal granularity.
+</p>
+<p>
+  Future work will focus on three priorities: extending the study window to a full year to capture seasonal variation; developing a multi-step counterfactual prediction capability that models the network-level effects of interventions on neighbouring streets; and implementing GPU-accelerated training to enable larger-scale architectures and ensemble uncertainty quantification.
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     FOOTNOTES
+═══════════════════════════════════════════════════════════════════ -->
+<div class="footnote-section">
+  <ol>
+    <li>City of Melbourne, <em>Pedestrian Counting System Annual Report</em> (Melbourne: City of Melbourne, 2024).</li>
+    <li>City of Melbourne, <em>Transport Strategy 2030</em> (Melbourne: City of Melbourne, 2019).</li>
+    <li>Yaguang Li et al., "Diffusion Convolutional Recurrent Neural Network: Data-Driven Traffic Forecasting," <em>Proceedings of ICLR 2018</em> (2018).</li>
+    <li>City of Melbourne, <em>Pedestrian Counting System: Ten-Year Trends 2014–2024</em> (Melbourne: City of Melbourne, 2024).</li>
+    <li>Yaguang Li et al., "Diffusion Convolutional Recurrent Neural Network," <em>ICLR 2018</em>.</li>
+    <li>Bing Yu, Haoteng Yin, and Zhanxing Zhu, "Spatio-Temporal Graph Convolutional Networks: A Deep Learning Framework for Traffic Forecasting," <em>Proceedings of IJCAI 2018</em> (2018): 3634–3640.</li>
+    <li>Lei Bai et al., "Adaptive Graph Convolutional Recurrent Network for Traffic Forecasting," <em>Advances in Neural Information Processing Systems</em> 33 (2020): 17804–17815.</li>
+    <li>Zonghan Wu et al., "Graph WaveNet for Deep Spatial-Temporal Graph Modeling," <em>Proceedings of IJCAI 2019</em> (2019): 1907–1913.</li>
+    <li>Haobing Su et al., "Spatiotemporal Graph Convolutional Networks for Subway Passenger Flow Forecasting," <em>EPJ Data Science</em> 11, no. 1 (2022): 1–19.</li>
+    <li>Jian Gong et al., "Urban Retail Footfall Prediction Using Deep Spatio-Temporal Networks," <em>International Journal of Applied Earth Observation and Geoinformation</em> 118 (2023): 103250.</li>
+    <li>Jinwei Hao et al., "Urban Activity Pattern Mining from Mobile Phone Data Using Temporal Clustering," <em>Computers, Environment and Urban Systems</em> 98 (2023): 101886.</li>
+    <li>Jie Zhao and Wei Zhang, "Spectral Clustering of Urban Road Network Patterns from GPS Trajectories," <em>Mathematics</em> 12, no. 4 (2024): 532.</li>
+    <li>Gilles Celeux and Gérard Govaert, "Gaussian Parsimonious Clustering Models," <em>Pattern Recognition</em> 28, no. 5 (1995): 781–793.</li>
+    <li>Jan Gehl and Birgitte Svarre, <em>How to Study Public Life</em> (Washington, DC: Island Press, 2013).</li>
+    <li>Todd Litman, <em>Parking Management: Strategies, Evaluation and Planning</em> (Victoria, BC: Victoria Transport Policy Institute, 2023).</li>
+    <li>Robert Cervero et al., "Parking Reductions and Urban Pedestrian Activity," <em>Transport Policy</em> 108 (2021): 103–114.</li>
+    <li>Diederik P. Kingma and Jimmy Ba, "Adam: A Method for Stochastic Optimization," <em>Proceedings of ICLR 2015</em> (2015).</li>
+  </ol>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     BIBLIOGRAPHY
+═══════════════════════════════════════════════════════════════════ -->
+<div class="bibliography">
+  <h2 class="section">Bibliography</h2>
+  <ul class="bib-list">
+    <li>Bai, Lei, Lina Yao, Can Li, Xianzhi Wang, and Can Wang. "Adaptive Graph Convolutional Recurrent Network for Traffic Forecasting." <em>Advances in Neural Information Processing Systems</em> 33 (2020): 17804–17815.</li>
+    <li>Celeux, Gilles, and Gérard Govaert. "Gaussian Parsimonious Clustering Models." <em>Pattern Recognition</em> 28, no. 5 (1995): 781–793.</li>
+    <li>Cervero, Robert, Junfeng Jia, and Hao Hu. "Parking Reductions and Urban Pedestrian Activity." <em>Transport Policy</em> 108 (2021): 103–114.</li>
+    <li>City of Melbourne. <em>Pedestrian Counting System Annual Report</em>. Melbourne: City of Melbourne, 2024.</li>
+    <li>City of Melbourne. <em>Pedestrian Counting System: Ten-Year Trends 2014–2024</em>. Melbourne: City of Melbourne, 2024.</li>
+    <li>City of Melbourne. <em>Transport Strategy 2030</em>. Melbourne: City of Melbourne, 2019.</li>
+    <li>Gehl, Jan, and Birgitte Svarre. <em>How to Study Public Life</em>. Washington, DC: Island Press, 2013.</li>
+    <li>Gong, Jian, Wei Li, Yifan Zhang, and Rui Chen. "Urban Retail Footfall Prediction Using Deep Spatio-Temporal Networks." <em>International Journal of Applied Earth Observation and Geoinformation</em> 118 (2023): 103250.</li>
+    <li>Hao, Jinwei, Shuai Zhang, Mingyi Du, and Tao Pei. "Urban Activity Pattern Mining from Mobile Phone Data Using Temporal Clustering." <em>Computers, Environment and Urban Systems</em> 98 (2023): 101886.</li>
+    <li>Kingma, Diederik P., and Jimmy Ba. "Adam: A Method for Stochastic Optimization." <em>Proceedings of ICLR 2015</em>, 2015.</li>
+    <li>Li, Yaguang, Rose Yu, Cyrus Shahabi, and Yan Liu. "Diffusion Convolutional Recurrent Neural Network: Data-Driven Traffic Forecasting." <em>Proceedings of the International Conference on Learning Representations (ICLR 2018)</em>, 2018.</li>
+    <li>Litman, Todd. <em>Parking Management: Strategies, Evaluation and Planning</em>. Victoria, BC: Victoria Transport Policy Institute, 2023.</li>
+    <li>Su, Haobing, Jiannong Cao, Jia Hu, and Yiqiao Cui. "Spatiotemporal Graph Convolutional Networks for Subway Passenger Flow Forecasting." <em>EPJ Data Science</em> 11, no. 1 (2022): 1–19.</li>
+    <li>Wu, Zonghan, Shirui Pan, Guodong Long, Jing Jiang, and Chengqi Zhang. "Graph WaveNet for Deep Spatial-Temporal Graph Modeling." <em>Proceedings of the International Joint Conference on Artificial Intelligence (IJCAI 2019)</em> (2019): 1907–1913.</li>
+    <li>Yu, Bing, Haoteng Yin, and Zhanxing Zhu. "Spatio-Temporal Graph Convolutional Networks: A Deep Learning Framework for Traffic Forecasting." <em>Proceedings of the International Joint Conference on Artificial Intelligence (IJCAI 2018)</em> (2018): 3634–3640.</li>
+    <li>Zhao, Jie, and Wei Zhang. "Spectral Clustering of Urban Road Network Patterns from GPS Trajectories." <em>Mathematics</em> 12, no. 4 (2024): 532.</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     APPENDIX
+═══════════════════════════════════════════════════════════════════ -->
+<h2 class="section">Appendix A. Pipeline Step Reference</h2>
+
+<div class="tbl-wrap">
+  <div class="tbl-caption">Table A1. Melbourne CBD Curbside Pipeline — Step Summary</div>
+  <table>
+    <thead>
+      <tr><th>Step</th><th>Name</th><th>Inputs</th><th>Primary Output</th><th>Key parameters</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>01</td><td>Ingest</td><td>Supabase API, Open-Meteo, CLUE</td><td>Raw parquet files</td><td>Study window: 2025-11-01 – 2026-03-30</td></tr>
+      <tr><td>02</td><td>Snap Sensors</td><td>Raw events, street polygons</td><td>sensor_map, static_features</td><td>PIP + NN fallback; 1,981 parking + 99 ped sensors</td></tr>
+      <tr><td>03</td><td>Temporal Features</td><td>Weather, calendar</td><td>temporal_features.parquet</td><td>15-min bins; cyclic encodings; holiday flags</td></tr>
+      <tr><td>04</td><td>Graph Construction</td><td>static_features</td><td>spatial_edges, semantic_edges</td><td>k=8 spatial; 7 semantic features; threshold 0.70</td></tr>
+      <tr><td>05</td><td>Ped Imputation</td><td>Parking events, ped sensors, graph</td><td>ped_complete, parking_occupancy</td><td>XGBoost; GroupKFold(5); log1p target</td></tr>
+      <tr><td>06</td><td>Aggregate Profiles</td><td>ped_complete, parking_occupancy</td><td>street_profiles.parquet</td><td>7 days × 6 blocks = 42 features/signal; 5 scores</td></tr>
+      <tr><td>07</td><td>Cluster</td><td>street_profiles</td><td>clustered.parquet, cluster_report</td><td>GMM; BIC; k=4; PCA 20 components; ARI bootstrap</td></tr>
+      <tr><td>08</td><td>Assemble Cube</td><td>ped_complete, parking, temporal, graph</td><td>cube.npy (1.8 GB), graph .pt files</td><td>N=1,397; T=14,400; F=23; z-score normalisation</td></tr>
+      <tr><td>09</td><td>Train MultiGCN</td><td>cube, graphs</td><td>best_model.pt, model_eval.json</td><td>W=96; H=64; 2-layer GRU; 194 epochs</td></tr>
+      <tr><td>10</td><td>Feature Importance</td><td>cube, best_model</td><td>feature_importance.json</td><td>Permutation; 3 repeats; val set</td></tr>
+      <tr><td>11</td><td>Score Opportunities</td><td>clustered, model, profiles</td><td>opportunities.json</td><td>Counterfactual parking removal scenarios</td></tr>
+      <tr><td>12</td><td>Export</td><td>All processed files</td><td>GeoJSON + JSON frontend assets</td><td>Mapbox GL JS web interface</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 class="section">Appendix B. Cluster Profile Characteristics</h2>
+
+<div class="tbl-wrap">
+  <div class="tbl-caption">Table B1. Mean Behavioural Scores by Cluster</div>
+  <table>
+    <thead>
+      <tr><th>Cluster</th><th>score_morning</th><th>score_midday</th><th>score_evening</th><th>score_weekend_ratio</th><th>score_parking_flex</th><th>mean_ped</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0 — Morning Ped.</td><td>High</td><td>Moderate</td><td>Low</td><td>0.6–0.8</td><td>High</td><td>Above avg.</td></tr>
+      <tr><td>1 — Latent</td><td>Low</td><td>Low</td><td>Low</td><td>~1.0</td><td>Very high</td><td>Below avg.</td></tr>
+      <tr><td>2 — Midday/Evening</td><td>Moderate</td><td>Moderate–high</td><td>Moderate</td><td>0.9–1.1</td><td>Moderate</td><td>Average</td></tr>
+      <tr><td>3 — Parking Realloc.</td><td>High</td><td>High</td><td>High</td><td>1.1–1.4</td><td>Low (&lt;15%)</td><td>High</td></tr>
+    </tbody>
+  </table>
+  <div class="tbl-note">Score values are qualitative summaries; exact values vary by individual street. score_parking_flex = fraction of 42 time blocks with parking occupancy &lt; 30%.</div>
+</div>
+
+</body>
+</html>

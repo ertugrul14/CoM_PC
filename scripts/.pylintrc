@@ -1,0 +1,42 @@
+[MASTER]
+# Use multiple processes to speed up Pylint
+jobs=1
+
+[MESSAGES CONTROL]
+# Disable common low-value warnings that generate bulk noise
+disable=
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring
+    C0301,  # line-too-long
+    C0303,  # trailing-whitespace
+    C0304,  # missing-final-newline
+    C0305,  # trailing-newlines
+    C0321,  # multiple-statements
+    C0411,  # wrong-import-order
+    C0412,  # ungrouped-imports
+    C0413,  # wrong-import-position
+    W0611,  # unused-import
+    W0612,  # unused-variable
+    W0613,  # unused-argument
+    W0621,  # redefined-outer-name
+    W0622,  # redefined-builtin
+    W0718,  # broad-exception-caught
+    W1514,  # unspecified-encoding
+    W0404,  # reimported
+    W1203,  # logging-fstring-interpolation
+    W1309,  # f-string-without-interpolation
+    R0801,  # duplicate-code
+    R0903,  # too-few-public-methods
+    R0913,  # too-many-arguments
+    R0914,  # too-many-locals
+    R0915,  # too-many-statements
+    R1705,  # no-else-return
+    E1101,  # no-member (often false-positive with pandas/numpy)
+    W1510,  # subprocess-run-check
+
+[FORMAT]
+max-line-length=120
+
+[BASIC]
+good-names=i,j,k,v,e,f,x,y,df,ax,fd,fp,pd,np,lr,id

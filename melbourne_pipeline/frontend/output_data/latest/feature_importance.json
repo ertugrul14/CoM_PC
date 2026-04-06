@@ -1,0 +1,21 @@
+{
+  "generated": "2026-04-06 16:14:30 UTC",
+  "source": "parking_associations.json (real pipeline output)",
+  "features": [
+    {
+      "feature": "poi_corporate",
+      "perm_importance": 0.0,
+      "perm_std": 0.0
+    },
+    {
+      "feature": "poi_retail",
+      "perm_importance": 0.0,
+      "perm_std": 0.0
+    },
+    {
+      "feature": "poi_nightlife",
+      "perm_importance": 0.0,
+      "perm_std": 0.0
+    }
+  ]
+}

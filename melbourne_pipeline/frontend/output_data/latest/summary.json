@@ -1,0 +1,48 @@
+{
+  "generated": "2026-04-06 16:14:30 UTC",
+  "week_label": "2026-04-06",
+  "total_streets": 1397,
+  "coverage": {},
+  "clusters": {
+    "counts": {
+      "evening_outdoor_dining": 1055,
+      "morning_pedestrianisation": 320,
+      "weekend_leisure": 22
+    },
+    "total": 1397,
+    "stability": {
+      "silhouette": 0.651
+    }
+  },
+  "opportunities": {
+    "by_type": {
+      "Medium_Opportunity": 1388,
+      "High_Opportunity": 8,
+      "Low_Demand": 1
+    },
+    "score_distribution": {
+      "high": 8,
+      "medium": 1388,
+      "low": 1
+    },
+    "actionable_count": 1396
+  },
+  "time_block_averages": {},
+  "flexibility_stats": {
+    "mean": 0.9978,
+    "max": 1.0,
+    "high_flexibility_count": 1394
+  },
+  "confidence_distribution": {
+    "medium": 1397
+  },
+  "governance": {
+    "generated": "2026-04-06 16:14:30 UTC",
+    "pipeline_version": "3.0_complete_pipeline",
+    "data_lineage": {
+      "source": "complete_pipeline",
+      "parking_records": 1176710,
+      "pedestrian_records": 5800283
+    }
+  }
+}

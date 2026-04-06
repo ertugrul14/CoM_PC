@@ -1,0 +1,32 @@
+{
+  "generated": "2026-04-06 16:14:30 UTC",
+  "profiles": {
+    "weekend_leisure": {
+      "dist_flinders": 0,
+      "dist_southern_cross": 0,
+      "dist_townhall": 0,
+      "poi_corporate": 0,
+      "poi_nightlife": 0,
+      "poi_retail": 0,
+      "poi_transport": 0
+    },
+    "morning_pedestrianisation": {
+      "dist_flinders": 0,
+      "dist_southern_cross": 0,
+      "dist_townhall": 0,
+      "poi_corporate": 0,
+      "poi_nightlife": 0,
+      "poi_retail": 0,
+      "poi_transport": 0
+    },
+    "evening_outdoor_dining": {
+      "dist_flinders": 0,
+      "dist_southern_cross": 0,
+      "dist_townhall": 0,
+      "poi_corporate": 0,
+      "poi_nightlife": 0,
+      "poi_retail": 0,
+      "poi_transport": 0
+    }
+  }
+}

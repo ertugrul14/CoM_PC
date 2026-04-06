@@ -1,0 +1,84 @@
+Melbourne CBD Curbside Reallocation Pipeline - Progress Report
+================================================================
+Date: 2026-03-31
+
+COMPLETED STEPS
+---------------
+
+Step 1 - step_01_fetch.py (Data Fetching)
+  Fetches all raw data from 3 sources:
+
+  Supabase (keyset-paginated via REST API, 1000 rows/batch):
+    - parking_raw.parquet    22 MB   ~2.4M rows   (kerbsideid, status, lat/lon, datetime)
+    - ped_raw.parquet        78 MB   ~9.4M rows   (location_id, direction counts, datetime)
+
+  Open-Meteo Archive API:
+    - weather_raw.parquet    49 KB   3,600 rows   (hourly: temp, humidity, wind, precip)
+
+  Melbourne Open Data (11 CLUE datasets, filtered to census_year=2024 where >10K):
+    - clue_cafe.parquet      190 KB  3,249 rows
+    - clue_bar.parquet       141 KB  5,304 rows
+    - clue_business.parquet  468 KB  10,000 rows
+    - clue_jobs.parquet      41 KB   603 rows
+    - clue_buildings.parquet 669 KB  8,284 rows (was 10K, paginated)
+    - clue_blocks.geojson    441 KB  603 block polygons
+    - clue_offstreet.parquet 444 KB  7,185 rows
+    - clue_dwellings.parquet 618 KB  10,000 rows
+    - clue_floorspace_industry.parquet  34 KB  603 rows
+    - clue_floorspace_use.parquet       56 KB  603 rows
+    - clue_landmarks.parquet            13 KB  242 rows
+
+  Study window: 2025-11-01 to 2026-03-30 (UTC)
+
+
+Step 2 - step_02_snap.py (Sensor Snapping + CLUE Spatial Aggregation)
+  Part A - Sensor snapping to 361 street polygons (EPSG:3111):
+    - Parking: 1,981 sensors -> 96.3% matched (1,872 PIP + 36 NN + 73 unmatched)
+    - Pedestrian: 99 sensors -> 97.0% matched (68 PIP + 28 NN + 3 unmatched)
+      Ped sensor lat/lon fetched from Melbourne Open Data sensor locations API
+      (all 99 Supabase location_ids found in the 145-sensor API, 100% ID match)
+    - Output: sensor_map.parquet (2,080 rows)
+
+  Part B - CLUE spatial aggregation onto street polygons:
+    - Point-in-polygon: cafe, bar, business, buildings, offstreet, dwellings, landmarks
+    - Area-weighted block join: jobs, floorspace (retail + office)
+    - Output: static_features.parquet (361 streets x 15 columns)
+      Columns: street_id, area_m2, total_jobs, cafe_count, cafe_total_seats,
+               bar_count, bar_patron_capacity, business_count, building_count,
+               poi_total, dining_capacity, offstreet_spaces, dwelling_count,
+               retail_floorspace, office_floorspace
+
+  Validation: sensor_map_viz.html (Mapbox GL JS map showing all sensors color-coded
+  by type and snap method, served at http://localhost:8899/sensor_map_viz.html)
+
+
+FOLDER STRUCTURE
+----------------
+melbourne_pipeline/
+  config.py                 <- all parameters, paths, API keys
+  run_pipeline.py           <- orchestrator (python run_pipeline.py [start] [end])
+  .env                      <- SUPABASE_URL, SUPABASE_KEY
+  streets.geojson           <- 361 street polygons combined from data/polygons/
+  sensor_map_viz.html       <- Mapbox validation dashboard
+  steps/
+    step_01_fetch.py        <- done
+    step_02_snap.py         <- done
+  data/
+    raw/                    <- 14 files from step 1 (never modified after)
+    processed/              <- sensor_map.parquet, static_features.parquet + viz geojsons
+    models/                 <- empty (for step 7)
+  frontend/
+    data/                   <- empty (for step 10)
+  logs/                     <- pipeline run logs
+
+
+REMAINING STEPS
+---------------
+Step 3  - step_03_temporal.py   Temporal encoding + weather forward-fill to 15-min
+Step 4  - step_04_process.py    Parking occupancy reconstruction + XGBoost ped imputation
+Step 5  - step_05_cluster.py    GMM clustering on temporal fingerprints
+Step 6  - step_06_cube.py       Data cube assembly + dual spatial graph construction
+Step 7  - step_07_train.py      MultiGCN training (GRU + dual GCN)
+Step 8  - step_08_interpret.py  Permutation feature importance + attention extraction
+Step 9  - step_09_opportunities.py  Opportunity scoring + counterfactual simulation
+Step 10 - step_10_export.py     Generate all frontend JSON files

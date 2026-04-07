@@ -1,0 +1,94 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Environment variables (IMPORTANT - never commit!)
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/*.log
+*.log
+
+# IDE
+.vscode/
+.idea/
+.claude/
+.pytest_cache/
+*.swp
+*.swo
+*.bak
+
+# Ignore all dot-prefixed folders anywhere (e.g. .claude, .github)
+**/.*/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker (if you use it later)
+docker-compose.yml
+Dockerfile
+.dockerignore
+fly.toml
+
+# Large data files (don't commit to GitHub)
+*.csv
+*.xlsx
+*.parquet
+*.db
+*.sqlite
+
+# Pipeline v2 outputs — explicitly tracked
+!complete_pipeline_v2/output/*.csv
+!complete_pipeline_v2/output/*.json
+!complete_pipeline_v2/output/*.parquet
+!complete_pipeline_v2/output/models/*.pt
+!complete_pipeline_v2/output/models/*.json
+
+# Analysis outputs (optional - you can commit these if you want)
+# Uncomment if you DON'T want to push analysis files:
+# analysis/*.html
+# analysis/*.png
+# analysis/*.pdf
+
+# PDFs — generated reports, papers (don't commit to GitHub)
+*.pdf
+!complete_pipeline_v2/output/Melbourne_Pipeline_Technical_Report.pdf
+
+# Pipeline report markdown files (verbose generated docs)
+complete_pipeline/PIPELINE_REPORT.md
+complete_pipeline/PIPELINE_REPORT_v2.md
+
+# Tools
+plantuml.jar
+
+# Temporary files
+*.tmp
+*.temp
+folder_structure.txt
+structure.txt
+
+# Large local artifacts that exceed GitHub file limits
+melbourne_pipeline/data/processed/cube.npy
+# Node.js
+node_modules/
+package-lock.json
+.cache/
+dist/
+build/

@@ -1651,7 +1651,12 @@ function buildMap(token) {
         const nbrs = ns.spatial_neighbours;
 
         // Paint main map with all non-trivial deltas
-        _paintNetworkDelta(ns.all_deltas || {});
+        // all_deltas values are now objects {mean_ped_delta, confidence_weighted_delta, ped_confidence}
+        const flatDeltas = {};
+        Object.entries(ns.all_deltas || {}).forEach(([sid, v]) => {
+          flatDeltas[sid] = typeof v === 'object' ? v.mean_ped_delta : v;
+        });
+        _paintNetworkDelta(flatDeltas);
 
         // Fill results section
         const sc = v => v > 0 ? 'iv-res-pos' : v < 0 ? 'iv-res-neg' : '';
@@ -1663,18 +1668,31 @@ function buildMap(token) {
           `<span class="${sc(ts.cumulative_ped_delta)}">${ts.cumulative_ped_delta >= 0 ? '+' : ''}${ts.cumulative_ped_delta.toFixed(0)}</span>`;
         document.getElementById('iv-res-neighbours').textContent = `${nbrsAffected} of ${nbrs.length}`;
 
-        // Top 5 affected streets (excluding treated)
+        // Top 5 affected streets (excluding treated, ranked by confidence-weighted delta)
         const top5 = ns.top_affected.filter(e => !e.is_treated).slice(0, 5);
         document.getElementById('sp2-top-affected').innerHTML = top5.length
           ? top5.map(e => {
               const cls = e.mean_ped_delta > 0 ? 'iv-res-pos' : 'iv-res-neg';
-              return `<span style="color:var(--text-dim)">${e.street_id}</span>
+              const tag = e.is_semantic_neighbour ? ' <span style="color:var(--teal);font-size:10px">sem</span>'
+                        : e.is_spatial_neighbour  ? ' <span style="color:var(--text-muted);font-size:10px">sp</span>'
+                        : '';
+              const conf = e.ped_confidence != null ? ` <span style="color:var(--text-muted);font-size:10px">conf ${e.ped_confidence.toFixed(1)}</span>` : '';
+              return `<span style="color:var(--text-dim)">${e.street_id}${tag}${conf}</span>
                 <span class="${cls}" style="float:right">${e.mean_ped_delta >= 0 ? '+' : ''}${e.mean_ped_delta.toFixed(2)}</span><br>`;
             }).join('')
           : '';
 
+        // Rebound info
+        const rb = ns.rebound?.treated_street;
+        const reboundStr = rb
+          ? (rb.half_life_minutes < 0 ? 'no recovery within rollout'
+              : rb.half_life_minutes === 0 ? 'instant recovery'
+              : `${rb.half_life_minutes} min to 50% recovery`)
+          : '';
+
         document.getElementById('iv-res-note').textContent =
-          `${effectiveRollout * 15} min rollout · ${duration * 15} min treatment · model counterfactual`;
+          `${effectiveRollout * 15} min rollout · ${duration * 15} min treatment · model counterfactual`
+          + (reboundStr ? ` · ${reboundStr}` : '');
 
         document.getElementById('sp2-results').classList.add('visible');
 

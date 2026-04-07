@@ -32,14 +32,28 @@ Design assumptions
   B. The intervention modifies node features only — graph edges are unchanged.
      In reality, pedestrianisation may alter network connectivity; this is not modelled.
 
-  C. Parking occupancy on non-target streets is exogenous and always taken from real
-     observations.  The model does not predict parking occupancy.
+  C. Removed parking is redistributed to spatial neighbours proportional to edge
+     weight, capped at 100% occupancy.  This is a first-order displacement model;
+     it does not cascade (neighbour overflow does not spill further).
 
   D. Autoregressive prediction error compounds over the rollout horizon.  Treat
      rollouts beyond ~4 hours (16 steps) as indicative, not precise.
 
   E. The model was trained on normalised ped_flow.  All comparisons are converted
      back to raw pedestrian counts before output.
+
+Network analysis enhancements
+-----------------------------
+  1. Parking displacement — removed occupancy redistributed to spatial neighbours
+     during the treated rollout, so the GCN sees realistic neighbour pressure.
+  2. Graph diffusion — analytical A^k propagation of mean delta for k=1..3 hops
+     through both spatial and semantic graphs (complements autoregressive spread).
+  3. Semantic neighbours — reports delta on functionally similar streets (same
+     land-use profile) that may be spatially distant.
+  4. Confidence-weighted ranking — top_affected streets ranked by delta * ped_confidence
+     so sensor-observed streets are prioritised over imputed ones.
+  5. Rebound analysis — half-life and recovery fraction after intervention ends,
+     characterising how quickly the network returns to baseline.
 
 CLI
 ---
@@ -63,7 +77,11 @@ Outputs (data/processed/scenario_results/)
 import argparse
 import json
 import logging
+import sys
 from pathlib import Path
+
+# Allow direct invocation: python steps/step_11_scenario.py ...
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
 import pandas as pd
@@ -150,6 +168,200 @@ def _get_spatial_neighbours(adj_s: torch.Tensor, node_idx: int) -> list[int]:
     return [n for n in neighbours if n != node_idx]
 
 
+def _get_semantic_neighbours(adj_sem: torch.Tensor, node_idx: int) -> list[int]:
+    """Return node indices that are semantic neighbours of node_idx."""
+    if adj_sem.is_sparse:
+        idx = adj_sem.coalesce().indices()
+        mask = (idx[0] == node_idx)
+        neighbours = idx[1][mask].cpu().tolist()
+    else:
+        row = adj_sem[node_idx]
+        neighbours = (row > 0).nonzero(as_tuple=True)[0].cpu().tolist()
+    return [n for n in neighbours if n != node_idx]
+
+
+def _get_edge_weights(adj: torch.Tensor, node_idx: int, neighbours: list[int]) -> np.ndarray:
+    """Extract edge weights from node_idx to each neighbour. Returns array aligned with neighbours list."""
+    if adj.is_sparse:
+        idx = adj.coalesce().indices()
+        vals = adj.coalesce().values()
+        mask = (idx[0] == node_idx)
+        src_indices = idx[1][mask].cpu().tolist()
+        src_values = vals[mask].cpu().numpy()
+        weight_map = dict(zip(src_indices, src_values))
+    else:
+        row = adj[node_idx].cpu().numpy()
+        weight_map = {n: row[n] for n in neighbours}
+    weights = np.array([weight_map.get(n, 0.0) for n in neighbours], dtype=np.float32)
+    total = weights.sum()
+    if total > 0:
+        weights /= total
+    return weights
+
+
+def _displace_parking(
+    next_row: np.ndarray,
+    pre_intervention_row: np.ndarray,
+    node_idx: int,
+    adj_s: torch.Tensor,
+    norm_stats: dict,
+) -> np.ndarray:
+    """
+    Redistribute removed parking from the target street to spatial neighbours.
+
+    The occupancy removed from node_idx is distributed proportionally to
+    neighbours based on spatial edge weight, capped at 1.0 raw occupancy.
+
+    Parameters
+    ----------
+    next_row              : [N, F] features AFTER intervention encoding.
+    pre_intervention_row  : [N, F] features BEFORE intervention encoding.
+    node_idx              : Target street node index.
+    adj_s                 : Spatial adjacency matrix.
+    norm_stats            : Normalisation statistics dict.
+
+    Returns
+    -------
+    np.ndarray [N, F] — modified next_row with displaced parking on neighbours.
+    """
+    mu_occ = norm_stats["occupancy_rate"]["mean"]
+    std_occ = norm_stats["occupancy_rate"]["std"]
+
+    # How much normalised occupancy was removed from the target?
+    removed_norm = pre_intervention_row[node_idx, FI_OCC_RATE] - next_row[node_idx, FI_OCC_RATE]
+    if removed_norm <= 0:
+        return next_row  # no parking was removed
+
+    # Convert to raw occupancy for capping
+    removed_raw = removed_norm * std_occ
+
+    neighbours = _get_spatial_neighbours(adj_s, node_idx)
+    if not neighbours:
+        return next_row
+
+    weights = _get_edge_weights(adj_s, node_idx, neighbours)
+    row = next_row.copy()
+
+    for ni, w in zip(neighbours, weights):
+        share_raw = removed_raw * w
+        current_raw = row[ni, FI_OCC_RATE] * std_occ + mu_occ
+        new_raw = min(current_raw + share_raw, 1.0)  # cap at 100% occupancy
+        row[ni, FI_OCC_RATE] = (new_raw - mu_occ) / std_occ
+
+    return row
+
+
+def _graph_diffusion(
+    delta: np.ndarray,
+    adj_s: torch.Tensor,
+    adj_sem: torch.Tensor,
+    max_hops: int = 3,
+) -> dict:
+    """
+    Compute analytical graph diffusion of the mean delta through adjacency matrices.
+
+    For each graph (spatial, semantic), computes A_norm^k @ mean_delta for k=1..max_hops
+    where A_norm is the row-normalised adjacency matrix.
+
+    Parameters
+    ----------
+    delta    : [n_steps, N] — raw delta (treated - baseline).
+    adj_s    : Spatial adjacency (sparse or dense).
+    adj_sem  : Semantic adjacency (sparse or dense).
+    max_hops : Maximum diffusion hops to compute.
+
+    Returns
+    -------
+    dict with keys 'spatial' and 'semantic', each containing a list of [N] arrays
+    for hops 1..max_hops.
+    """
+    mean_delta = delta.mean(axis=0)  # [N]
+
+    result = {}
+    for name, adj in [("spatial", adj_s), ("semantic", adj_sem)]:
+        # Row-normalise the adjacency matrix
+        if adj.is_sparse:
+            adj_dense = adj.to_dense().cpu().numpy()
+        else:
+            adj_dense = adj.cpu().numpy()
+
+        row_sums = adj_dense.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0] = 1.0
+        A_norm = adj_dense / row_sums
+
+        hop_deltas = []
+        current = mean_delta.copy()
+        for k in range(max_hops):
+            current = A_norm @ current
+            hop_deltas.append(current.copy())
+        result[name] = hop_deltas
+
+    return result
+
+
+def _compute_rebound(
+    delta: np.ndarray,
+    intervention_end_step: int,
+) -> dict:
+    """
+    Characterise how quickly the network returns to baseline after intervention ends.
+
+    Computes per-street half-life: the number of steps after the intervention ends
+    until |delta| drops to 50% of its value at intervention_end_step.
+
+    Parameters
+    ----------
+    delta                : [n_steps, N] raw delta (treated - baseline).
+    intervention_end_step: The rollout step index where the intervention stops.
+
+    Returns
+    -------
+    dict with:
+      - half_life_steps: [N] array, -1 if delta never drops to 50% within the rollout
+      - peak_delta: [N] array, the delta value at intervention end
+      - recovery_fraction: [N] array, fraction of peak delta remaining at final step
+    """
+    n_steps, N = delta.shape
+
+    if intervention_end_step >= n_steps:
+        return {
+            "half_life_steps": [-1] * N,
+            "peak_delta": [0.0] * N,
+            "recovery_fraction": [1.0] * N,
+        }
+
+    peak_delta = delta[intervention_end_step]  # [N]
+    abs_peak = np.abs(peak_delta)
+
+    post_intervention = delta[intervention_end_step:]  # [remaining, N]
+    abs_post = np.abs(post_intervention)
+
+    half_life = np.full(N, -1, dtype=int)
+    for ni in range(N):
+        if abs_peak[ni] < 0.01:  # negligible effect
+            half_life[ni] = 0
+            continue
+        threshold = abs_peak[ni] * 0.5
+        below = np.where(abs_post[:, ni] <= threshold)[0]
+        if len(below) > 0:
+            half_life[ni] = int(below[0])
+
+    # Recovery fraction at final step
+    final_delta = delta[-1]
+    safe_peak = np.where(abs_peak > 0.01, abs_peak, 1.0)  # avoid divide-by-zero
+    recovery_fraction = np.where(
+        abs_peak > 0.01,
+        np.abs(final_delta) / safe_peak,
+        0.0,
+    )
+
+    return {
+        "half_life_steps": half_life.tolist(),
+        "peak_delta": peak_delta.tolist(),
+        "recovery_fraction": recovery_fraction.tolist(),
+    }
+
+
 # ==============================================================================
 # Intervention encoding
 # ==============================================================================
@@ -213,6 +425,7 @@ def _rollout(
     n_steps: int,
     device: torch.device,
     intervention: dict | None = None,
+    adj_s: torch.Tensor | None = None,
 ) -> np.ndarray:
     """
     Autoregressive rollout for n_steps steps starting from t_start.
@@ -298,12 +511,19 @@ def _rollout(
             # Apply intervention if within treatment window
             if (intervention is not None and
                     iv_start <= step < iv_end):
+                pre_intervention_row = next_row.copy()
                 next_row = _encode_intervention(
                     next_row, node_idx, itype, magnitude,
                     intervention["_norm_stats"],
                     intervention["_feat_names"],
                     pred_norm,
                 )
+                # Improvement #1: redistribute displaced parking to spatial neighbours
+                if adj_s is not None:
+                    next_row = _displace_parking(
+                        next_row, pre_intervention_row, node_idx,
+                        adj_s, intervention["_norm_stats"],
+                    )
 
             # ── Slide window ──────────────────────────────────────────────────
             window = np.concatenate(
@@ -321,28 +541,37 @@ def _build_network_summary(
     delta: np.ndarray,            # [n_steps, N], treated - baseline (normalised)
     node_idx: int,
     adj_s: torch.Tensor,
+    adj_sem: torch.Tensor,
     norm_stats: dict,
     node_order: list,
+    ped_confidence: np.ndarray,   # [N] confidence tier per street (1.0/0.8/0.5)
+    intervention_end_step: int,
     top_k: int = 20,
 ) -> dict:
     """
     Summarise the network effect of the intervention.
 
     Returns a dict with:
-      treated_street    — cumulative and mean delta for the target street
-      spatial_neighbours — per-neighbour delta summary
-      top_affected       — top_k streets by |mean delta| across the full network
+      treated_street      — cumulative and mean delta for the target street
+      spatial_neighbours  — per-neighbour delta summary
+      semantic_neighbours — functionally similar streets affected (#3)
+      top_affected        — top_k streets by |confidence-weighted mean delta| (#4)
+      graph_diffusion     — analytical multi-hop spread estimate (#2)
+      rebound             — post-intervention recovery characterisation (#5)
+      all_deltas          — every street with non-trivial delta (for map painting)
     """
     mu_ped  = norm_stats["ped_flow"]["mean"]
     std_ped = norm_stats["ped_flow"]["std"]
 
     # Denormalise deltas to raw ped counts
-    delta_raw = delta * std_ped   # mean is zero because both baseline and treated
-                                   # are expressed relative to the same mean
+    delta_raw = delta * std_ped
 
     mean_delta = delta_raw.mean(axis=0)       # [N]
     cum_delta  = delta_raw.sum(axis=0)        # [N]
-    abs_mean   = np.abs(mean_delta)
+
+    # Improvement #4: confidence-weighted ranking
+    weighted_mean = mean_delta * ped_confidence       # [N]
+    abs_weighted  = np.abs(weighted_mean)
 
     # Treated street
     treated = {
@@ -350,6 +579,7 @@ def _build_network_summary(
         "street_id":            str(node_order[node_idx]),
         "mean_ped_delta":       float(mean_delta[node_idx]),
         "cumulative_ped_delta": float(cum_delta[node_idx]),
+        "ped_confidence":       float(ped_confidence[node_idx]),
     }
 
     # Spatial neighbours
@@ -361,11 +591,27 @@ def _build_network_summary(
             "street_id":            str(node_order[n]),
             "mean_ped_delta":       float(mean_delta[n]),
             "cumulative_ped_delta": float(cum_delta[n]),
+            "confidence_weighted_delta": float(weighted_mean[n]),
+            "ped_confidence":       float(ped_confidence[n]),
         })
     spatial_neighbours.sort(key=lambda x: abs(x["mean_ped_delta"]), reverse=True)
 
-    # Top affected across entire network (top_k for detailed reporting)
-    top_indices = np.argsort(abs_mean)[::-1][:top_k]
+    # Improvement #3: semantic neighbours
+    sem_neighbours_idx = _get_semantic_neighbours(adj_sem, node_idx)
+    semantic_neighbours = []
+    for n in sem_neighbours_idx[:N_NEIGHBOURS_REPORT]:
+        semantic_neighbours.append({
+            "node_idx":             n,
+            "street_id":            str(node_order[n]),
+            "mean_ped_delta":       float(mean_delta[n]),
+            "cumulative_ped_delta": float(cum_delta[n]),
+            "confidence_weighted_delta": float(weighted_mean[n]),
+            "ped_confidence":       float(ped_confidence[n]),
+        })
+    semantic_neighbours.sort(key=lambda x: abs(x["mean_ped_delta"]), reverse=True)
+
+    # Top affected — ranked by confidence-weighted delta (#4)
+    top_indices = np.argsort(abs_weighted)[::-1][:top_k]
     top_affected = []
     for n in top_indices:
         top_affected.append({
@@ -373,22 +619,86 @@ def _build_network_summary(
             "street_id":            str(node_order[n]),
             "mean_ped_delta":       float(mean_delta[n]),
             "cumulative_ped_delta": float(cum_delta[n]),
+            "confidence_weighted_delta": float(weighted_mean[n]),
+            "ped_confidence":       float(ped_confidence[n]),
             "is_treated":           bool(n == node_idx),
             "is_spatial_neighbour": bool(n in neighbours_idx),
+            "is_semantic_neighbour": bool(n in sem_neighbours_idx),
         })
+
+    # Improvement #2: graph diffusion analysis
+    diffusion = _graph_diffusion(delta_raw, adj_s, adj_sem, max_hops=3)
+    # Summarise: for each hop, report the top-5 streets by diffused delta
+    diffusion_summary = {}
+    for graph_name, hop_deltas in diffusion.items():
+        hops = []
+        for k, hop_delta in enumerate(hop_deltas, start=1):
+            top5 = np.argsort(np.abs(hop_delta))[::-1][:5]
+            hops.append({
+                "hop": k,
+                "top_streets": [
+                    {"street_id": str(node_order[i]),
+                     "diffused_delta": float(hop_delta[i])}
+                    for i in top5
+                ],
+            })
+        diffusion_summary[graph_name] = hops
+
+    # Improvement #5: rebound / recovery analysis
+    rebound = _compute_rebound(delta_raw, intervention_end_step)
+    # Summarise: treated street + top-5 slowest to recover
+    half_lives = np.array(rebound["half_life_steps"])
+    # Streets with actual effect that haven't recovered (-1 = never recovered)
+    slow_recover_mask = half_lives != 0
+    slow_indices = np.where(slow_recover_mask)[0]
+    if len(slow_indices) > 0:
+        # Sort by half-life descending (-1 = infinite, treat as largest)
+        sorted_slow = sorted(
+            slow_indices,
+            key=lambda i: half_lives[i] if half_lives[i] >= 0 else 9999,
+            reverse=True,
+        )[:10]
+    else:
+        sorted_slow = []
+
+    rebound_summary = {
+        "treated_street": {
+            "half_life_steps": int(half_lives[node_idx]),
+            "half_life_minutes": int(half_lives[node_idx]) * 15 if half_lives[node_idx] >= 0 else -1,
+            "peak_delta": float(rebound["peak_delta"][node_idx]),
+            "recovery_fraction": float(rebound["recovery_fraction"][node_idx]),
+        },
+        "slowest_to_recover": [
+            {
+                "street_id": str(node_order[i]),
+                "half_life_steps": int(half_lives[i]),
+                "half_life_minutes": int(half_lives[i]) * 15 if half_lives[i] >= 0 else -1,
+                "peak_delta": float(rebound["peak_delta"][i]),
+                "recovery_fraction": float(rebound["recovery_fraction"][i]),
+            }
+            for i in sorted_slow
+        ],
+    }
 
     # All streets with non-trivial delta (for map painting)
     DELTA_THRESHOLD = 0.01
     all_deltas = {}
     for n in range(len(node_order)):
         if abs(float(mean_delta[n])) > DELTA_THRESHOLD:
-            all_deltas[str(node_order[n])] = float(mean_delta[n])
+            all_deltas[str(node_order[n])] = {
+                "mean_ped_delta": float(mean_delta[n]),
+                "confidence_weighted_delta": float(weighted_mean[n]),
+                "ped_confidence": float(ped_confidence[n]),
+            }
 
     return {
-        "treated_street":    treated,
-        "spatial_neighbours": spatial_neighbours,
-        "top_affected":       top_affected,
-        "all_deltas":         all_deltas,
+        "treated_street":      treated,
+        "spatial_neighbours":  spatial_neighbours,
+        "semantic_neighbours": semantic_neighbours,
+        "top_affected":        top_affected,
+        "graph_diffusion":     diffusion_summary,
+        "rebound":             rebound_summary,
+        "all_deltas":          all_deltas,
     }
 
 
@@ -497,11 +807,12 @@ def run_scenario(
         intervention=None,
     )   # [n_steps, N]
 
-    # ── Treated rollout (with intervention) ──────────────────────────────────
+    # ── Treated rollout (with intervention + parking displacement) ────────
     log.info(f"  Running treated rollout ({intervention_type})...")
     treated_norm = _rollout(
         model, cube_norm, t_start, rollout_steps, device,
         intervention=intervention,
+        adj_s=adj_s,
     )   # [n_steps, N]
 
     # ── Denormalise to raw ped counts ─────────────────────────────────────────
@@ -522,15 +833,31 @@ def run_scenario(
         * std_occ + mu_occ
     )   # [n_steps]
 
+    # ── Load semantic adjacency + ped_confidence for network summary ────────
+    adj_sem = torch.load(PROCESSED_DIR / "graph_semantic.pt",
+                         map_location=device, weights_only=False)
+
+    # Extract per-node ped_confidence from the cube (stored raw, not normalised)
+    if "ped_confidence" in feat_names:
+        conf_fi = feat_names.index("ped_confidence")
+        ped_confidence = cube_raw[
+            :, t_start, conf_fi
+        ] if cube_raw is not None else np.full(N, 0.5)
+    else:
+        ped_confidence = np.full(N, 0.5)
+
     # ── Network summary ───────────────────────────────────────────────────────
     log.info("  Building network summary...")
     network_summary = _build_network_summary(
-        delta       = treated_norm - baseline_norm,
-        node_idx    = node_idx,
-        adj_s       = adj_s,
-        norm_stats  = norm_stats,
-        node_order  = node_order,
-        top_k       = 20,
+        delta                 = treated_norm - baseline_norm,
+        node_idx              = node_idx,
+        adj_s                 = adj_s,
+        adj_sem               = adj_sem,
+        norm_stats            = norm_stats,
+        node_order            = node_order,
+        ped_confidence        = ped_confidence,
+        intervention_end_step = duration,
+        top_k                 = 20,
     )
 
     # ── Assemble result ───────────────────────────────────────────────────────
@@ -548,8 +875,9 @@ def run_scenario(
             "assumptions": [
                 "Non-ped features are real observed values from the data cube.",
                 "Graph structure is unchanged by the intervention.",
-                "Parking occupancy on non-target streets is exogenous (real observed).",
+                "Displaced parking is redistributed to spatial neighbours proportional to edge weight, capped at 100% occupancy.",
                 "Autoregressive error compounds; interpret rollouts > 4h cautiously.",
+                "Confidence tiers (1.0/0.8/0.5) weight the trustworthiness of per-street deltas.",
             ],
         },
         # Per-step, per-street arrays (only the treated street and its neighbours
@@ -679,17 +1007,31 @@ if __name__ == "__main__":
     # Print a brief console summary
     ns = result["network_summary"]
     ts = ns["treated_street"]
+    rb = ns["rebound"]["treated_street"]
     print(f"\n{'='*60}")
     print(f"Intervention : {args.intervention} on street {args.street}")
     print(f"Duration     : {args.duration} steps × 15 min = {args.duration * 15} min")
     print(f"Rollout      : {args.rollout} steps × 15 min = {args.rollout * 15} min")
     print(f"\nTreated street effect:")
-    print(f"  Mean Δped_flow  : {ts['mean_ped_delta']:+.2f} ped / 15-min")
-    print(f"  Cumulative Δped : {ts['cumulative_ped_delta']:+.1f} person-intervals")
-    print(f"\nTop 5 affected streets:")
+    print(f"  Mean dped_flow  : {ts['mean_ped_delta']:+.2f} ped / 15-min")
+    print(f"  Cumulative dped : {ts['cumulative_ped_delta']:+.1f} person-intervals")
+    print(f"  Confidence      : {ts['ped_confidence']:.1f}")
+    print(f"\nRebound (treated street):")
+    hl = rb['half_life_minutes']
+    print(f"  Half-life       : {'never recovered' if hl < 0 else f'{hl} min'}")
+    print(f"  Recovery frac.  : {rb['recovery_fraction']:.2f}")
+    print(f"\nTop 5 affected streets (confidence-weighted):")
     for entry in ns["top_affected"][:5]:
-        tag = " ← treated" if entry["is_treated"] else (
-              " (neighbour)" if entry["is_spatial_neighbour"] else "")
-        print(f"  {entry['street_id']:>12}  Δmean={entry['mean_ped_delta']:+.2f}{tag}")
+        tag = " <- treated" if entry["is_treated"] else (
+              " (spatial)" if entry["is_spatial_neighbour"] else (
+              " (semantic)" if entry["is_semantic_neighbour"] else ""))
+        print(f"  {entry['street_id']:>12}  dmean={entry['mean_ped_delta']:+.2f}"
+              f"  conf={entry['ped_confidence']:.1f}"
+              f"  weighted={entry['confidence_weighted_delta']:+.2f}{tag}")
+    if ns["semantic_neighbours"]:
+        print(f"\nSemantic neighbours ({len(ns['semantic_neighbours'])} functionally similar):")
+        for entry in ns["semantic_neighbours"][:3]:
+            print(f"  {entry['street_id']:>12}  dmean={entry['mean_ped_delta']:+.2f}"
+                  f"  conf={entry['ped_confidence']:.1f}")
     print(f"\nFull result: {args.out or '(see SCENARIO_DIR)'}")
     print('='*60)

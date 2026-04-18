@@ -15,10 +15,18 @@ Pipeline:
   5. Archetype labelling by PARKING centroid peak (relative to global mean)
   6. Flexibility windows: time-blocks where ped demand is high AND parking is low
 
-Intervention archetypes:
+Intervention archetypes (high-activity):
+  major_pedestrian_corridor  — dominant flow street
   morning_pedestrianisation  — morning / commute peak
   midday_retail_activation   — midday / lunch peak
   evening_outdoor_dining     — evening / nightlife peak
+  parking_reallocation_priority — low parking flex, medium activity
+  weekend_leisure            — weekend-dominant
+
+Latent archetypes (low-activity, sub-differentiated by dominant ToD):
+  latent_morning_potential   — low flow, morning-skewed
+  latent_midday_potential    — low flow, midday-skewed
+  latent_evening_potential   — low flow, evening-skewed
 
 Outputs (data/processed/):
   clustered.parquet          — street_id, cluster, intervention_type, confidence, windows
@@ -146,9 +154,15 @@ def _assign_archetypes(gmm, scaler, pca, joint_cols: list, k: int) -> dict[int, 
             mapping[cl] = "major_pedestrian_corridor"
             continue
 
-        # Tier 2: clearly low activity (z < -0.5)
+        # Tier 2: clearly low activity (z < -0.5) — sub-differentiate by dominant ToD
         if act_z[cl] < -0.5:
-            mapping[cl] = "latent_activation_potential"
+            tod_idx = int(np.argmax(z_tod[cl]))
+            if tod_idx == 0:
+                mapping[cl] = "latent_morning_potential"
+            elif tod_idx == 2:
+                mapping[cl] = "latent_evening_potential"
+            else:
+                mapping[cl] = "latent_midday_potential"
             continue
 
         # Tier 3: medium activity — distinguish by parking flexibility and time-of-day
@@ -169,6 +183,23 @@ def _assign_archetypes(gmm, scaler, pca, joint_cols: list, k: int) -> dict[int, 
                 mapping[cl] = "weekend_leisure"
             else:
                 mapping[cl] = "midday_retail_activation"
+
+    # Post-hoc: guarantee unique labels.
+    # If multiple clusters share the same label, rank by activity and append
+    # _high / _medium / _low so each cluster has a distinct, interpretable name.
+    from collections import Counter
+    _tiers = ["_high", "_medium", "_low"]
+    for dup_label, count in Counter(mapping.values()).items():
+        if count < 2:
+            continue
+        dup_clusters = sorted(
+            [cl for cl, lbl in mapping.items() if lbl == dup_label],
+            key=lambda cl: float(activity[cl]),
+            reverse=True,  # descending: first = most active
+        )
+        for rank, cl in enumerate(dup_clusters):
+            suffix = _tiers[rank] if rank < len(_tiers) else f"_{rank + 1}"
+            mapping[cl] = dup_label + suffix
 
     return mapping
 
@@ -284,6 +315,11 @@ def run() -> dict[str, Path]:
     labels = best_gmm.predict(X_pca)
     probs  = best_gmm.predict_proba(X_pca)
 
+    # Secondary (soft) assignment: second-highest probability cluster per street
+    sorted_prob_idx  = np.argsort(probs, axis=1)          # ascending → last = primary
+    secondary_idx    = sorted_prob_idx[:, -2]             # second-highest cluster index
+    secondary_prob   = probs[np.arange(len(probs)), secondary_idx]
+
     sizes = {int(k): int((labels == k).sum()) for k in range(best_k)}
     log.info(f"  Cluster sizes: {sizes}")
 
@@ -331,6 +367,9 @@ def run() -> dict[str, Path]:
         "intervention_type":      [archetype_map[int(l)] for l in labels],
         "cluster_confidence":     cluster_conf,
         "intervention_reliable":  cluster_conf >= CONFIDENCE_THRESHOLD,
+        "secondary_cluster":      secondary_idx.tolist(),
+        "secondary_archetype":    [archetype_map[int(i)] for i in secondary_idx],
+        "secondary_prob":         secondary_prob.round(4).tolist(),
         "flexibility_windows":    flex_all,
         "best_window":            flex_best,
         "mean_ped":               profiles["mean_ped"].tolist(),
@@ -374,7 +413,8 @@ def run() -> dict[str, Path]:
 
     # ── Cluster summary (for viz) ──────────────────────────────────────────────
     summ_cols = ["street_id", "cluster", "intervention_type", "cluster_confidence",
-                 "intervention_reliable", "best_window", "mean_ped", "mean_parking"]
+                 "intervention_reliable", "best_window", "mean_ped", "mean_parking",
+                 "secondary_cluster", "secondary_archetype", "secondary_prob"]
     summ_df = result[summ_cols].copy()
     summ_df["cluster_confidence"] = summ_df["cluster_confidence"].round(4)
     summ_df["mean_ped"]           = summ_df["mean_ped"].round(2)

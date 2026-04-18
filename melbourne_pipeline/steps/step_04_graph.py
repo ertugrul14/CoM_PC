@@ -35,15 +35,17 @@ Outputs (all in data/processed/):
   spatial_edges.parquet  — node_i, node_j, dist_m, weight
   semantic_edges.parquet — node_i, node_j, similarity, weight
 """
+import json
 import logging
 from pathlib import Path
 
+import networkx as nx
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 from sklearn.neighbors import NearestNeighbors
 
-from config import PROCESSED_DIR, STREETS_GEOJSON
+from config import PROCESSED_DIR, RAW_DIR, STREETS_GEOJSON
 
 log = logging.getLogger(__name__)
 
@@ -369,6 +371,159 @@ def _validate(node_idx, spatial_edges, semantic_edges):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Static feature enrichment (betweenness centrality + transit proximity)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Melbourne LGA bounding box for tram stop filtering
+_MELB_LON_MIN, _MELB_LON_MAX = 144.88, 145.00
+_MELB_LAT_MIN, _MELB_LAT_MAX = -37.86, -37.77
+
+
+def _haversine_batch(lat1: float, lon1: float,
+                     lats2: np.ndarray, lons2: np.ndarray) -> np.ndarray:
+    """Vectorised haversine distance (metres) from one point to an array of points."""
+    R = 6_371_000.0
+    φ1  = np.radians(lat1)
+    φ2  = np.radians(lats2)
+    dφ  = φ2 - φ1
+    dλ  = np.radians(lons2 - lon1)
+    a   = np.sin(dφ / 2) ** 2 + np.cos(φ1) * np.cos(φ2) * np.sin(dλ / 2) ** 2
+    return R * 2 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a))
+
+
+def _enrich_static_features(
+    node_idx: pd.DataFrame,
+    spatial_edges: pd.DataFrame,
+) -> None:
+    """
+    Compute graph and transit features and append them to static_features.parquet.
+
+    Called at the end of step_04's run() so all graph artefacts are available.
+
+    New columns added
+    -----------------
+    betweenness_centrality : float  Normalised betweenness on the spatial graph.
+                                    High values = topologically central streets
+                                    that sit on many shortest paths — strong
+                                    proxy for foot-traffic corridors.
+    nearest_tram_stop_m    : float  Distance (m) to the nearest tram stop in
+                                    the Melbourne area (MODE == "TRAM" in PTV data).
+    tram_stops_200m        : int    Count of tram stops within a 200 m radius.
+    nearest_bus_stop_m     : float  Distance (m) to the nearest Melbourne City
+                                    bus stop sign.
+    bus_stop_on_street     : int    1 if this street has a bus stop sign
+                                    (roadseg_id direct match), else 0.
+    """
+    static = pd.read_parquet(PROCESSED_DIR / "static_features.parquet")
+    static["street_id"] = static["street_id"].astype(str)
+
+    # ── 1. Betweenness centrality ─────────────────────────────────────────────
+    log.info("  Computing betweenness centrality on spatial graph...")
+    G = nx.Graph()
+    for _, row in spatial_edges.iterrows():
+        G.add_edge(int(row["node_i"]), int(row["node_j"]),
+                   weight=float(row["dist_m"]))
+
+    bc = nx.betweenness_centrality(G, normalized=True, weight="weight")
+    idx_to_sid = dict(zip(
+        node_idx["node_idx"].astype(int),
+        node_idx["street_id"].astype(str),
+    ))
+    bc_df = pd.DataFrame([
+        {"street_id": idx_to_sid[ni], "betweenness_centrality": val}
+        for ni, val in bc.items() if ni in idx_to_sid
+    ])
+    static = static.merge(bc_df, on="street_id", how="left")
+    static["betweenness_centrality"] = static["betweenness_centrality"].fillna(0.0)
+    log.info(f"  Betweenness centrality: max={static['betweenness_centrality'].max():.4f}")
+
+    # Street centroid arrays for vectorised distance computation
+    lats = static["centroid_lat"].values
+    lons = static["centroid_lon"].values
+
+    # ── 2. Tram stop proximity (PTV GeoJSON) ──────────────────────────────────
+    ptv_path = RAW_DIR / "ptv_stops.geojson"
+    if ptv_path.exists():
+        log.info("  Loading PTV stops for tram proximity...")
+        with open(ptv_path, encoding="utf-8") as f:
+            ptv_data = json.load(f)
+
+        # Filter to tram stops within Melbourne LGA bbox
+        tram_coords = []
+        for feat in ptv_data["features"]:
+            if feat["properties"].get("MODE", "").upper() != "TRAM":
+                continue
+            lon, lat = feat["geometry"]["coordinates"]
+            if (_MELB_LON_MIN <= lon <= _MELB_LON_MAX and
+                    _MELB_LAT_MIN <= lat <= _MELB_LAT_MAX):
+                tram_coords.append([lat, lon])
+
+        log.info(f"  Tram stops in Melbourne bbox: {len(tram_coords)}")
+
+        if tram_coords:
+            tram_arr = np.array(tram_coords)   # [M, 2]  lat, lon
+            nearest_tram = np.array([
+                float(_haversine_batch(lat, lon, tram_arr[:, 0], tram_arr[:, 1]).min())
+                for lat, lon in zip(lats, lons)
+            ])
+            tram_200m = np.array([
+                int((_haversine_batch(lat, lon, tram_arr[:, 0], tram_arr[:, 1]) <= 200).sum())
+                for lat, lon in zip(lats, lons)
+            ])
+        else:
+            log.warning("  No tram stops found in bbox — defaulting to 9999 m")
+            nearest_tram = np.full(len(static), 9999.0)
+            tram_200m    = np.zeros(len(static), dtype=int)
+
+        static["nearest_tram_stop_m"] = nearest_tram
+        static["tram_stops_200m"]     = tram_200m
+    else:
+        log.warning("  ptv_stops.geojson not found — tram proximity set to 9999 m / 0")
+        static["nearest_tram_stop_m"] = 9999.0
+        static["tram_stops_200m"]     = 0
+
+    # ── 3. Bus stop proximity (Melbourne City open data) ─────────────────────
+    bus_path = RAW_DIR / "bus_stops.parquet"
+    if bus_path.exists():
+        log.info("  Loading Melbourne bus stops...")
+        bus_df = pd.read_parquet(bus_path)
+        bus_df["roadseg_id"] = bus_df["roadseg_id"].astype(str)
+
+        # Direct match: count stops per street via roadseg_id
+        on_street = set(bus_df["roadseg_id"].unique())
+        static["bus_stop_on_street"] = static["street_id"].isin(on_street).astype(int)
+
+        # Nearest bus stop (spatial) for all streets
+        bus_arr = bus_df[["lat", "lon"]].dropna().values  # [K, 2]
+        if len(bus_arr):
+            nearest_bus = np.array([
+                float(_haversine_batch(lat, lon, bus_arr[:, 0], bus_arr[:, 1]).min())
+                for lat, lon in zip(lats, lons)
+            ])
+        else:
+            nearest_bus = np.full(len(static), 9999.0)
+
+        static["nearest_bus_stop_m"] = nearest_bus
+        n_matched = static["bus_stop_on_street"].sum()
+        log.info(f"  Bus stops: {n_matched} streets have a direct stop match")
+    else:
+        log.warning("  bus_stops.parquet not found — bus proximity set to 9999 m / 0")
+        static["bus_stop_on_street"] = 0
+        static["nearest_bus_stop_m"] = 9999.0
+
+    # ── Save enriched static features ────────────────────────────────────────
+    static.to_parquet(PROCESSED_DIR / "static_features.parquet", index=False)
+    new_cols = [
+        "betweenness_centrality", "nearest_tram_stop_m", "tram_stops_200m",
+        "bus_stop_on_street", "nearest_bus_stop_m",
+    ]
+    log.info(
+        f"  static_features enriched: {len(static)} streets × "
+        f"{len(static.columns)} cols  (+{len(new_cols)} new: {new_cols})"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Entry point
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -395,6 +550,10 @@ def run() -> dict[str, Path]:
     semantic_edges.to_parquet(se_path, index=False)
 
     gv_path = _export_graph_viz(static, node_idx, spatial_edges, semantic_edges)
+
+    # Enrich static_features with betweenness centrality + transit proximity
+    log.info("  Enriching static_features with graph + transit features...")
+    _enrich_static_features(node_idx, spatial_edges)
 
     log.info(
         f"Step 4 complete: {len(node_idx)} nodes | "

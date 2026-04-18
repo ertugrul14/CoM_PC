@@ -16,6 +16,8 @@ Downloads and saves to data/raw/:
  12. clue_floorspace_industry.parquet — Floor space by industry
  13. clue_floorspace_use.parquet     — Floor space by use
  14. clue_landmarks.parquet     — Landmarks & places of interest
+ 15. ptv_stops.geojson          — All Victoria public transport stops (PTV)
+ 16. bus_stops.parquet          — Melbourne City bus stop signs (City of Melbourne)
 
 Every fetch is idempotent — re-running overwrites data/raw/ cleanly.
 """
@@ -45,6 +47,18 @@ from config import (
 
 log = logging.getLogger(__name__)
 
+# ── Transit stop sources ─────────────────────────────────────────────────────
+# Full Victoria public transport stops (tram, train, bus, coach, skybus).
+# Filter to MODE == "TRAM" in step_04 when computing transit proximity.
+PTV_STOPS_URL = (
+    "https://opendata.transport.vic.gov.au/dataset/"
+    "6d36dfd9-8693-4552-8a03-05eb29a391fd/resource/"
+    "a2cba0b0-bddc-4b87-b495-2b6b7013af6e/download/"
+    "public_transport_stops.geojson"
+)
+# Melbourne City bus stop signs (309 records, <10K → single paginate pass).
+MELB_BUS_STOPS_SLUG = "bus-stops"
+
 # ── Supabase REST helpers ────────────────────────────────────────────────────
 
 _HEADERS = {
@@ -53,17 +67,40 @@ _HEADERS = {
 }
 
 
-def _fetch_supabase_view(view_name: str) -> pd.DataFrame:
+def _fetch_supabase_view(view_name: str, max_retries: int = 3) -> pd.DataFrame:
     """Keyset-paginate through a Supabase view using id ordering.
 
     Uses the PostgREST REST API directly (httpx) instead of the Supabase
     Python client so we can reliably fetch millions of rows by paging on
     the id column.
-    """
-    rest_url = f"{SUPABASE_URL}/rest/v1/{view_name}"
-    all_rows: list[dict] = []
-    last_id = 0
 
+    Resilience features:
+    - Per-batch retry with exponential backoff (5 / 10 / 20 s) on 5xx errors.
+    - Checkpoint/resume: writes a partial parquet + last_id cursor to RAW_DIR
+      every CHECKPOINT_EVERY batches. On the next run, if both files exist the
+      fetch resumes from the saved id rather than restarting from zero.
+    """
+    CHECKPOINT_EVERY = 50  # write checkpoint every 50 × SUPABASE_BATCH_SIZE rows
+
+    checkpoint_path = RAW_DIR / f"{view_name}_checkpoint.txt"
+    partial_path    = RAW_DIR / f"{view_name}_partial.parquet"
+
+    rest_url  = f"{SUPABASE_URL}/rest/v1/{view_name}"
+    all_rows: list[dict] = []
+    last_id   = 0
+    has_prior = False
+
+    # Resume from a previous partial run if checkpoint files exist
+    if checkpoint_path.exists() and partial_path.exists():
+        last_id   = int(checkpoint_path.read_text().strip())
+        prior_len = len(pd.read_parquet(partial_path, columns=[]))
+        has_prior = True
+        log.info(
+            f"  {view_name}: resuming from checkpoint id={last_id} "
+            f"({prior_len:,} rows already in partial file)"
+        )
+
+    batch_count = 0
     with httpx.Client(timeout=60) as client:
         while True:
             params = {
@@ -77,20 +114,54 @@ def _fetch_supabase_view(view_name: str) -> pd.DataFrame:
                 "limit": str(SUPABASE_BATCH_SIZE),
             }
             log.info(f"  {view_name}: fetching after id={last_id} ...")
-            resp = client.get(rest_url, params=params, headers=_HEADERS)
-            resp.raise_for_status()
-            batch = resp.json()
 
+            # Per-batch retry with exponential backoff on 5xx errors
+            for attempt in range(1, max_retries + 1):
+                resp = client.get(rest_url, params=params, headers=_HEADERS)
+                if resp.status_code < 500 or attempt == max_retries:
+                    resp.raise_for_status()
+                    break
+                wait = 5 * (2 ** (attempt - 1))  # 5 s, 10 s, 20 s
+                log.warning(
+                    f"  {view_name}: HTTP {resp.status_code} on attempt "
+                    f"{attempt}/{max_retries}, retrying in {wait}s ..."
+                )
+                time.sleep(wait)
+
+            batch = resp.json()
             if not batch:
                 break
             all_rows.extend(batch)
             last_id = batch[-1]["id"]
             log.info(f"  {view_name}: got {len(batch):,} rows  (total so far: {len(all_rows):,})")
+
+            # Checkpoint: write partial parquet + cursor so a crash is resumable.
+            # During a resumed run we only overwrite the cursor; the partial
+            # parquet from before the crash stays intact (avoids re-reading it).
+            batch_count += 1
+            if batch_count % CHECKPOINT_EVERY == 0 and not has_prior:
+                pd.DataFrame(all_rows).to_parquet(partial_path, index=False)
+                checkpoint_path.write_text(str(last_id))
+                log.info(f"  {view_name}: checkpoint saved at id={last_id}")
+
             if len(batch) < SUPABASE_BATCH_SIZE:
                 break
 
-    log.info(f"  {view_name}: {len(all_rows):,} total rows fetched")
-    return pd.DataFrame(all_rows)
+    # Combine partial (from prior run) with newly fetched rows
+    new_df = pd.DataFrame(all_rows)
+    if has_prior and partial_path.exists():
+        prior_df = pd.read_parquet(partial_path)
+        final_df = pd.concat([prior_df, new_df], ignore_index=True)
+    else:
+        final_df = new_df
+
+    # Remove checkpoint files on clean completion
+    for p in (checkpoint_path, partial_path):
+        if p.exists():
+            p.unlink()
+
+    log.info(f"  {view_name}: {len(final_df):,} total rows fetched")
+    return final_df
 
 
 def fetch_parking() -> Path:
@@ -287,6 +358,57 @@ def fetch_clue() -> dict[str, Path]:
     return outputs
 
 
+# ── Transit stops ────────────────────────────────────────────────────────────
+
+def fetch_transit_stops() -> dict[str, Path]:
+    """Download PTV public transport stops GeoJSON and Melbourne bus stop signs.
+
+    Outputs
+    -------
+    ptv_stops.geojson   — All Victoria stops. Properties: STOP_ID, STOP_NAME, MODE.
+                          MODE values include "TRAM", "TRAIN", "BUS", "SKYBUS", etc.
+                          Step 04 filters to MODE == "TRAM" within the Melbourne bbox.
+    bus_stops.parquet   — Melbourne City bus stop signs (309 records).
+                          Fields: stop_id, roadseg_id, lat, lon, description.
+                          roadseg_id links directly to street_id in node_index.
+    """
+    outputs: dict[str, Path] = {}
+
+    # 1. PTV stops GeoJSON — all Victoria (~7.8 MB, single GET)
+    log.info("Fetching PTV public transport stops GeoJSON (~7.8 MB)...")
+    resp = requests.get(PTV_STOPS_URL, timeout=180)
+    resp.raise_for_status()
+    ptv_path = RAW_DIR / "ptv_stops.geojson"
+    ptv_path.write_bytes(resp.content)
+    log.info(f"  PTV stops: {len(resp.content) / 1024:.0f} KB -> {ptv_path}")
+    outputs["ptv_stops"] = ptv_path
+
+    # 2. Melbourne City bus stop signs — paginate all 309 records
+    log.info("Fetching Melbourne City bus stops...")
+    base = (
+        f"{MELBOURNE_OPEN_DATA_BASE}/api/explore/v2.1/catalog/datasets"
+        f"/{MELB_BUS_STOPS_SLUG}/records"
+    )
+    records = _paginate_clue(base, refine=None, where=None)
+    bus_rows = []
+    for r in records:
+        geo = r.get("geo_point_2d") or {}
+        bus_rows.append({
+            "stop_id":    r.get("objectid"),
+            "roadseg_id": r.get("roadseg_id"),
+            "lat":        geo.get("lat"),
+            "lon":        geo.get("lon"),
+            "description": r.get("descriptio"),
+        })
+    bus_df = pd.DataFrame(bus_rows).dropna(subset=["lat", "lon"])
+    bus_path = RAW_DIR / "bus_stops.parquet"
+    bus_df.to_parquet(bus_path, index=False)
+    log.info(f"  Melbourne bus stops: {len(bus_df)} records -> {bus_path}")
+    outputs["bus_stops"] = bus_path
+
+    return outputs
+
+
 # ── Main entry point ─────────────────────────────────────────────────────────
 
 def run() -> dict[str, Path]:
@@ -298,6 +420,7 @@ def run() -> dict[str, Path]:
     outputs["pedestrian"] = fetch_pedestrian()
     outputs["weather"] = fetch_weather()
     outputs.update(fetch_clue())
+    outputs.update(fetch_transit_stops())
 
     log.info(f"Step 01 complete -- {len(outputs)} files written to {RAW_DIR}")
     return outputs

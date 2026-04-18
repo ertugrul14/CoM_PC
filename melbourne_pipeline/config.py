@@ -18,7 +18,7 @@ MODELS_DIR = DATA_DIR / "models"
 LOGS_DIR = BASE_DIR / "logs"
 FRONTEND_DIR = BASE_DIR / "frontend"
 FRONTEND_DATA_DIR = FRONTEND_DIR / "data"
-STREETS_GEOJSON = BASE_DIR / "streets.geojson"
+STREETS_GEOJSON = PROCESSED_DIR / "streets.geojson"
 
 # ── Supabase ─────────────────────────────────────────────────────────────────
 SUPABASE_URL = os.getenv("SUPABASE_URL")

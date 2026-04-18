@@ -1,0 +1,1405 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Melbourne CBD — Curbside Reallocation Pipeline</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet">
+<style>
+  :root {
+    --bg:          #111009;
+    --surface:     #1a1814;
+    --surface-hi:  #221f1a;
+    --border:      #2c2820;
+    --border-hi:   #3d3830;
+    --text:        #ddd5c8;
+    --text-dim:    #7d7268;
+    --text-muted:  #45403a;
+    --accent:      #8db4c8;
+    --accent-dim:  #4a7488;
+    --teal:        #5b9aaa;
+    --red:         #b85c5c;
+    --green:       #6a9e72;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+  }
+  #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+  /* ── Controls panel ─────────────────────────────────────────────── */
+  #controls {
+    position: absolute; top: 12px; left: 12px; z-index: 1;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0; width: 248px;
+    font-size: 12px; max-height: calc(100vh - 40px); overflow-y: auto;
+  }
+  #controls-title {
+    padding: 12px 14px 10px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
+    color: var(--accent); text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section {
+    padding: 8px 0 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section:last-child { border-bottom: none; }
+  .section-title {
+    padding: 0 14px 5px;
+    font-size: 10px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.7px;
+  }
+
+  .toggle-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 14px; cursor: pointer;
+    transition: background 0.1s;
+  }
+  .toggle-row:hover { background: var(--surface-hi); }
+  .toggle-row input[type=checkbox] {
+    appearance: none; width: 13px; height: 13px;
+    border: 1px solid var(--border-hi); background: var(--bg);
+    cursor: pointer; flex-shrink: 0; position: relative;
+  }
+  .toggle-row input[type=checkbox]:checked {
+    background: var(--accent); border-color: var(--accent);
+  }
+  .toggle-row input[type=checkbox]:checked::after {
+    content: ''; position: absolute; left: 3px; top: 1px;
+    width: 5px; height: 8px; border: 1.5px solid var(--bg);
+    border-top: none; border-left: none; transform: rotate(45deg);
+  }
+  .toggle-row label { cursor: pointer; flex: 1; color: var(--text); line-height: 1.8; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sq  { width: 8px; height: 8px; flex-shrink: 0; }
+  .ln  { width: 16px; height: 2px; flex-shrink: 0; }
+  .count { color: var(--text-muted); font-size: 10px; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  .ped-gradient-bar {
+    margin: 6px 14px 8px;
+    height: 5px; border-radius: 0;
+    background: linear-gradient(to right, #0d2a3d, #1d4ed8, #0891b2, #10b981, #f59e0b, #ef4444);
+  }
+  .ped-gradient-labels {
+    display: flex; justify-content: space-between;
+    padding: 0 14px; font-size: 10px; color: var(--text-muted); margin-bottom: 6px;
+  }
+
+  .legend-row {
+    display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 14px 6px;
+    font-size: 10px; color: var(--text-dim); line-height: 1.8;
+  }
+
+  /* ── Street detail panel ────────────────────────────────────────── */
+  #street-panel {
+    position: absolute; top: 0; right: 0; bottom: 0; z-index: 2;
+    width: 340px; background: var(--bg);
+    border-left: 1px solid var(--border);
+    transform: translateX(100%); transition: transform 0.2s ease;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #street-panel.open { transform: translateX(0); }
+
+  #sp-header {
+    padding: 16px 18px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0; background: var(--surface);
+  }
+  #sp-close {
+    float: right; background: none; border: none;
+    color: var(--text-muted); font-size: 16px; cursor: pointer;
+    padding: 0; line-height: 1; margin: 2px -2px 0 0;
+  }
+  #sp-close:hover { color: var(--text); }
+  #sp-street-name {
+    font-size: 17px; font-weight: 600; color: var(--text);
+    margin-bottom: 4px; padding-right: 22px; line-height: 1.3;
+  }
+  #sp-street-meta { font-size: 11px; color: var(--text-muted); letter-spacing: 0.3px; }
+
+  #sp-body { flex: 1; overflow-y: auto; }
+  #sp-body::-webkit-scrollbar { width: 4px; }
+  #sp-body::-webkit-scrollbar-track { background: var(--bg); }
+  #sp-body::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+  .sp-block {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sp-block-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  /* Big stat */
+  .sp-stat { margin-bottom: 4px; }
+  .sp-stat-val {
+    font-size: 28px; font-weight: 600; color: var(--text);
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .sp-stat-unit { font-size: 13px; color: var(--text-dim); margin-left: 4px; font-weight: 400; }
+  .sp-stat-sub  { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+  /* Single-line bar */
+  .sp-bar {
+    height: 4px; background: var(--border); margin: 10px 0 10px; overflow: hidden;
+  }
+  .sp-bar-fill { height: 100%; transition: width 0.4s ease; }
+
+  /* Source tag */
+  .sp-tag {
+    display: inline-block; font-size: 11px; color: var(--text-muted);
+    border: 1px solid var(--border-hi); padding: 2px 8px;
+    letter-spacing: 0.2px;
+  }
+  .sp-tag.measured  { color: var(--green);      border-color: var(--green); }
+  .sp-tag.estimated { color: var(--text-dim);   border-color: var(--border-hi); }
+
+  /* Archetype stripe */
+  .sp-archetype {
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .sp-archetype-stripe { width: 3px; flex-shrink: 0; align-self: stretch; border-radius: 2px; }
+  .sp-archetype-body { flex: 1; }
+  .sp-archetype-name {
+    font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px;
+  }
+  .sp-archetype-sub { font-size: 13px; color: var(--text-dim); }
+
+  /* Land use table */
+  .sp-lu-table { width: 100%; border-collapse: collapse; }
+  .sp-lu-table td {
+    padding: 5px 0; font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sp-lu-table tr:last-child td { border-bottom: none; }
+  .sp-lu-table td:first-child { color: var(--text-dim); }
+  .sp-lu-table td:last-child  { color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Expandable more-info */
+  .sp-more { margin-top: 12px; }
+  .sp-more summary {
+    font-size: 11px; color: var(--text-muted); cursor: pointer;
+    list-style: none; display: inline-flex; align-items: center; gap: 4px;
+    user-select: none;
+  }
+  .sp-more summary::-webkit-details-marker { display: none; }
+  .sp-more summary::before {
+    content: '+'; font-size: 13px; line-height: 1;
+    color: var(--text-muted); width: 12px; text-align: center;
+  }
+  .sp-more[open] summary::before { content: '−'; }
+  .sp-more summary:hover { color: var(--text-dim); }
+  .sp-more-body {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--text-muted); line-height: 1.65;
+  }
+
+  /* Sensor tooltip */
+  #sensor-tooltip {
+    position: absolute; bottom: 16px; left: 280px; z-index: 3;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); padding: 9px 12px;
+    font-size: 11px; display: none; line-height: 1.7;
+    max-width: 240px; pointer-events: none;
+  }
+  #sensor-tooltip b { color: var(--accent); font-weight: 600; }
+
+  /* Hover label top-right */
+  #street-label {
+    position: absolute; top: 12px; right: 356px; z-index: 1;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border);
+    padding: 5px 11px; font-size: 11px; display: none;
+    pointer-events: none; letter-spacing: 0.2px;
+  }
+
+
+  .mapboxgl-popup-content { background: var(--surface) !important; color: var(--text) !important; font-size: 11px; padding: 8px 12px !important; border-radius: 0 !important; border: 1px solid var(--border) !important; }
+  .mapboxgl-ctrl-group { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 0 !important; }
+  .mapboxgl-ctrl-group button { background: var(--surface) !important; color: var(--text-dim) !important; border-radius: 0 !important; }
+  .mapboxgl-ctrl-group button:hover { background: var(--surface-hi) !important; }
+
+  /* ── Cluster info popup ──────────────────────────────────────── */
+  #cluster-popup {
+    position: fixed; z-index: 30;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border-hi);
+    padding: 14px 16px; width: 272px;
+    font-size: 11px; line-height: 1.65;
+    pointer-events: none; display: none;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.75);
+  }
+  #cluster-popup h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+  #cluster-popup .cp-how {
+    font-size: 10px; color: var(--text-dim);
+    margin-bottom: 10px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  #cluster-popup .cp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  #cluster-popup .cp-stat { padding: 5px 7px; background: var(--bg); }
+  #cluster-popup .cp-stat-key { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  #cluster-popup .cp-stat-val { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 1px; }
+
+</style>
+</head>
+<body>
+
+
+<div id="map"></div>
+
+<div id="controls">
+  <div id="controls-title">Melbourne CBD — Pipeline</div>
+
+  <!-- Sensors -->
+  <div class="section">
+    <div class="section-title">Sensors</div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-parking">
+      <div class="dot" style="background:#6b9db3;"></div>
+      <label for="tog-parking">Parking bays</label>
+      <span class="count" id="cnt-parking"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-ped">
+      <div class="dot" style="background:#f472b6;"></div>
+      <label for="tog-ped">Pedestrian counters</label>
+      <span class="count" id="cnt-ped"></span>
+    </div>
+  </div>
+
+  <!-- CLUE Features -->
+  <div class="section">
+    <div class="section-title">CLUE Land Use</div>
+    <div class="toggle-row" style="border-bottom:1px solid var(--border);margin-bottom:3px;padding-bottom:5px;">
+      <input type="checkbox" id="tog-clue-all">
+      <div class="sq" style="background:transparent;border:1px solid var(--border-hi);"></div>
+      <label for="tog-clue-all" style="color:var(--text-dim)">Show all</label>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-cafe">
+      <div class="dot" style="background:#f97316;"></div>
+      <label for="tog-cafe">Cafes &amp; restaurants</label>
+      <span class="count" id="cnt-cafe"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-bar">
+      <div class="dot" style="background:#a855f7;"></div>
+      <label for="tog-bar">Bars &amp; pubs</label>
+      <span class="count" id="cnt-bar"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-business">
+      <div class="dot" style="background:#06b6d4;"></div>
+      <label for="tog-business">Businesses</label>
+      <span class="count" id="cnt-business"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-building">
+      <div class="dot" style="background:#84cc16;"></div>
+      <label for="tog-building">Buildings</label>
+      <span class="count" id="cnt-building"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-dwelling">
+      <div class="dot" style="background:#ef4444;"></div>
+      <label for="tog-dwelling">Dwellings</label>
+      <span class="count" id="cnt-dwelling"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-offstreet">
+      <div class="dot" style="background:#eab308;"></div>
+      <label for="tog-offstreet">Off-street parking</label>
+      <span class="count" id="cnt-offstreet"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-landmark">
+      <div class="dot" style="background:#ec4899;"></div>
+      <label for="tog-landmark">Landmarks</label>
+      <span class="count" id="cnt-landmark"></span>
+    </div>
+  </div>
+
+  <!-- Street Polygons -->
+  <div class="section">
+    <div class="section-title">Street Polygons</div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-streets">
+      <div class="sq" style="background:transparent; border:1px solid #45403a;"></div>
+      <label for="tog-streets">All corridors</label>
+      <span class="count" id="cnt-streets"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-arterial-only">
+      <div class="sq" style="background:transparent; border:1px solid #6b9db3;"></div>
+      <label for="tog-arterial-only">Arterial only (hide minor &amp; private)</label>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-labels">
+      <div class="sq" style="background:transparent; border:1px solid #7d7268;"></div>
+      <label for="tog-labels">Street ID labels</label>
+    </div>
+    <div class="legend-row">
+      <span style="color:#60a5fa;">— arterial</span>
+      <span style="color:#86efac;">— minor</span>
+      <span style="color:#fbbf24;">— private</span>
+    </div>
+  </div>
+
+  <!-- Graph -->
+  <div class="section">
+    <div class="section-title">Graph — Step 04</div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-graph-nodes">
+      <div class="dot" style="background:#6a9e72;"></div>
+      <label for="tog-graph-nodes">Nodes</label>
+      <span class="count" id="cnt-graph-nodes"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-spatial-graph">
+      <div class="ln" style="background:#5b9aaa;"></div>
+      <label for="tog-spatial-graph">Spatial edges</label>
+      <span class="count" id="cnt-spatial-graph"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-semantic-graph">
+      <div class="ln" style="background:#8a7aaa;"></div>
+      <label for="tog-semantic-graph">Semantic edges</label>
+      <span class="count" id="cnt-semantic-graph"></span>
+    </div>
+  </div>
+
+  <!-- Impute Pedestrian Data -->
+  <div class="section">
+    <div class="section-title">Impute Pedestrian Data</div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-ped-sensored">
+      <div class="sq" style="background:#b85c5c;"></div>
+      <label for="tog-ped-sensored">Measured streets</label>
+      <span class="count" id="ped-sensored-count"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-ped-imputed">
+      <div class="sq" style="background:#b85c5c; opacity:0.45;"></div>
+      <label for="tog-ped-imputed">Estimated streets</label>
+      <span class="count" id="ped-imputed-count"></span>
+    </div>
+    <div class="ped-gradient-bar"></div>
+    <div class="ped-gradient-labels"><span>low</span><span id="ped-scale-max">—</span></div>
+  </div>
+
+  <!-- Clustering -->
+  <div class="section">
+    <div class="section-title">Clustering — GMM <span id="cluster-k-label"></span></div>
+    <!-- Show all / hide all -->
+    <div class="toggle-row" style="border-bottom:1px solid var(--border);margin-bottom:3px;padding-bottom:5px;">
+      <input type="checkbox" id="tog-cluster-all">
+      <div class="sq" style="background:transparent;border:1px solid var(--border-hi);"></div>
+      <label for="tog-cluster-all" style="color:var(--text-dim)">Show all clusters</label>
+    </div>
+    <!-- Per-cluster rows — built dynamically by JS -->
+    <div id="cluster-rows"></div>
+  </div>
+
+  <!-- Validation -->
+  <div class="section">
+    <div class="section-title">Validation</div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-snaplines">
+      <div class="ln" style="background:#8db4c8;"></div>
+      <label for="tog-snaplines">Dwelling snap lines</label>
+    </div>
+  </div>
+</div>
+
+<div id="sensor-tooltip"></div>
+<div id="street-label"></div>
+<div id="cluster-popup"></div>
+
+
+<!-- Street detail panel -->
+<div id="street-panel">
+  <div id="sp-header">
+    <button class="sp-close" onclick="closeStreetPanel()">&#x2715;</button>
+    <div id="sp-street-name">—</div>
+    <div id="sp-street-meta">—</div>
+  </div>
+  <div id="sp-body"></div>
+</div>
+
+<script>
+const DATA_FILES = {
+  sensors: 'sensors_viz.geojson',
+  streets: 'streets_viz.geojson',
+  clue: 'clue_points_viz.geojson',
+  graph: 'graph_viz.geojson',
+  pedSummary: 'ped_street_summary.json',
+  clusterSummary: 'cluster_summary.json',
+};
+
+const DATA_BASE_CANDIDATES = [
+  '../data/processed',
+  'data/processed',
+  './data/processed',
+];
+
+async function fetchJsonWithFallback(fileName) {
+  let lastFailure = '';
+  for (const base of DATA_BASE_CANDIDATES) {
+    const url = `${base}/${fileName}`;
+    try {
+      const resp = await fetch(url, { cache: 'no-store' });
+      if (!resp.ok) {
+        lastFailure = `${url} -> HTTP ${resp.status}`;
+        continue;
+      }
+      const rawText = await resp.text();
+      try {
+        return JSON.parse(rawText);
+      } catch (_parseErr) {
+        lastFailure = `${url} -> invalid JSON`;
+        continue;
+      }
+    } catch (err) {
+      lastFailure = `${url} -> ${err?.message || err}`;
+    }
+  }
+  throw new Error(`Failed to load ${fileName}. ${lastFailure}`);
+}
+
+const LAYER_COLORS = {
+  cafe:     '#f97316',
+  bar:      '#a855f7',
+  business: '#06b6d4',
+  building: '#84cc16',
+  dwelling: '#ef4444',
+  offstreet:'#eab308',
+  landmark: '#ec4899',
+};
+
+const CLUSTER_COLORS = ['#3b82f6','#ef4444','#f59e0b','#22c55e','#a855f7','#06b6d4','#f97316','#84cc16','#ec4899'];
+const ARTERIAL_TYPES = ['Arterial', 'Council Major'];
+
+let MAP = null;
+let clueData = null;
+let streetsData = null;
+let clusterSizes = {};
+let totalClusteredStreets = 0;
+let streetCentroidMap = {};   // sid -> [lng, lat]
+let clusterProfiles   = {};   // cluster_id -> aggregated stats
+
+// ── Paste your domain-restricted Mapbox token here ──────────────────────────
+const MAPBOX_TOKEN = 'YOUR_MAPBOX_TOKEN';
+
+window.onload = () => buildMap(MAPBOX_TOKEN);
+
+const ITYPE_LABELS = {
+  'midday_retail_activation':      'Midday Retail',
+  'evening_outdoor_dining':        'Evening Dining',
+  'morning_pedestrianisation':     'Morning Commute',
+  'weekend_leisure':               'Weekend Leisure',
+  'major_pedestrian_corridor':     'Major Corridor',
+  'latent_activation_potential':   'Latent Potential',
+  'parking_reallocation_priority': 'Parking Reallocation',
+};
+const ITYPE_DESCS = {
+  'midday_retail_activation':      'Streets in this cluster peak during business hours (late morning to early afternoon on weekdays). The GMM found they share a strong midday rhythm aligned with retail lunch and shopping activity. Engineered score: score_midday dominates.',
+  'evening_outdoor_dining':        'Streets in this cluster come alive after 5pm and on weekend evenings. The GMM identified a consistent evening and night-time activity surge, matching dining and entertainment patterns. Engineered score: score_evening dominates.',
+  'morning_pedestrianisation':     'Streets in this cluster are busiest during the morning commute window (7–9am weekdays). The GMM grouped them by their sharp AM peak, making them strong candidates for morning pedestrianisation. Engineered score: score_morning dominates.',
+  'weekend_leisure':               'Streets in this cluster have significantly higher pedestrian activity on weekends than weekdays. They serve leisure, tourism, and weekend retail — different dynamics from the weekday retail cluster.',
+  'major_pedestrian_corridor':     'This street is among the highest-activity arteries in the CBD — pedestrian volumes are 3–10× higher than the average street at all hours. Interventions here manage existing high demand rather than create new activation.',
+  'latent_activation_potential':   'This street currently has low pedestrian activity relative to the network. It has the highest upside from intervention — small changes in kerb allocation or activation programs could substantially lift foot traffic.',
+  'parking_reallocation_priority': 'This street has moderate pedestrian activity but parking is persistently occupied (low flexibility score). Parking is genuinely in demand here — reallocating it creates a direct tradeoff and highest potential uplift if done correctly.',
+};
+const IV_OPTIONS = [
+  { id: 'remove_parking',  color: '#ef4444', name: 'Remove Kerb Parking',      sub: 'Convert space to footpath / bike lane' },
+  { id: 'outdoor_dining',  color: '#f59e0b', name: 'Outdoor Dining Extension', sub: 'Kerb space licensed to alfresco dining' },
+  { id: 'pedestrianise',   color: '#22c55e', name: 'Pedestrianise',             sub: 'Time-limited or permanent street closure' },
+  { id: 'loading_zone',    color: '#06b6d4', name: 'Loading / Drop-off Zone',   sub: 'Managed kerb access for deliveries' },
+];
+
+function buildMap(token) {
+  mapboxgl.accessToken = token;
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/dark-v11',
+    center: [144.960, -37.814],
+    zoom: 14,
+  });
+  MAP = map;
+  map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+  map.on('load', async () => {
+    let sensorsRes, streetsRes, clueRes, graphRes, pedSumm, clusterSumm;
+    try {
+      [sensorsRes, streetsRes, clueRes, graphRes, pedSumm, clusterSumm] = await Promise.all([
+        fetchJsonWithFallback(DATA_FILES.sensors),
+        fetchJsonWithFallback(DATA_FILES.streets),
+        fetchJsonWithFallback(DATA_FILES.clue),
+        fetchJsonWithFallback(DATA_FILES.graph),
+        fetchJsonWithFallback(DATA_FILES.pedSummary),
+        fetchJsonWithFallback(DATA_FILES.clusterSummary),
+      ]);
+    } catch (err) {
+      console.error('Map data load failed:', err);
+      alert('Could not load map data files. Check browser console for details.');
+      return;
+    }
+    clueData = clueRes;
+    streetsData = streetsRes;
+
+    // Enrich every street polygon feature with ped + cluster data
+    streetsRes.features.forEach(f => {
+      const sid = String(f.properties.street_id);
+      const p = pedSumm[sid];
+      if (p) {
+        f.properties.mean_ped_flow  = p.mean_ped_flow;
+        f.properties.peak_ped_flow  = p.peak_ped_flow;
+        f.properties.ped_source     = p.ped_source;
+        f.properties.ped_confidence = p.ped_confidence;
+      }
+      const cl = clusterSumm[sid];
+      if (cl) {
+        f.properties.cluster               = cl.cluster;
+        f.properties.intervention_type     = cl.intervention_type;
+        f.properties.cluster_confidence    = cl.cluster_confidence;
+        f.properties.intervention_reliable = cl.intervention_reliable;
+        f.properties.best_window           = cl.best_window;
+        f.properties.mean_parking          = cl.mean_parking;
+        f.properties.mean_ped              = cl.mean_ped;
+      }
+    });
+
+    // Cluster size breakdown for right panel
+    Object.values(clusterSumm).forEach(cl => {
+      clusterSizes[cl.cluster] = (clusterSizes[cl.cluster] || 0) + 1;
+    });
+    totalClusteredStreets = Object.keys(clusterSumm).length;
+
+    // Build cluster profiles for popup
+    const cpAgg = {};
+    Object.values(clusterSumm).forEach(cl => {
+      const k = cl.cluster;
+      if (!cpAgg[k]) cpAgg[k] = { count:0, pedSum:0, parkSum:0, confSum:0, types:{}, windows:{} };
+      const a = cpAgg[k];
+      a.count++;
+      a.pedSum   += (cl.mean_ped     || 0);
+      a.parkSum  += (cl.mean_parking || 0);
+      a.confSum  += (cl.cluster_confidence || 0);
+      a.types[cl.intervention_type]  = (a.types[cl.intervention_type]  || 0) + 1;
+      if (cl.best_window) a.windows[cl.best_window] = (a.windows[cl.best_window] || 0) + 1;
+    });
+    Object.entries(cpAgg).forEach(([k, a]) => {
+      clusterProfiles[k] = {
+        count:       a.count,
+        dominantType: Object.entries(a.types).sort((x,y)=>y[1]-x[1])[0]?.[0] || '',
+        topWindow:    Object.entries(a.windows).sort((x,y)=>y[1]-x[1])[0]?.[0] || '',
+        avgPed:      a.pedSum  / a.count,
+        avgParking:  a.parkSum / a.count,
+        avgConf:     a.confSum / a.count,
+      };
+    });
+
+    // p95 of mean_ped_flow across all streets for gradient scale
+    const allMeans = Object.values(pedSumm).map(p => p.mean_ped_flow).sort((a,b)=>a-b);
+    const pedP95   = allMeans[Math.floor(allMeans.length * 0.95)];
+
+    // ── Streets ──────────────────────────────────────────────────
+    map.addSource('streets', { type: 'geojson', data: streetsRes });
+
+    // Color by street type
+    const streetTypeColor = [
+      'match', ['get', 'str_type'],
+      'Arterial',   '#60a5fa',
+      'Council Major', '#60a5fa',
+      'Council Minor', '#86efac',
+      'Private',    '#fbbf24',
+      /* default */ '#94a3b8',
+    ];
+    map.addLayer({
+      id: 'streets-fill', type: 'fill', source: 'streets',
+      layout: { visibility: 'none' },
+      paint: { 'fill-color': streetTypeColor, 'fill-opacity': 0.15 },
+    });
+    map.addLayer({
+      id: 'streets-outline', type: 'line', source: 'streets',
+      layout: { visibility: 'none' },
+      paint: { 'line-color': streetTypeColor, 'line-width': 0.8, 'line-opacity': 0.5 },
+    });
+
+    // ── Pedestrian activity layers ────────────────────────────────
+    // Gradient fill: dark blue (low) → yellow → red (high), capped at p95
+    const p10  = allMeans[Math.floor(allMeans.length * 0.10)];
+    const p25  = allMeans[Math.floor(allMeans.length * 0.25)];
+    const p50  = allMeans[Math.floor(allMeans.length * 0.50)];
+    const p75  = allMeans[Math.floor(allMeans.length * 0.75)];
+    const pedGradient = [
+      'interpolate', ['linear'], ['coalesce', ['get', 'mean_ped_flow'], 0],
+      0,      'rgba(10,10,40,0)',
+      p10,    '#1e3a5f',
+      p25,    '#1d4ed8',
+      p50,    '#0891b2',
+      p75,    '#10b981',
+      pedP95, '#f59e0b',
+      allMeans[allMeans.length - 1], '#ef4444',
+    ];
+
+    // Split streets into sensored (real sensor) and imputed (XGBoost)
+    const sensoredFeats = {
+      type: 'FeatureCollection',
+      features: streetsRes.features.filter(f => f.properties.ped_source === 'sensor'),
+    };
+    const imputedFeats = {
+      type: 'FeatureCollection',
+      features: streetsRes.features.filter(f => f.properties.ped_source === 'xgboost'),
+    };
+
+    map.addSource('ped-sensored', { type: 'geojson', data: sensoredFeats });
+    map.addLayer({
+      id: 'ped-sensored-fill', type: 'fill', source: 'ped-sensored',
+      layout: { visibility: 'none' },
+      paint: { 'fill-color': pedGradient, 'fill-opacity': 0.85 },
+    });
+    map.addLayer({
+      id: 'ped-sensored-outline', type: 'line', source: 'ped-sensored',
+      layout: { visibility: 'none' },
+      paint: { 'line-color': '#ffffff', 'line-width': 0.5, 'line-opacity': 0.4 },
+    });
+
+    map.addSource('ped-imputed', { type: 'geojson', data: imputedFeats });
+    map.addLayer({
+      id: 'ped-imputed-fill', type: 'fill', source: 'ped-imputed',
+      layout: { visibility: 'none' },
+      paint: { 'fill-color': pedGradient, 'fill-opacity': 0.5 },
+    });
+    map.addLayer({
+      id: 'ped-imputed-outline', type: 'line', source: 'ped-imputed',
+      layout: { visibility: 'none' },
+      paint: { 'line-color': '#ffffff', 'line-width': 0.3, 'line-opacity': 0.2, 'line-dasharray': [2, 3] },
+    });
+
+    // Gradient legend scale
+    document.getElementById('ped-scale-max').textContent = Math.round(pedP95) + ' (p95)';
+    document.getElementById('ped-sensored-count').textContent = sensoredFeats.features.length;
+    document.getElementById('ped-imputed-count').textContent  = imputedFeats.features.length;
+
+    // Street ID labels at centroid
+    const labelFeatures = streetsRes.features.map(f => {
+      // compute centroid from polygon
+      const coords = f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates[0][0] : f.geometry.coordinates[0];
+      let cx = 0, cy = 0;
+      coords.forEach(c => { cx += c[0]; cy += c[1]; });
+      cx /= coords.length; cy /= coords.length;
+      streetCentroidMap[String(f.properties.street_id)] = [cx, cy];
+      return { type: 'Feature', geometry: { type: 'Point', coordinates: [cx, cy] }, properties: { label: String(f.properties.street_id) } };
+    });
+    map.addSource('street-labels', { type: 'geojson', data: { type: 'FeatureCollection', features: labelFeatures } });
+    map.addLayer({
+      id: 'street-labels', type: 'symbol', source: 'street-labels',
+      layout: {
+        visibility: 'none',
+        'text-field': ['get', 'label'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 13, 8, 16, 12],
+        'text-allow-overlap': false,
+      },
+      paint: { 'text-color': '#e2e8f0', 'text-halo-color': '#000', 'text-halo-width': 1 },
+    });
+
+    // ── Sensor layers ─────────────────────────────────────────────
+    const parkingFeats = sensorsRes.features.filter(f => f.properties.sensor_type === 'parking');
+    const pedFeats = sensorsRes.features.filter(f => f.properties.sensor_type === 'pedestrian');
+
+    map.addSource('parking', { type: 'geojson', data: { type: 'FeatureCollection', features: parkingFeats } });
+    map.addLayer({
+      id: 'sensors-parking', type: 'circle', source: 'parking',
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2, 16, 5],
+        'circle-color': '#3b82f6', 'circle-opacity': 0.8,
+        'circle-stroke-width': 1.5,
+        'circle-stroke-color': ['match', ['get', 'method'], 'point_in_polygon', '#22c55e', 'nearest_neighbour', '#f59e0b', '#ef4444'],
+      },
+    });
+
+    map.addSource('ped', { type: 'geojson', data: { type: 'FeatureCollection', features: pedFeats } });
+    map.addLayer({
+      id: 'sensors-ped', type: 'circle', source: 'ped',
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 4, 16, 8],
+        'circle-color': '#f472b6', 'circle-opacity': 0.9,
+        'circle-stroke-width': 2,
+        'circle-stroke-color': ['match', ['get', 'method'], 'point_in_polygon', '#22c55e', 'nearest_neighbour', '#f59e0b', '#ef4444'],
+      },
+    });
+
+    // ── CLUE feature layers ───────────────────────────────────────
+    const layerNames = Object.keys(LAYER_COLORS);
+    layerNames.forEach(layerName => {
+      const feats = clueRes.features.filter(f => f.properties.layer === layerName);
+      map.addSource('clue-' + layerName, { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
+
+      // Size by value for dwellings (dwelling_number)
+      let radius;
+      if (layerName === 'dwelling') {
+        radius = ['interpolate', ['linear'], ['zoom'],
+          12, ['interpolate', ['linear'], ['coalesce', ['get', 'value'], 1], 1, 2, 500, 6, 1000, 10],
+          16, ['interpolate', ['linear'], ['coalesce', ['get', 'value'], 1], 1, 4, 500, 12, 1000, 20],
+        ];
+      } else if (layerName === 'offstreet') {
+        radius = ['interpolate', ['linear'], ['zoom'],
+          12, ['interpolate', ['linear'], ['coalesce', ['get', 'value'], 1], 1, 2, 500, 5, 1000, 8],
+          16, ['interpolate', ['linear'], ['coalesce', ['get', 'value'], 1], 1, 4, 500, 10, 1000, 16],
+        ];
+      } else {
+        radius = ['interpolate', ['linear'], ['zoom'], 12, 2, 16, 5];
+      }
+
+      map.addLayer({
+        id: 'clue-' + layerName, type: 'circle', source: 'clue-' + layerName,
+        layout: { visibility: 'none' },
+        paint: {
+          'circle-radius': radius,
+          'circle-color': LAYER_COLORS[layerName],
+          'circle-opacity': 0.75,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#fff',
+          'circle-stroke-opacity': 0.4,
+        },
+      });
+
+      document.getElementById('cnt-' + layerName).textContent = feats.length;
+    });
+
+    // ── Cluster layers (reuse 'streets' source — already enriched) ───
+    // Intervention type: midday=amber, evening=purple, morning=green
+    const interventionColor = [
+      'match', ['get', 'intervention_type'],
+      'midday_retail_activation',      '#f59e0b',
+      'evening_outdoor_dining',        '#a855f7',
+      'morning_pedestrianisation',     '#22c55e',
+      'weekend_leisure',               '#06b6d4',
+      'major_pedestrian_corridor',     '#f97316',
+      'latent_activation_potential',   '#475569',
+      'parking_reallocation_priority', '#ef4444',
+      /* default */ '#94a3b8',
+    ];
+    // Cluster ID: 9 colours (cluster 0–8)
+    const clusterIdColor = [
+      'match', ['get', 'cluster'],
+      0, '#3b82f6',
+      1, '#ef4444',
+      2, '#f59e0b',
+      3, '#22c55e',
+      4, '#a855f7',
+      5, '#06b6d4',
+      6, '#f97316',
+      7, '#84cc16',
+      8, '#ec4899',
+      /* default */ '#94a3b8',
+    ];
+
+    map.addLayer({
+      id: 'cluster-intervention-fill', type: 'fill', source: 'streets',
+      layout: { visibility: 'none' },
+      paint: {
+        'fill-color': interventionColor,
+        'fill-opacity': ['case', ['==', ['get', 'intervention_reliable'], true], 0.65, 0.25],
+      },
+    });
+    map.addLayer({
+      id: 'cluster-intervention-outline', type: 'line', source: 'streets',
+      layout: { visibility: 'none' },
+      paint: { 'line-color': interventionColor, 'line-width': 0.8, 'line-opacity': 0.7 },
+    });
+
+    map.addLayer({
+      id: 'cluster-id-fill', type: 'fill', source: 'streets',
+      layout: { visibility: 'none' },
+      paint: { 'fill-color': clusterIdColor, 'fill-opacity': 0.6 },
+    });
+    map.addLayer({
+      id: 'cluster-id-outline', type: 'line', source: 'streets',
+      layout: { visibility: 'none' },
+      paint: { 'line-color': clusterIdColor, 'line-width': 0.8, 'line-opacity': 0.7 },
+    });
+
+    // ── Snap lines (dwelling -> street centroid) ──────────────────
+    const dwellFeats = clueRes.features.filter(f => f.properties.layer === 'dwelling');
+    const streetCentroids = {};
+    labelFeatures.forEach(f => { streetCentroids[f.properties.label] = f.geometry.coordinates; });
+    const snapLineFeats = dwellFeats.filter(f => f.properties.street_id && streetCentroids[f.properties.street_id]).map(f => ({
+      type: 'Feature',
+      properties: { street_id: f.properties.street_id, value: f.properties.value || 0 },
+      geometry: {
+        type: 'LineString',
+        coordinates: [f.geometry.coordinates, streetCentroids[f.properties.street_id]],
+      },
+    }));
+    map.addSource('snap-lines', { type: 'geojson', data: { type: 'FeatureCollection', features: snapLineFeats } });
+    map.addLayer({
+      id: 'snap-lines', type: 'line', source: 'snap-lines',
+      layout: { visibility: 'none' },
+      paint: { 'line-color': '#f59e0b', 'line-width': 1, 'line-opacity': 0.5, 'line-dasharray': [2, 2] },
+    });
+
+    // ── Graph layers ──────────────────────────────────────────────
+    const nodeFeats     = { type: 'FeatureCollection', features: graphRes.features.filter(f => f.properties.feature_type === 'node') };
+    const spatialFeats  = { type: 'FeatureCollection', features: graphRes.features.filter(f => f.properties.edge_type === 'spatial') };
+    const semanticFeats = { type: 'FeatureCollection', features: graphRes.features.filter(f => f.properties.edge_type === 'semantic') };
+
+    // Node circles — green if semantic-eligible, dark slate if spatial-only
+    map.addSource('graph-nodes', { type: 'geojson', data: nodeFeats });
+    map.addLayer({
+      id: 'graph-nodes-circles', type: 'circle', source: 'graph-nodes',
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 5],
+        'circle-color': ['case', ['==', ['get', 'semantic_eligible'], true], '#22c55e', '#475569'],
+        'circle-opacity': ['case', ['==', ['get', 'semantic_eligible'], true], 0.9, 0.5],
+        'circle-stroke-width': 1,
+        'circle-stroke-color': ['case', ['==', ['get', 'semantic_eligible'], true], '#15803d', '#1e293b'],
+        'circle-stroke-opacity': 0.7,
+      },
+    });
+
+    map.addSource('spatial-graph',  { type: 'geojson', data: spatialFeats });
+    map.addLayer({
+      id: 'spatial-graph-lines', type: 'line', source: 'spatial-graph',
+      layout: { visibility: 'none' },
+      paint: {
+        'line-color': '#3b82f6',
+        'line-width': ['interpolate', ['linear'], ['get', 'weight'], 0, 0.4, 1, 2.0],
+        'line-opacity': ['interpolate', ['linear'], ['get', 'weight'], 0, 0.08, 1, 0.55],
+      },
+    });
+
+    map.addSource('semantic-graph', { type: 'geojson', data: semanticFeats });
+    map.addLayer({
+      id: 'semantic-graph-lines', type: 'line', source: 'semantic-graph',
+      layout: { visibility: 'none' },
+      paint: {
+        'line-color': '#a855f7',
+        'line-width': ['interpolate', ['linear'], ['get', 'weight'], 0.85, 0.2, 1, 0.8],
+        'line-opacity': ['interpolate', ['linear'], ['get', 'weight'], 0.85, 0.15, 1, 0.45],
+      },
+    });
+
+    const semEligCount = nodeFeats.features.filter(f => f.properties.semantic_eligible).length;
+    document.getElementById('cnt-graph-nodes').textContent    = `${nodeFeats.features.length} (${semEligCount} sem)`;
+    document.getElementById('cnt-spatial-graph').textContent  = spatialFeats.features.length.toLocaleString();
+    document.getElementById('cnt-semantic-graph').textContent = semanticFeats.features.length.toLocaleString();
+
+    // ── Stats ─────────────────────────────────────────────────────
+    document.getElementById('cnt-parking').textContent = parkingFeats.length;
+    document.getElementById('cnt-ped').textContent = pedFeats.length;
+    document.getElementById('cnt-streets').textContent = streetsRes.features.length;
+
+    // ── Cluster legend — dynamic per-cluster rows with checkboxes ───
+    const actualK = Object.keys(clusterSizes).length;
+    document.getElementById('cluster-k-label').textContent = `k=${actualK}`;
+
+    // Build archetype → cluster mapping from clusterSumm
+    const clusterArchetypes = {};  // cluster_id -> intervention_type
+    Object.values(clusterSumm).forEach(cl => {
+      clusterArchetypes[cl.cluster] = cl.intervention_type;
+    });
+
+    const clusterRowsEl = document.getElementById('cluster-rows');
+    for (let i = 0; i < actualK; i++) {
+      const pct       = clusterSizes[i] ? ((clusterSizes[i] / totalClusteredStreets) * 100).toFixed(0) : 0;
+      const color     = CLUSTER_COLORS[i] || '#94a3b8';
+      const archetype = clusterArchetypes[i] || '';
+      const label     = ITYPE_LABELS[archetype] || archetype.replace(/_/g, ' ') || `Cluster ${i}`;
+      const row = document.createElement('div');
+      row.className = 'toggle-row';
+      row.dataset.cluster = i;
+      row.innerHTML = `
+        <input type="checkbox" id="tog-cluster-${i}">
+        <div class="sq" style="background:${color};"></div>
+        <label for="tog-cluster-${i}" style="flex:1">
+          <span style="font-weight:600;color:${color}">${label}</span>
+          <span style="color:var(--text-muted);font-size:10px;margin-left:4px">${pct}%</span>
+        </label>
+        <span class="count">${clusterSizes[i] || 0}</span>`;
+      clusterRowsEl.appendChild(row);
+    }
+
+    // ── Toggle handlers ───────────────────────────────────────────
+    const toggleMap = {
+      'tog-parking':       'sensors-parking',
+      'tog-ped':           'sensors-ped',
+      'tog-streets':       ['streets-fill', 'streets-outline'],
+      'tog-labels':        'street-labels',
+      'tog-snaplines':     'snap-lines',
+      'tog-ped-sensored':   ['ped-sensored-fill', 'ped-sensored-outline'],
+      'tog-ped-imputed':    ['ped-imputed-fill',  'ped-imputed-outline'],
+      'tog-graph-nodes':    'graph-nodes-circles',
+      'tog-spatial-graph':  'spatial-graph-lines',
+      'tog-semantic-graph': 'semantic-graph-lines',
+    };
+    layerNames.forEach(n => { toggleMap['tog-' + n] = 'clue-' + n; });
+
+    Object.entries(toggleMap).forEach(([togId, layers]) => {
+      document.getElementById(togId).addEventListener('change', (e) => {
+        const vis = e.target.checked ? 'visible' : 'none';
+        (Array.isArray(layers) ? layers : [layers]).forEach(l => {
+          map.setLayoutProperty(l, 'visibility', vis);
+        });
+      });
+    });
+
+    // CLUE select-all
+    document.getElementById('tog-clue-all').addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      layerNames.forEach(n => {
+        const cb = document.getElementById('tog-' + n);
+        if (cb) { cb.checked = checked; map.setLayoutProperty('clue-' + n, 'visibility', checked ? 'visible' : 'none'); }
+      });
+    });
+
+    // ── Per-cluster filter toggles ────────────────────────────────
+    // Tracks which cluster IDs are currently visible
+    const visibleClusters = new Set();
+    const CLUSTER_LAYERS  = ['cluster-intervention-fill', 'cluster-intervention-outline',
+                             'cluster-id-fill',           'cluster-id-outline'];
+
+    function applyClusterFilter() {
+      const ids  = Array.from(visibleClusters);
+      const vis  = ids.length > 0 ? 'visible' : 'none';
+      const filter = ids.length === 0
+        ? ['==', ['get', 'cluster'], -1]
+        : ids.length === actualK
+        ? null
+        : ['in', ['get', 'cluster'], ['literal', ids]];
+      CLUSTER_LAYERS.forEach(l => {
+        try {
+          map.setLayoutProperty(l, 'visibility', vis);
+          map.setFilter(l, filter);
+        } catch(_) {}
+      });
+    }
+
+    // Individual cluster checkboxes — wired after rows are in the DOM
+    for (let i = 0; i < actualK; i++) {
+      document.getElementById(`tog-cluster-${i}`).addEventListener('change', (e) => {
+        if (e.target.checked) visibleClusters.add(i); else visibleClusters.delete(i);
+        const allChecked  = visibleClusters.size === actualK;
+        const noneChecked = visibleClusters.size === 0;
+        const allCb = document.getElementById('tog-cluster-all');
+        allCb.checked       = allChecked;
+        allCb.indeterminate = !allChecked && !noneChecked;
+        applyClusterFilter();
+      });
+    }
+
+    // Select-all checkbox
+    document.getElementById('tog-cluster-all').addEventListener('change', (e) => {
+      for (let i = 0; i < actualK; i++) {
+        const cb = document.getElementById(`tog-cluster-${i}`);
+        cb.checked = e.target.checked;
+        if (e.target.checked) visibleClusters.add(i); else visibleClusters.delete(i);
+      }
+      applyClusterFilter();
+    });
+
+    // Show clusters by default on load
+    applyClusterFilter();
+
+    // Arterial-only filter (applies to all street-polygon and ped layers)
+    const ARTERIAL_FILTER = ['in', ['get', 'str_type'], ['literal', ARTERIAL_TYPES]];
+    const allStreetLayers = ['streets-fill','streets-outline','ped-sensored-fill','ped-sensored-outline',
+                             'ped-imputed-fill','ped-imputed-outline','cluster-intervention-fill',
+                             'cluster-intervention-outline','cluster-id-fill','cluster-id-outline',
+                             'streets-highlight','streets-highlight-outline','street-labels'];
+    document.getElementById('tog-arterial-only').addEventListener('change', (e) => {
+      allStreetLayers.forEach(l => {
+        try { map.setFilter(l, e.target.checked ? ARTERIAL_FILTER : null); } catch(_) {}
+      });
+    });
+
+    // ── Highlight street on hover ─────────────────────────────────
+    map.addLayer({
+      id: 'streets-highlight', type: 'fill', source: 'streets',
+      paint: { 'fill-color': '#fbbf24', 'fill-opacity': 0.35 },
+      filter: ['==', ['get', 'street_id'], ''],
+    });
+    map.addLayer({
+      id: 'streets-highlight-outline', type: 'line', source: 'streets',
+      paint: { 'line-color': '#fbbf24', 'line-width': 2.5 },
+      filter: ['==', ['get', 'street_id'], ''],
+    });
+
+    ['streets-fill','ped-sensored-fill','ped-imputed-fill',
+     'cluster-intervention-fill','cluster-id-fill'].forEach(lyr => map.on('mousemove', lyr, (e) => {
+      if (e.features.length) {
+        const sid = e.features[0].properties.street_id;
+        map.setFilter('streets-highlight', ['==', ['get', 'street_id'], String(sid)]);
+        map.setFilter('streets-highlight-outline', ['==', ['get', 'street_id'], String(sid)]);
+        const sl = document.getElementById('street-label');
+        sl.style.display = 'block';
+        const sp = e.features[0].properties;
+        const pedTxt = sp.mean_ped_flow > 0 ? `  ${Number(sp.mean_ped_flow).toFixed(0)} ppl/15min` : '';
+        sl.textContent = (sp.name || ('Street ' + sid)) + pedTxt;
+      }
+    }));
+    map.on('mouseleave', 'streets-fill', () => {
+      map.setFilter('streets-highlight', ['==', ['get', 'street_id'], '']);
+      map.setFilter('streets-highlight-outline', ['==', ['get', 'street_id'], '']);
+      document.getElementById('street-label').style.display = 'none';
+    });
+
+    // ── Click handlers ────────────────────────────────────────────
+    const sensorTip = document.getElementById('sensor-tooltip');
+
+    // Click on CLUE point → small sensor tooltip
+    layerNames.forEach(layerName => {
+      map.on('click', 'clue-' + layerName, (e) => {
+        const p = e.features[0].properties;
+        let html = `<b style="color:${LAYER_COLORS[layerName]}">${layerName.toUpperCase()}</b>`;
+        if (p.name) html += `<br>${p.name}`;
+        html += `<br>Street: <b>${p.street_id || 'none'}</b>`;
+        if (p.value != null && p.value > 0) html += `<br>Value: <b>${p.value}</b>`;
+        sensorTip.innerHTML = html;
+        sensorTip.style.display = 'block';
+        e.originalEvent.stopPropagation();
+      });
+      map.on('mouseenter', 'clue-' + layerName, () => map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', 'clue-' + layerName, () => map.getCanvas().style.cursor = '');
+    });
+
+    // Click on parking sensor
+    map.on('click', 'sensors-parking', (e) => {
+      const p = e.features[0].properties;
+      sensorTip.innerHTML = `<b style="color:#3b82f6">Parking sensor ${p.sensor_id}</b><br>Street: <b>${p.street_id || 'none'}</b><br>Snapped via: ${p.method}<br>Distance: ${p.dist_m != null ? Math.round(p.dist_m) + ' m' : 'N/A'}`;
+      sensorTip.style.display = 'block';
+    });
+
+    // Click on ped sensor
+    map.on('click', 'sensors-ped', (e) => {
+      const p = e.features[0].properties;
+      sensorTip.innerHTML = `<b style="color:#f472b6">Pedestrian counter ${p.sensor_id}</b><br>${p.sensor_description || ''}<br>Street: <b>${p.street_id || 'none'}</b><br>Snapped via: ${p.method}`;
+      sensorTip.style.display = 'block';
+    });
+
+
+    // ── Cluster popup ─────────────────────────────────────────────
+    const clusterPopupEl = document.getElementById('cluster-popup');
+    const clusterIdLegendContainer = document.getElementById('cluster-rows');
+
+    clusterIdLegendContainer.addEventListener('mouseover', (e) => {
+      const row  = e.target.closest('[data-cluster]');
+      if (!row) return;
+      const k    = row.dataset.cluster;
+      const prof = clusterProfiles[k];
+      if (!prof) return;
+      const color     = CLUSTER_COLORS[k] || '#94a3b8';
+      const archetype = clusterArchetypes[k] || prof.dominantType || '';
+      const iLabel    = ITYPE_LABELS[archetype] || archetype.replace(/_/g,' ') || 'Unknown';
+      const iDesc     = ITYPE_DESCS[archetype]  || '';
+      const winLbl    = prof.topWindow ? (WINDOW_LABELS_SHARED[prof.topWindow] || prof.topWindow.replace(/_/g,' ')) : '—';
+      clusterPopupEl.innerHTML = `
+        <h4 style="color:${color}">Cluster ${k} — ${iLabel}</h4>
+        <div class="cp-how">${iDesc}<br><br>
+          Most common peak window: <strong style="color:var(--text)">${winLbl}</strong><br>
+          Method: GMM on 5-month spatiotemporal rhythm across all ${totalClusteredStreets.toLocaleString()} arterial streets.
+        </div>
+        <div class="cp-stats">
+          <div class="cp-stat"><div class="cp-stat-key">Streets</div><div class="cp-stat-val">${prof.count}</div></div>
+          <div class="cp-stat"><div class="cp-stat-key">Avg ped / 15 min</div><div class="cp-stat-val">${prof.avgPed.toFixed(0)}</div></div>
+          <div class="cp-stat"><div class="cp-stat-key">Avg parking occ.</div><div class="cp-stat-val">${(prof.avgParking*100).toFixed(0)}%</div></div>
+          <div class="cp-stat"><div class="cp-stat-key">GMM confidence</div><div class="cp-stat-val">${(prof.avgConf*100).toFixed(0)}%</div></div>
+        </div>`;
+      const rect = row.getBoundingClientRect();
+      const popW = 272;
+      clusterPopupEl.style.display = 'block';
+      const popH = clusterPopupEl.offsetHeight;
+      clusterPopupEl.style.left = Math.min(rect.left, window.innerWidth - popW - 8) + 'px';
+      clusterPopupEl.style.top  = Math.max(4, rect.top - popH - 8) + 'px';
+    });
+    clusterIdLegendContainer.addEventListener('mouseleave', () => { clusterPopupEl.style.display = 'none'; });
+
+    // ── Shared lookup tables (used by openStreetPanel + openInterventionPanel) ──
+    const WINDOW_LABELS_SHARED = {
+      Mon_night:'Mon night', Mon_morning:'Mon morning', Mon_work_am:'Mon late morning',
+      Mon_midday:'Mon midday', Mon_work_pm:'Mon afternoon', Mon_evening:'Mon evening',
+      Tue_night:'Tue night', Tue_morning:'Tue morning', Tue_work_am:'Tue late morning',
+      Tue_midday:'Tue midday', Tue_work_pm:'Tue afternoon', Tue_evening:'Tue evening',
+      Wed_night:'Wed night', Wed_morning:'Wed morning', Wed_work_am:'Wed late morning',
+      Wed_midday:'Wed midday', Wed_work_pm:'Wed afternoon', Wed_evening:'Wed evening',
+      Thu_night:'Thu night', Thu_morning:'Thu morning', Thu_work_am:'Thu late morning',
+      Thu_midday:'Thu midday', Thu_work_pm:'Thu afternoon', Thu_evening:'Thu evening',
+      Fri_night:'Fri night', Fri_morning:'Fri morning', Fri_work_am:'Fri late morning',
+      Fri_midday:'Fri midday', Fri_work_pm:'Fri afternoon', Fri_evening:'Fri evening',
+      Sat_night:'Sat night', Sat_morning:'Sat morning', Sat_work_am:'Sat late morning',
+      Sat_midday:'Sat midday', Sat_work_pm:'Sat afternoon', Sat_evening:'Sat evening',
+      Sun_night:'Sun night', Sun_morning:'Sun morning', Sun_work_am:'Sun late morning',
+      Sun_midday:'Sun midday', Sun_work_pm:'Sun afternoon', Sun_evening:'Sun evening',
+    };
+
+
+    // ── openStreetPanel ───────────────────────────────────────────
+    function openStreetPanel(p) {
+      const sid = String(p.street_id);
+
+      // Header
+      document.getElementById('sp-street-name').textContent =
+        p.name || ('Street segment ' + sid);
+      document.getElementById('sp-street-meta').textContent =
+        [p.str_type, 'ID ' + sid].filter(Boolean).join(' · ');
+
+      // ── Collect CLUE counts for this street ──────────────────────
+      const counts = {};
+      clueData.features.forEach(f => {
+        if (String(f.properties.street_id) === sid) {
+          const l = f.properties.layer;
+          if (!counts[l]) counts[l] = { n: 0, val: 0 };
+          counts[l].n++;
+          if (f.properties.value) counts[l].val += f.properties.value;
+        }
+      });
+
+      // ── Build panel body ──────────────────────────────────────────
+      const TYPE_META = {
+        midday_retail_activation:  {
+          color: '#f59e0b', icon: '&#x2600;',
+          label: 'Retail &amp; lunchtime activity',
+          desc:  'This street peaks during business hours — mid-morning to afternoon on weekdays. Candidate for pop-up dining, market stalls, or widened footpaths. Score: score_midday dominated this cluster\'s centroid.',
+        },
+        evening_outdoor_dining: {
+          color: '#a855f7', icon: '&#x1F319;',
+          label: 'Evening &amp; nightlife activity',
+          desc:  'This street comes alive in the evenings. Well-suited for outdoor dining extensions, late-night pedestrian priority, or cultural activations. Score: score_evening dominated this cluster\'s centroid.',
+        },
+        morning_pedestrianisation: {
+          color: '#22c55e', icon: '&#x1F305;',
+          label: 'Morning commuter corridor',
+          desc:  'This street is busiest during the 7–9am commute window on weekdays. Strong candidate for morning pedestrianisation, protected bike lanes, or drop-off zone management. Score: score_morning dominated.',
+        },
+        weekend_leisure: {
+          color: '#06b6d4', icon: '&#x1F3D6;',
+          label: 'Weekend leisure &amp; tourism',
+          desc:  'This street has significantly higher activity on weekends than weekdays. It serves leisure, tourism, or weekend retail — different dynamics from the weekday retail cluster.',
+        },
+        major_pedestrian_corridor: {
+          color: '#f97316', icon: '&#x1F6B6;',
+          label: 'Major pedestrian corridor',
+          desc:  'One of the CBD\'s highest-activity arteries. Pedestrian volumes are 3–10× higher than average at all hours. Interventions here manage existing high demand.',
+        },
+        latent_activation_potential: {
+          color: '#475569', icon: '&#x1F331;',
+          label: 'Latent activation potential',
+          desc:  'Currently low pedestrian activity relative to the network. Highest upside from kerb reallocation or activation programs — small changes could substantially lift foot traffic.',
+        },
+        parking_reallocation_priority: {
+          color: '#ef4444', icon: '&#x1F697;',
+          label: 'Parking reallocation priority',
+          desc:  'Moderate foot traffic but parking is persistently occupied. Reallocating this kerb space creates a direct, measurable tradeoff — highest opportunity score potential in the pipeline.',
+        },
+      };
+      const WINDOW_LABELS = WINDOW_LABELS_SHARED;
+
+      const pedFlow  = p.mean_ped_flow != null ? Number(p.mean_ped_flow) : null;
+      const pedSrc   = p.ped_source;
+      const pedConf  = p.ped_confidence != null ? Number(p.ped_confidence) : null;
+      const parking  = p.mean_parking  != null ? Number(p.mean_parking)  : null;
+      const itype    = p.intervention_type;
+      const iconf    = p.cluster_confidence != null ? Number(p.cluster_confidence) : null;
+      const reliable = p.intervention_reliable;
+      const bestWin  = p.best_window || '';
+      const cluster  = p.cluster != null ? Number(p.cluster) : null;
+
+      // Pedestrian flow bar — relative to p95 (138.6)
+      const pedPct = pedFlow != null ? Math.min(pedFlow / pedP95 * 100, 100).toFixed(1) : 0;
+      const pedColor = pedFlow > pedP95 * 0.7 ? '#ef4444'
+                     : pedFlow > pedP95 * 0.4 ? '#f59e0b'
+                     : pedFlow > pedP95 * 0.1 ? '#0891b2' : '#1e3a5f';
+
+      const parkPct  = parking != null ? (parking * 100).toFixed(1) : 0;
+      const parkColor = parking > 0.7 ? '#ef4444' : parking > 0.4 ? '#f59e0b' : '#22c55e';
+
+      const typeMeta = itype ? (TYPE_META[itype] || {}) : {};
+
+      let html = '';
+
+      // ── 1. Pedestrian activity ────────────────────────────────────
+      html += `<div class="sp-block">
+        <div class="sp-block-label">Foot Traffic</div>
+        <div class="sp-stat">
+          <span class="sp-stat-val">${pedFlow != null ? pedFlow.toFixed(0) : '—'}</span>
+          ${pedFlow != null ? '<span class="sp-stat-unit">people / 15 min</span>' : ''}
+        </div>
+        <div class="sp-bar"><div class="sp-bar-fill" style="width:${pedPct}%;background:${pedColor}"></div></div>
+        <span class="sp-tag ${pedSrc === 'sensor' ? 'measured' : 'estimated'}">
+          ${pedSrc === 'sensor' ? 'live sensor' : 'model estimate'}
+        </span>
+        ${pedSrc === 'xgboost' ? `
+        <details class="sp-more">
+          <summary>how was this estimated?</summary>
+          <div class="sp-more-body">
+            No pedestrian counter on this street. The pipeline trained a model on the
+            ${sensoredFeats.features.length} streets that have real counters, then applied it
+            here using land use, time of day, and nearby parking.
+            Reliability: ${pedConf === 0.8 ? 'moderate' : 'low'}.
+          </div>
+        </details>` : ''}
+      </div>`;
+
+      // ── 2. Parking occupancy ─────────────────────────────────────
+      html += `<div class="sp-block">
+        <div class="sp-block-label">Parking</div>`;
+      if (parking != null && parking > 0) {
+        html += `
+        <div class="sp-stat">
+          <span class="sp-stat-val">${(parking * 100).toFixed(0)}</span>
+          <span class="sp-stat-unit">% bays occupied</span>
+        </div>
+        <div class="sp-bar"><div class="sp-bar-fill" style="width:${parkPct}%;background:${parkColor}"></div></div>
+        <span class="sp-tag measured">live sensor</span>`;
+      } else {
+        html += `
+        <div class="sp-stat"><span class="sp-stat-val" style="color:var(--text-muted)">—</span></div>
+        <div class="sp-stat-sub" style="font-size:13px;color:var(--text-dim);margin-top:4px">No parking sensors on this street</div>
+        <details class="sp-more">
+          <summary>why no data?</summary>
+          <div class="sp-more-body">
+            Only ~171 streets in the CBD have parking bay sensors. This isn't one of them.
+            The "—" means unknown, not empty.
+          </div>
+        </details>`;
+      }
+      html += `</div>`;
+
+      // ── 3. Intervention type ──────────────────────────────────────
+      if (itype) {
+        const stripeColor = typeMeta.color || 'var(--text-dim)';
+        const winLabel = bestWin ? (WINDOW_LABELS[bestWin] || bestWin.replace(/_/g,' ')) : null;
+        html += `<div class="sp-block">
+          <div class="sp-block-label">Recommended Intervention</div>
+          <div class="sp-archetype">
+            <div class="sp-archetype-stripe" style="background:${stripeColor}"></div>
+            <div class="sp-archetype-body">
+              <div class="sp-archetype-name">${typeMeta.label || itype.replace(/_/g,' ')}</div>
+              ${winLabel ? `<div class="sp-archetype-sub">Best window — ${winLabel}</div>` : ''}
+            </div>
+          </div>
+          ${!reliable ? `<div style="font-size:11px;color:var(--text-muted);margin-top:8px">Low confidence assignment (${(iconf*100).toFixed(0)}%)</div>` : ''}
+          <details class="sp-more">
+            <summary>how was this determined?</summary>
+            <div class="sp-more-body">
+              ${typeMeta.desc || ''}<br><br>
+              All ${totalClusteredStreets.toLocaleString()} arterial streets were grouped by their weekly rhythm into ${actualK} clusters.
+              The intervention type is based on when that cluster peaks — morning, midday, or evening.
+              The best window is when parking is low <em>and</em> foot traffic is above the cluster average.
+            </div>
+          </details>
+        </div>`;
+      }
+
+      // ── 4. Cluster breakdown ─────────────────────────────────────
+      if (cluster != null) {
+        const clColor = CLUSTER_COLORS[cluster] || '#94a3b8';
+        const clPct = clusterSizes[cluster] ? ((clusterSizes[cluster] / totalClusteredStreets) * 100).toFixed(0) : '?';
+        let clusterRowsHtml = '';
+        for (let i = 0; i < actualK; i++) {
+          const sz = clusterSizes[i] || 0;
+          const pct = ((sz / totalClusteredStreets) * 100).toFixed(0);
+          const isCurrent = i === cluster;
+          clusterRowsHtml += `<tr style="${isCurrent ? 'opacity:1' : 'opacity:0.45'}">
+            <td><span style="color:${CLUSTER_COLORS[i]}">&#9632;</span> Cluster ${i}${isCurrent ? ' ← this street' : ''}</td>
+            <td>${sz} streets (${pct}%)</td>
+          </tr>`;
+        }
+        html += `<div class="sp-block">
+          <div class="sp-block-label">Cluster</div>
+          <div class="sp-stat">
+            <span class="sp-stat-val" style="color:${clColor}">${cluster}</span>
+            <span class="sp-stat-unit">${clPct}% of all streets</span>
+          </div>
+          <details class="sp-more">
+            <summary>all 9 clusters</summary>
+            <div class="sp-more-body">
+              <table class="sp-lu-table" style="margin-top:4px">${clusterRowsHtml}</table>
+            </div>
+          </details>
+        </div>`;
+      }
+
+      // ── 5. Land use ───────────────────────────────────────────────
+      const LU_LABELS = {
+        cafe: 'Cafes', bar: 'Bars / venues', business: 'Businesses',
+        building: 'Buildings', dwelling: 'Dwellings',
+        offstreet: 'Off-street parking', landmark: 'Landmarks',
+      };
+      if (Object.keys(counts).length > 0) {
+        html += `<div class="sp-block">
+          <div class="sp-block-label">On This Street</div>
+          <table class="sp-lu-table">`;
+        for (const [l, c] of Object.entries(counts)) {
+          const valTxt = c.val > 0 ? c.val : c.n;
+          html += `<tr><td>${LU_LABELS[l] || l}</td><td>${valTxt}</td></tr>`;
+        }
+        html += `</table></div>`;
+      }
+
+      document.getElementById('sp-body').innerHTML = html;
+      document.getElementById('street-panel').classList.add('open');
+    }
+
+    function closeStreetPanel() {
+      document.getElementById('street-panel').classList.remove('open');
+    }
+
+    // All street-polygon layers open the panel
+    // streets-fill is always present (even when invisible) so it catches all clicks.
+    // Cluster layers are included for when they're visible and on top.
+    const streetClickLayers = [
+      'streets-fill',
+      'cluster-intervention-fill', 'cluster-id-fill',
+      'ped-sensored-fill', 'ped-imputed-fill',
+    ];
+
+    // Cursor pointer on hover for all street layers
+    streetClickLayers.forEach(lyr => {
+      map.on('mouseenter', lyr, () => map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', lyr, () => map.getCanvas().style.cursor = '');
+    });
+
+    // Make streets-fill always interactive (visible or not, it still receives clicks)
+    // by keeping it visible at 0 opacity when "All corridors" is unchecked
+    // Instead: query streets source directly on any map click to find the street
+    map.on('click', (e) => {
+      const sensorHit = layerNames.map(n => 'clue-' + n).concat(['sensors-parking','sensors-ped']);
+      if (map.queryRenderedFeatures(e.point, { layers: sensorHit }).length > 0) return;
+
+      // Try to find a street feature at this point from any source
+      const streetHit = map.queryRenderedFeatures(e.point, { layers: streetClickLayers });
+      if (streetHit.length > 0) {
+        sensorTip.style.display = 'none';
+        openStreetPanel(streetHit[0].properties);
+        return;
+      }
+
+      // Empty click — close everything
+      sensorTip.style.display = 'none';
+      closeStreetPanel();
+    });
+
+    ['sensors-parking','sensors-ped'].forEach(layer => {
+      map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
+    });
+  });
+}
+</script>
+</body>
+</html>

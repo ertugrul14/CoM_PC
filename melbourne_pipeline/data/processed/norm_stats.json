@@ -1,62 +1,62 @@
 {
   "ped_flow": {
-    "mean": 24.563036,
-    "std": 65.96846
+    "mean": 26.431492,
+    "std": 62.054855
   },
   "occupancy_rate": {
-    "mean": 0.021612,
-    "std": 0.103754
+    "mean": 0.000112,
+    "std": 0.010414
   },
   "temperature_2m": {
-    "mean": 18.470444,
-    "std": 5.814397
+    "mean": 18.470417,
+    "std": 5.814405
   },
   "relative_humidity_2m": {
-    "mean": 64.260925,
+    "mean": 64.260765,
     "std": 19.219917
   },
   "wind_speed_10m": {
-    "mean": 11.128788,
-    "std": 5.907652
+    "mean": 11.128785,
+    "std": 5.907657
   },
   "precipitation": {
-    "mean": 0.114166,
+    "mean": 0.114167,
     "std": 0.587699
   },
   "total_jobs": {
-    "mean": 85.479607,
-    "std": 219.648544
+    "mean": 85.479568,
+    "std": 219.648666
   },
   "cafe_count": {
     "mean": 0.58912,
-    "std": 2.017509
+    "std": 2.017489
   },
   "cafe_total_seats": {
     "mean": 43.032211,
-    "std": 206.506195
+    "std": 206.508667
   },
   "bar_count": {
     "mean": 0.080888,
-    "std": 0.38387
+    "std": 0.383873
   },
   "bar_patron_capacity": {
     "mean": 22.68504,
-    "std": 136.864288
+    "std": 136.863663
   },
   "business_count": {
     "mean": 4.048676,
-    "std": 12.701228
+    "std": 12.701142
   },
   "poi_total": {
     "mean": 0.089477,
-    "std": 0.340341
+    "std": 0.340339
   },
   "dining_capacity": {
     "mean": 65.717255,
-    "std": 316.670471
+    "std": 316.669128
   },
   "area_m2": {
-    "mean": 3834.0354,
-    "std": 4718.089355
+    "mean": 3834.036133,
+    "std": 4718.09082
   }
 }

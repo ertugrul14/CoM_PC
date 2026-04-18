@@ -7,7 +7,7 @@
 **Entry point:** `python melbourne_pipeline/run_pipeline.py [step_start] [step_end]`
 
 ---
-
+ 
 ## Architecture Overview
 
 The pipeline is a 12-step sequence that transforms raw sensor data into trained model outputs and interactive frontend exports. Steps are strictly sequential; each step writes named parquet/JSON/numpy files that the next step reads.

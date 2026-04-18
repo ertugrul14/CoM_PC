@@ -44,8 +44,12 @@ Design assumptions
 
 Network analysis enhancements
 -----------------------------
-  1. Parking displacement — removed occupancy redistributed to spatial neighbours
-     during the treated rollout, so the GCN sees realistic neighbour pressure.
+  1. Model-predicted parking spillover — the joint parking head (trained on 138
+     sensor streets) predicts occupancy_rate at each rollout step.  For sensor
+     streets the prediction is fed back into the sliding window, so subsequent
+     GCN steps see the model's estimate of parking redistribution rather than
+     fixed historical values.  This replaces the prior first-order displacement
+     heuristic with learned behaviour.
   2. Graph diffusion — analytical A^k propagation of mean delta for k=1..3 hops
      through both spatial and semantic graphs (complements autoregressive spread).
   3. Semantic neighbours — reports delta on functionally similar streets (same
@@ -116,7 +120,8 @@ def _load_artifacts(device: torch.device):
     """
     Load and return all artefacts needed for scenario simulation:
       model, cube_norm, cube_raw, norm_stats, feat_names, node_order,
-      adj_s (sparse), adj_sem (sparse), node_index DataFrame, meta dict.
+      adj_s (sparse), adj_sem (sparse), node_index DataFrame, meta dict,
+      parking_mask (bool np.ndarray [N], None if not available).
     """
     meta        = json.loads((PROCESSED_DIR / "cube_meta.json").read_text())
     norm_stats  = json.loads((PROCESSED_DIR / "norm_stats.json").read_text())
@@ -148,7 +153,18 @@ def _load_artifacts(device: torch.device):
 
     node_index = pd.read_parquet(PROCESSED_DIR / "node_index.parquet")
 
-    return model, cube_norm, cube_raw, norm_stats, feat_names, meta, node_index
+    # Load parking mask (available after retraining with joint heads)
+    parking_mask_path = MODELS_DIR / "parking_mask.pt"
+    if parking_mask_path.exists():
+        parking_mask = torch.load(
+            parking_mask_path, weights_only=True, map_location="cpu"
+        ).numpy()   # bool [N]
+        log.info(f"  Parking mask loaded: {parking_mask.sum()} / {meta['N']} streets")
+    else:
+        parking_mask = None
+        log.warning("  parking_mask.pt not found — parking predictions disabled")
+
+    return model, cube_norm, cube_raw, norm_stats, feat_names, meta, node_index, parking_mask
 
 
 def _get_spatial_neighbours(adj_s: torch.Tensor, node_idx: int) -> list[int]:
@@ -198,57 +214,6 @@ def _get_edge_weights(adj: torch.Tensor, node_idx: int, neighbours: list[int]) -
         weights /= total
     return weights
 
-
-def _displace_parking(
-    next_row: np.ndarray,
-    pre_intervention_row: np.ndarray,
-    node_idx: int,
-    adj_s: torch.Tensor,
-    norm_stats: dict,
-) -> np.ndarray:
-    """
-    Redistribute removed parking from the target street to spatial neighbours.
-
-    The occupancy removed from node_idx is distributed proportionally to
-    neighbours based on spatial edge weight, capped at 1.0 raw occupancy.
-
-    Parameters
-    ----------
-    next_row              : [N, F] features AFTER intervention encoding.
-    pre_intervention_row  : [N, F] features BEFORE intervention encoding.
-    node_idx              : Target street node index.
-    adj_s                 : Spatial adjacency matrix.
-    norm_stats            : Normalisation statistics dict.
-
-    Returns
-    -------
-    np.ndarray [N, F] — modified next_row with displaced parking on neighbours.
-    """
-    mu_occ = norm_stats["occupancy_rate"]["mean"]
-    std_occ = norm_stats["occupancy_rate"]["std"]
-
-    # How much normalised occupancy was removed from the target?
-    removed_norm = pre_intervention_row[node_idx, FI_OCC_RATE] - next_row[node_idx, FI_OCC_RATE]
-    if removed_norm <= 0:
-        return next_row  # no parking was removed
-
-    # Convert to raw occupancy for capping
-    removed_raw = removed_norm * std_occ
-
-    neighbours = _get_spatial_neighbours(adj_s, node_idx)
-    if not neighbours:
-        return next_row
-
-    weights = _get_edge_weights(adj_s, node_idx, neighbours)
-    row = next_row.copy()
-
-    for ni, w in zip(neighbours, weights):
-        share_raw = removed_raw * w
-        current_raw = row[ni, FI_OCC_RATE] * std_occ + mu_occ
-        new_raw = min(current_raw + share_raw, 1.0)  # cap at 100% occupancy
-        row[ni, FI_OCC_RATE] = (new_raw - mu_occ) / std_occ
-
-    return row
 
 
 def _graph_diffusion(
@@ -420,39 +385,47 @@ def _encode_intervention(
 
 def _rollout(
     model: MultiGCN,
-    cube_norm: np.ndarray,          # [N, T, F]
-    t_start: int,                   # index of the first rollout timestep in cube
+    cube_norm: np.ndarray,              # [N, T, F]
+    t_start: int,                       # index of the first rollout timestep in cube
     n_steps: int,
     device: torch.device,
     intervention: dict | None = None,
-    adj_s: torch.Tensor | None = None,
-) -> np.ndarray:
+    parking_mask: np.ndarray | None = None,  # bool [N], streets with parking sensors
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Autoregressive rollout for n_steps steps starting from t_start.
 
+    Uses the dual-head MultiGCN to predict both ped_flow and occupancy_rate at
+    each step.  The parking head output replaces cube values for sensor-observed
+    streets (parking_mask), propagating model-predicted parking spillover through
+    the context window fed back into subsequent steps.
+
     The input window covers [t_start - WINDOW, t_start).
     At each step k (0 … n_steps-1):
-      - The model predicts ped_flow at t_start + k for all streets.
-      - The next row appended to the sliding window is:
-            real observed features at (t_start + k) from cube_norm
-            EXCEPT ped_flow (fi=0), which is replaced by the model prediction,
-            AND (if treated) the intervention feature on the target node.
+      1. Model predicts pred_ped [N] and pred_park [N].
+      2. next_row = real observed features at (t_start + k).
+      3. next_row[:, FI_PED_FLOW]  = pred_ped  (all streets, autoregressive).
+      4. next_row[parking_mask, FI_OCC_RATE] = pred_park[parking_mask]
+             (sensor streets: model-predicted occupancy replaces cube value,
+              propagating parking spillover learned during training).
+      5. Intervention encoding overwrites the target street's features if
+         the treatment window is active.
+      6. Slide the window forward.
 
     Parameters
     ----------
     intervention : dict or None
-        Keys:
-          node_idx     : int         — target node
-          itype        : str         — intervention type
-          magnitude    : float       — type-specific parameter (or None)
-          start_step   : int         — rollout step at which treatment begins (0-based)
-          duration     : int         — number of rollout steps the treatment lasts
+        Keys: node_idx, itype, magnitude, start_step, duration,
+              _norm_stats, _feat_names
         If None, runs a clean baseline.
+    parking_mask : bool np.ndarray [N] or None
+        Streets whose parking predictions are fed back into the window.
+        If None, cube occupancy values are used as-is (legacy behaviour).
 
     Returns
     -------
-    np.ndarray, shape [n_steps, N]
-        Predicted ped_flow (normalised) for every street at every rollout step.
+    ped_preds  : np.ndarray [n_steps, N]  normalised predicted ped_flow
+    park_preds : np.ndarray [n_steps, N]  normalised predicted occupancy_rate
     """
     N, T, F = cube_norm.shape
 
@@ -469,22 +442,19 @@ def _rollout(
 
     # Unpack intervention spec
     if intervention is not None:
-        node_idx    = intervention["node_idx"]
-        itype       = intervention["itype"]
-        magnitude   = intervention.get("magnitude", 0.0)
-        iv_start    = intervention.get("start_step", 0)
-        iv_end      = iv_start + intervention.get("duration", n_steps)
+        node_idx  = intervention["node_idx"]
+        itype     = intervention["itype"]
+        magnitude = intervention.get("magnitude", 0.0)
+        iv_start  = intervention.get("start_step", 0)
+        iv_end    = iv_start + intervention.get("duration", n_steps)
     else:
         node_idx = itype = magnitude = iv_start = iv_end = None
 
     # Initialise sliding window from real observed data: [W, N, F]
     window = cube_norm[:, t_start - WINDOW : t_start, :].transpose(1, 0, 2).copy()
-    # window shape: [W, N, F]
 
-    norm_stats_ref = None  # populated lazily if intervention uses it
-    feat_names_ref = None
-
-    predictions = np.zeros((n_steps, N), dtype=np.float32)
+    ped_preds  = np.zeros((n_steps, N), dtype=np.float32)
+    park_preds = np.zeros((n_steps, N), dtype=np.float32)
 
     model.eval()
     with torch.no_grad():
@@ -492,45 +462,46 @@ def _rollout(
 
             # ── Forward pass ──────────────────────────────────────────────────
             X = torch.tensor(
-                window[np.newaxis],          # [1, W, N, F]
+                window[np.newaxis],      # [1, W, N, F]
                 dtype=torch.float32,
                 device=device,
             )
-            pred = model(X)                  # [1, N, 1]
-            pred_norm = pred[0, :, 0].cpu().numpy()   # [N]
-            predictions[step] = pred_norm
+            pred_ped_t, pred_park_t = model(X)            # each [1, N, 1]
+            pred_ped_norm  = pred_ped_t[0, :, 0].cpu().numpy()    # [N]
+            pred_park_norm = pred_park_t[0, :, 0].cpu().numpy()   # [N]
+
+            ped_preds[step]  = pred_ped_norm
+            park_preds[step] = pred_park_norm
 
             # ── Build next row ────────────────────────────────────────────────
-            # Base: take real observed features at this rollout timestep
             next_t   = t_start + step
             next_row = cube_norm[:, next_t, :].copy()    # [N, F]
 
-            # Override ped_flow with model prediction
-            next_row[:, FI_PED_FLOW] = pred_norm
+            # Ped flow: always autoregressive for all streets
+            next_row[:, FI_PED_FLOW] = pred_ped_norm
 
-            # Apply intervention if within treatment window
-            if (intervention is not None and
-                    iv_start <= step < iv_end):
-                pre_intervention_row = next_row.copy()
+            # Parking: use model prediction for sensor-observed streets.
+            # This feeds the learned parking spillover back into subsequent steps.
+            if parking_mask is not None:
+                next_row[parking_mask, FI_OCC_RATE] = pred_park_norm[parking_mask]
+
+            # Apply intervention if within treatment window.
+            # This overwrites the target street's features AFTER the parking
+            # update above, so the intervention takes precedence on the target.
+            if intervention is not None and iv_start <= step < iv_end:
                 next_row = _encode_intervention(
                     next_row, node_idx, itype, magnitude,
                     intervention["_norm_stats"],
                     intervention["_feat_names"],
-                    pred_norm,
+                    pred_ped_norm,
                 )
-                # Improvement #1: redistribute displaced parking to spatial neighbours
-                if adj_s is not None:
-                    next_row = _displace_parking(
-                        next_row, pre_intervention_row, node_idx,
-                        adj_s, intervention["_norm_stats"],
-                    )
 
             # ── Slide window ──────────────────────────────────────────────────
             window = np.concatenate(
                 [window[1:], next_row[np.newaxis]], axis=0
             )   # still [W, N, F]
 
-    return predictions   # [n_steps, N]
+    return ped_preds, park_preds
 
 
 # ==============================================================================
@@ -538,48 +509,67 @@ def _rollout(
 # ==============================================================================
 
 def _build_network_summary(
-    delta: np.ndarray,            # [n_steps, N], treated - baseline (normalised)
+    delta: np.ndarray,              # [n_steps, N], ped delta (normalised)
+    park_delta: np.ndarray | None,  # [n_steps, N], parking delta (normalised), or None
     node_idx: int,
     adj_s: torch.Tensor,
     adj_sem: torch.Tensor,
     norm_stats: dict,
     node_order: list,
-    ped_confidence: np.ndarray,   # [N] confidence tier per street (1.0/0.8/0.5)
+    ped_confidence: np.ndarray,     # [N] confidence tier per street (1.0/0.8/0.5)
+    parking_mask: np.ndarray | None, # bool [N], streets with parking sensors
     intervention_end_step: int,
     top_k: int = 20,
 ) -> dict:
     """
-    Summarise the network effect of the intervention.
+    Summarise the network effect of the intervention on both ped and parking.
 
     Returns a dict with:
       treated_street      — cumulative and mean delta for the target street
-      spatial_neighbours  — per-neighbour delta summary
-      semantic_neighbours — functionally similar streets affected (#3)
-      top_affected        — top_k streets by |confidence-weighted mean delta| (#4)
-      graph_diffusion     — analytical multi-hop spread estimate (#2)
-      rebound             — post-intervention recovery characterisation (#5)
+      spatial_neighbours  — per-neighbour ped + parking delta summary
+      semantic_neighbours — functionally similar streets affected
+      top_affected        — top_k streets by |confidence-weighted mean ped delta|
+      graph_diffusion     — analytical multi-hop spread estimate
+      rebound             — post-intervention recovery characterisation
       all_deltas          — every street with non-trivial delta (for map painting)
     """
-    mu_ped  = norm_stats["ped_flow"]["mean"]
-    std_ped = norm_stats["ped_flow"]["std"]
+    mu_ped   = norm_stats["ped_flow"]["mean"]
+    std_ped  = norm_stats["ped_flow"]["std"]
+    mu_park  = norm_stats["occupancy_rate"]["mean"]
+    std_park = norm_stats["occupancy_rate"]["std"]
 
-    # Denormalise deltas to raw ped counts
+    # Denormalise ped deltas to raw ped counts
     delta_raw = delta * std_ped
 
     mean_delta = delta_raw.mean(axis=0)       # [N]
     cum_delta  = delta_raw.sum(axis=0)        # [N]
 
-    # Improvement #4: confidence-weighted ranking
+    # Denormalise parking deltas to raw occupancy rate
+    if park_delta is not None:
+        park_delta_raw = park_delta * std_park  # [n_steps, N]
+        mean_park_delta = park_delta_raw.mean(axis=0)   # [N]
+    else:
+        park_delta_raw  = None
+        mean_park_delta = np.zeros(len(node_order))
+
+    def _park_delta_for(n: int) -> float | None:
+        """Return mean parking delta for street n, or None if no sensor."""
+        if parking_mask is None or not parking_mask[n]:
+            return None
+        return float(mean_park_delta[n])
+
+    # Confidence-weighted ranking on ped (primary task)
     weighted_mean = mean_delta * ped_confidence       # [N]
     abs_weighted  = np.abs(weighted_mean)
 
     # Treated street
     treated = {
-        "node_idx":             node_idx,
-        "street_id":            str(node_order[node_idx]),
-        "mean_ped_delta":       float(mean_delta[node_idx]),
-        "cumulative_ped_delta": float(cum_delta[node_idx]),
-        "ped_confidence":       float(ped_confidence[node_idx]),
+        "node_idx":              node_idx,
+        "street_id":             str(node_order[node_idx]),
+        "mean_ped_delta":        float(mean_delta[node_idx]),
+        "cumulative_ped_delta":  float(cum_delta[node_idx]),
+        "ped_confidence":        float(ped_confidence[node_idx]),
+        "mean_park_delta":       _park_delta_for(node_idx),
     }
 
     # Spatial neighbours
@@ -587,42 +577,45 @@ def _build_network_summary(
     spatial_neighbours = []
     for n in neighbours_idx[:N_NEIGHBOURS_REPORT]:
         spatial_neighbours.append({
-            "node_idx":             n,
-            "street_id":            str(node_order[n]),
-            "mean_ped_delta":       float(mean_delta[n]),
-            "cumulative_ped_delta": float(cum_delta[n]),
+            "node_idx":              n,
+            "street_id":             str(node_order[n]),
+            "mean_ped_delta":        float(mean_delta[n]),
+            "cumulative_ped_delta":  float(cum_delta[n]),
             "confidence_weighted_delta": float(weighted_mean[n]),
-            "ped_confidence":       float(ped_confidence[n]),
+            "ped_confidence":        float(ped_confidence[n]),
+            "mean_park_delta":       _park_delta_for(n),
         })
     spatial_neighbours.sort(key=lambda x: abs(x["mean_ped_delta"]), reverse=True)
 
-    # Improvement #3: semantic neighbours
+    # Semantic neighbours
     sem_neighbours_idx = _get_semantic_neighbours(adj_sem, node_idx)
     semantic_neighbours = []
     for n in sem_neighbours_idx[:N_NEIGHBOURS_REPORT]:
         semantic_neighbours.append({
-            "node_idx":             n,
-            "street_id":            str(node_order[n]),
-            "mean_ped_delta":       float(mean_delta[n]),
-            "cumulative_ped_delta": float(cum_delta[n]),
+            "node_idx":              n,
+            "street_id":             str(node_order[n]),
+            "mean_ped_delta":        float(mean_delta[n]),
+            "cumulative_ped_delta":  float(cum_delta[n]),
             "confidence_weighted_delta": float(weighted_mean[n]),
-            "ped_confidence":       float(ped_confidence[n]),
+            "ped_confidence":        float(ped_confidence[n]),
+            "mean_park_delta":       _park_delta_for(n),
         })
     semantic_neighbours.sort(key=lambda x: abs(x["mean_ped_delta"]), reverse=True)
 
-    # Top affected — ranked by confidence-weighted delta (#4)
+    # Top affected — ranked by confidence-weighted ped delta
     top_indices = np.argsort(abs_weighted)[::-1][:top_k]
     top_affected = []
     for n in top_indices:
         top_affected.append({
-            "node_idx":             int(n),
-            "street_id":            str(node_order[n]),
-            "mean_ped_delta":       float(mean_delta[n]),
-            "cumulative_ped_delta": float(cum_delta[n]),
+            "node_idx":              int(n),
+            "street_id":             str(node_order[n]),
+            "mean_ped_delta":        float(mean_delta[n]),
+            "cumulative_ped_delta":  float(cum_delta[n]),
             "confidence_weighted_delta": float(weighted_mean[n]),
-            "ped_confidence":       float(ped_confidence[n]),
-            "is_treated":           bool(n == node_idx),
-            "is_spatial_neighbour": bool(n in neighbours_idx),
+            "ped_confidence":        float(ped_confidence[n]),
+            "mean_park_delta":       _park_delta_for(n),
+            "is_treated":            bool(n == node_idx),
+            "is_spatial_neighbour":  bool(n in neighbours_idx),
             "is_semantic_neighbour": bool(n in sem_neighbours_idx),
         })
 
@@ -680,15 +673,19 @@ def _build_network_summary(
         ],
     }
 
-    # All streets with non-trivial delta (for map painting)
+    # All streets with non-trivial ped or parking delta (for map painting)
     DELTA_THRESHOLD = 0.01
     all_deltas = {}
     for n in range(len(node_order)):
-        if abs(float(mean_delta[n])) > DELTA_THRESHOLD:
+        park_d = _park_delta_for(n)
+        has_ped_effect  = abs(float(mean_delta[n])) > DELTA_THRESHOLD
+        has_park_effect = (park_d is not None and abs(park_d) > DELTA_THRESHOLD)
+        if has_ped_effect or has_park_effect:
             all_deltas[str(node_order[n])] = {
-                "mean_ped_delta": float(mean_delta[n]),
+                "mean_ped_delta":            float(mean_delta[n]),
                 "confidence_weighted_delta": float(weighted_mean[n]),
-                "ped_confidence": float(ped_confidence[n]),
+                "ped_confidence":            float(ped_confidence[n]),
+                "mean_park_delta":           park_d,
             }
 
     return {
@@ -755,7 +752,7 @@ def run_scenario(
     log.info(f"  Device: {device}")
 
     (model, cube_norm, cube_raw, norm_stats,
-     feat_names, meta, node_index) = _load_artifacts(device)
+     feat_names, meta, node_index, parking_mask) = _load_artifacts(device)
 
     N, T, F = meta["N"], meta["T"], meta["F"]
 
@@ -797,108 +794,127 @@ def run_scenario(
         "_feat_names": feat_names,
     }
 
-    adj_s = torch.load(PROCESSED_DIR / "graph_spatial.pt",
-                       map_location=device, weights_only=False)
-
-    # ── Baseline rollout (no intervention) ───────────────────────────────────
-    log.info("  Running baseline rollout...")
-    baseline_norm = _rollout(
-        model, cube_norm, t_start, rollout_steps, device,
-        intervention=None,
-    )   # [n_steps, N]
-
-    # ── Treated rollout (with intervention + parking displacement) ────────
-    log.info(f"  Running treated rollout ({intervention_type})...")
-    treated_norm = _rollout(
-        model, cube_norm, t_start, rollout_steps, device,
-        intervention=intervention,
-        adj_s=adj_s,
-    )   # [n_steps, N]
-
-    # ── Denormalise to raw ped counts ─────────────────────────────────────────
-    mu_ped  = norm_stats["ped_flow"]["mean"]
-    std_ped = norm_stats["ped_flow"]["std"]
-
-    baseline_raw = baseline_norm * std_ped + mu_ped   # [n_steps, N]
-    treated_raw  = treated_norm  * std_ped + mu_ped
-    delta_raw    = treated_raw  - baseline_raw         # [n_steps, N]
-
-    # ── Also extract real observed occupancy for reference ────────────────────
-    occ_fi   = FI_OCC_RATE
-    mu_occ   = norm_stats["occupancy_rate"]["mean"]
-    std_occ  = norm_stats["occupancy_rate"]["std"]
-
-    obs_occ = (
-        cube_norm[node_idx, t_start : t_start + rollout_steps, occ_fi]
-        * std_occ + mu_occ
-    )   # [n_steps]
-
-    # ── Load semantic adjacency + ped_confidence for network summary ────────
+    adj_s   = torch.load(PROCESSED_DIR / "graph_spatial.pt",
+                         map_location=device, weights_only=False)
     adj_sem = torch.load(PROCESSED_DIR / "graph_semantic.pt",
                          map_location=device, weights_only=False)
 
-    # Extract per-node ped_confidence from the cube (stored raw, not normalised)
+    # ── Baseline rollout (no intervention) ───────────────────────────────────
+    log.info("  Running baseline rollout...")
+    baseline_ped_norm, baseline_park_norm = _rollout(
+        model, cube_norm, t_start, rollout_steps, device,
+        intervention=None,
+        parking_mask=parking_mask,
+    )   # each [n_steps, N]
+
+    # ── Treated rollout (with intervention; model handles parking spillover) ──
+    log.info(f"  Running treated rollout ({intervention_type})...")
+    treated_ped_norm, treated_park_norm = _rollout(
+        model, cube_norm, t_start, rollout_steps, device,
+        intervention=intervention,
+        parking_mask=parking_mask,
+    )   # each [n_steps, N]
+
+    # ── Denormalise ped to raw counts ─────────────────────────────────────────
+    mu_ped  = norm_stats["ped_flow"]["mean"]
+    std_ped = norm_stats["ped_flow"]["std"]
+
+    baseline_ped_raw = baseline_ped_norm * std_ped + mu_ped   # [n_steps, N]
+    treated_ped_raw  = treated_ped_norm  * std_ped + mu_ped
+    ped_delta_raw    = treated_ped_raw   - baseline_ped_raw   # [n_steps, N]
+
+    # ── Denormalise parking to raw occupancy rate ─────────────────────────────
+    mu_occ  = norm_stats["occupancy_rate"]["mean"]
+    std_occ = norm_stats["occupancy_rate"]["std"]
+
+    baseline_park_raw = np.clip(baseline_park_norm * std_occ + mu_occ, 0, 1)
+    treated_park_raw  = np.clip(treated_park_norm  * std_occ + mu_occ, 0, 1)
+    park_delta_raw    = treated_park_raw - baseline_park_raw  # [n_steps, N]
+
+    # ── Real observed occupancy for the target street (reference) ─────────────
+    obs_occ = np.clip(
+        cube_norm[node_idx, t_start : t_start + rollout_steps, FI_OCC_RATE]
+        * std_occ + mu_occ,
+        0, 1,
+    )   # [n_steps]
+
+    # ── Per-node ped_confidence from the cube (raw, not normalised) ───────────
     if "ped_confidence" in feat_names:
         conf_fi = feat_names.index("ped_confidence")
-        ped_confidence = cube_raw[
-            :, t_start, conf_fi
-        ] if cube_raw is not None else np.full(N, 0.5)
+        ped_confidence = cube_raw[:, t_start, conf_fi] if cube_raw is not None else np.full(N, 0.5)
     else:
         ped_confidence = np.full(N, 0.5)
 
     # ── Network summary ───────────────────────────────────────────────────────
     log.info("  Building network summary...")
+    # Normalised deltas for diffusion / rebound (both computed in normalised space)
+    ped_delta_norm  = treated_ped_norm  - baseline_ped_norm
+    park_delta_norm = treated_park_norm - baseline_park_norm
+
     network_summary = _build_network_summary(
-        delta                 = treated_norm - baseline_norm,
+        delta                 = ped_delta_norm,
+        park_delta            = park_delta_norm if parking_mask is not None else None,
         node_idx              = node_idx,
         adj_s                 = adj_s,
         adj_sem               = adj_sem,
         norm_stats            = norm_stats,
         node_order            = node_order,
         ped_confidence        = ped_confidence,
+        parking_mask          = parking_mask,
         intervention_end_step = duration,
         top_k                 = 20,
     )
 
     # ── Assemble result ───────────────────────────────────────────────────────
+    # Build parking delta series for sensor streets among top_affected
+    top_affected_park_series = {}
+    if parking_mask is not None:
+        for entry in network_summary["top_affected"]:
+            n = entry["node_idx"]
+            if parking_mask[n]:
+                top_affected_park_series[str(node_order[n])] = park_delta_raw[:, n].tolist()
+
     result = {
         "meta": {
-            "street_id":         str(street_id),
-            "node_idx":          int(node_idx),
-            "t_start_bin":       int(t_start),
-            "duration_bins":     int(duration),
-            "rollout_steps":     int(rollout_steps),
-            "step_minutes":      15,
-            "intervention_type": intervention_type,
-            "magnitude":         float(magnitude),
-            # Assumptions embedded in this simulation
+            "street_id":          str(street_id),
+            "node_idx":           int(node_idx),
+            "t_start_bin":        int(t_start),
+            "duration_bins":      int(duration),
+            "rollout_steps":      int(rollout_steps),
+            "step_minutes":       15,
+            "intervention_type":  intervention_type,
+            "magnitude":          float(magnitude),
+            "parking_mask_active": parking_mask is not None,
             "assumptions": [
                 "Non-ped features are real observed values from the data cube.",
                 "Graph structure is unchanged by the intervention.",
-                "Displaced parking is redistributed to spatial neighbours proportional to edge weight, capped at 100% occupancy.",
+                "Parking occupancy for sensor-observed streets is model-predicted "
+                "(joint head), propagating learned spillover through the rollout.",
                 "Autoregressive error compounds; interpret rollouts > 4h cautiously.",
                 "Confidence tiers (1.0/0.8/0.5) weight the trustworthiness of per-street deltas.",
             ],
         },
-        # Per-step, per-street arrays (only the treated street and its neighbours
-        # are stored in full to keep the file manageable; full arrays kept for
-        # the treated street and top-20 affected streets)
         "baseline": {
-            "ped_flow_treated_street": baseline_raw[:, node_idx].tolist(),
-            "occ_rate_observed":       np.clip(obs_occ, 0, 1).tolist(),
+            "ped_flow_treated_street":  baseline_ped_raw[:, node_idx].tolist(),
+            "occ_rate_observed":        obs_occ.tolist(),
+            "occ_rate_predicted":       baseline_park_raw[:, node_idx].tolist(),
         },
         "treated": {
-            "ped_flow_treated_street": treated_raw[:, node_idx].tolist(),
+            "ped_flow_treated_street":  treated_ped_raw[:, node_idx].tolist(),
+            "occ_rate_predicted":       treated_park_raw[:, node_idx].tolist(),
         },
         "delta": {
-            "ped_flow_treated_street": delta_raw[:, node_idx].tolist(),
-            # For all streets in top_affected — store their full delta series
-            "top_affected_series": {
-                str(node_order[entry["node_idx"]]): delta_raw[
+            "ped_flow_treated_street":  ped_delta_raw[:, node_idx].tolist(),
+            "occ_rate_treated_street":  park_delta_raw[:, node_idx].tolist(),
+            # Full ped delta series for top_affected streets
+            "top_affected_ped_series": {
+                str(node_order[entry["node_idx"]]): ped_delta_raw[
                     :, entry["node_idx"]
                 ].tolist()
                 for entry in network_summary["top_affected"]
             },
+            # Full parking delta series for top_affected streets that have sensors
+            "top_affected_park_series": top_affected_park_series,
         },
         "network_summary": network_summary,
     }
@@ -1016,6 +1032,8 @@ if __name__ == "__main__":
     print(f"  Mean dped_flow  : {ts['mean_ped_delta']:+.2f} ped / 15-min")
     print(f"  Cumulative dped : {ts['cumulative_ped_delta']:+.1f} person-intervals")
     print(f"  Confidence      : {ts['ped_confidence']:.1f}")
+    if ts.get("mean_park_delta") is not None:
+        print(f"  Mean dpark_occ  : {ts['mean_park_delta']:+.4f} (model-predicted)")
     print(f"\nRebound (treated street):")
     hl = rb['half_life_minutes']
     print(f"  Half-life       : {'never recovered' if hl < 0 else f'{hl} min'}")

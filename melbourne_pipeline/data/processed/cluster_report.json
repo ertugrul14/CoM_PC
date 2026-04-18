@@ -1,32 +1,38 @@
 {
-  "k": 4,
+  "k": 7,
   "bic": {
-    "2": -52482.6,
-    "3": -63016.5,
-    "4": -64705.1,
-    "5": -63148.6,
-    "6": -63541.9,
-    "7": -63977.8,
-    "8": -63022.5,
-    "9": -62291.6,
-    "10": -61027.0
+    "2": -49182.8,
+    "3": -51481.1,
+    "4": -51940.1,
+    "5": -51923.7,
+    "6": -52445.1,
+    "7": -52669.8,
+    "8": -50475.7,
+    "9": -50143.0,
+    "10": -50190.7
   },
-  "ari": 0.9643,
-  "silhouette": 0.6511,
+  "ari": 0.9416,
+  "silhouette": 0.4477,
   "pca_components": 20,
-  "pca_variance_explained": 0.9939,
+  "pca_variance_explained": 0.9993,
   "archetype_map": {
-    "0": "morning_pedestrianisation",
-    "1": "morning_pedestrianisation",
-    "2": "evening_outdoor_dining",
-    "3": "weekend_leisure"
+    "0": "latent_evening_potential_medium",
+    "1": "midday_retail_activation",
+    "2": "major_pedestrian_corridor",
+    "3": "morning_pedestrianisation_high",
+    "4": "latent_evening_potential_high",
+    "5": "morning_pedestrianisation_medium",
+    "6": "latent_evening_potential_low"
   },
   "cluster_sizes": {
-    "0": 185,
-    "1": 135,
-    "2": 1055,
-    "3": 22
+    "0": 113,
+    "1": 38,
+    "2": 9,
+    "3": 34,
+    "4": 77,
+    "5": 85,
+    "6": 1041
   },
   "n_uncertain": 3,
-  "n_with_flex_windows": 1074
+  "n_with_flex_windows": 1114
 }

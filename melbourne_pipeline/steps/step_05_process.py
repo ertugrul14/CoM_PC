@@ -348,7 +348,7 @@ def _build_ped_complete(parking_occ: pd.DataFrame) -> tuple[pd.DataFrame, float,
     groups = np.repeat(sensored_streets, len(time_index))
 
     cv_model = xgb.XGBRegressor(
-        n_estimators=200, max_depth=5, learning_rate=0.05,
+        n_estimators=400, max_depth=6, learning_rate=0.05,
         subsample=0.8, colsample_bytree=0.8, min_child_weight=3,
         tree_method="hist", random_state=42, verbosity=0,
     )
@@ -375,7 +375,7 @@ def _build_ped_complete(parking_occ: pd.DataFrame) -> tuple[pd.DataFrame, float,
     # ── Final model on all sensored data ──────────────────────────────────────
     log.info("  Training final model (n_estimators=500)...")
     final_model = xgb.XGBRegressor(
-        n_estimators=500, max_depth=5, learning_rate=0.05,
+        n_estimators=600, max_depth=6, learning_rate=0.05,
         subsample=0.8, colsample_bytree=0.8, min_child_weight=3,
         tree_method="hist", random_state=42, verbosity=0,
     )

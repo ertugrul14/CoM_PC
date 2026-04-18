@@ -69,4 +69,49 @@ Format per entry:
 - Known weakness: Displacement model is first-order (no cascade overflow). Graph diffusion is analytical, not model-predicted. Rebound half-life assumes monotonic decay.
 - Paper justification: Standard graph signal processing (A^k diffusion); displacement is domain logic, not paper-derived.
 
+### 2026-04-10 — Joint prediction: MultiGCN retrained with parking occupancy head
+- Decision: Add second output head (head_park) to MultiGCN sharing backbone with ped head
+- Options considered: Post-training XGBoost layer predicting parking delta (Option 1, rejected),
+  retrain with joint head (Option 2, chosen)
+- Chosen approach: Shared GCN+GRU backbone, separate Linear projection for each target.
+  Combined loss: ped_MAE + 0.5 * masked_park_MAE. Parking loss masked to 138 sensor streets.
+  step_11 rollout now uses pred_park to update occupancy_rate in the sliding window,
+  replacing the first-order displacement heuristic with model-learned spillover.
+- Known weakness: Parking head has no supervision on 1,259 non-sensor streets — predictions
+  there are extrapolations. Must state as thesis limitation.
+- Paper justification: Multi-task learning with shared encoder (standard GNN literature).
+
+### 2026-04-10 — Decided NOT to clip network to Melbourne CBD
+- Decision: Keep all 1,397 streets; do not clip to strict CBD (188 streets) or LGA (1,202)
+- Options: Clip to Hoddle Grid (188), clip to LGA (1,202), keep all 1,397 (chosen)
+- Reasoning: 188 nodes too small for GNN; 95.2% of streets are confidence=0.5 regardless
+  of geography (sensor density is the bottleneck, not geography); spillover analysis
+  requires boundary streets — removing them truncates the propagation artificially.
+- Thesis framing: "1,397 streets within and adjacent to City of Melbourne LGA, retaining
+  boundary streets for valid spillover propagation."
+- Step 12 will clip the Mapbox visualisation to LGA for clean presentation.
+
+### 2026-04-10 — Imputation feature enrichment (Steps 01–05 OVERRIDE)
+- Decision: Add 6 new features to static_features to improve XGBoost R² above 0.6 threshold
+- Options: Network centrality only (cheaper), + transit proximity (chosen), + footpath width
+  (road segments dataset, width often null, deferred)
+- Chosen features:
+    cbd_distance_m         — haversine to Hoddle Grid centre (step_02)
+    betweenness_centrality — NetworkX on spatial_edges (step_04)
+    nearest_tram_stop_m    — PTV GeoJSON filtered MODE=="TRAM", Melbourne bbox (step_04)
+    tram_stops_200m        — count within 200m (step_04)
+    bus_stop_on_street     — roadseg_id direct match (step_04)
+    nearest_bus_stop_m     — spatial nearest bus stop (step_04)
+- Data sources: PTV public_transport_stops.geojson (all Victoria, CC-BY 4.0) for trams;
+  Melbourne Open Data bus-stops dataset (309 signs) for buses.
+- City Circle tram dataset (28 stops) rejected — tourist loop only, misses Swanston/Collins.
+- XGBoost capacity: CV model n_estimators 200→400, max_depth 5→6;
+  final model 500→600, max_depth 5→6.
+- Known weakness: R² improvement not guaranteed. Selection bias (sensor streets 5.5x busier
+  than imputed streets) is the fundamental ceiling — no feature set fully bridges this.
+  If R² stays below 0.6, all imputed streets remain at confidence=0.5.
+- Paper justification: Betweenness centrality as pedestrian flow predictor — space syntax
+  literature (Hillier & Hanson 1984; Penn 2003). Transit proximity — standard activity
+  generation model (Ewing & Cervero 2010).
+
 ### [Add new decisions below this line]

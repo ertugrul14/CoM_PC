@@ -15,12 +15,24 @@ import pandas as pd
 import requests
 from shapely.geometry import Point, shape
 
-from config import RAW_DIR, PROCESSED_DIR, STREETS_GEOJSON, MELBOURNE_OPEN_DATA_BASE
+from config import RAW_DIR, PROCESSED_DIR, STREETS_GEOJSON, MELBOURNE_OPEN_DATA_BASE, MELB_LAT, MELB_LON
 
 log = logging.getLogger(__name__)
 
 CRS_WGS84 = "EPSG:4326"
 CRS_VIC = "EPSG:3111"  # Victorian GDA94
+
+# ── CBD distance helper ───────────────────────────────────────────────────────
+
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Haversine great-circle distance in metres between two WGS84 points."""
+    from math import radians, sin, cos, sqrt, atan2
+    R = 6_371_000
+    φ1, φ2 = radians(lat1), radians(lat2)
+    dφ = radians(lat2 - lat1)
+    dλ = radians(lon2 - lon1)
+    a = sin(dφ / 2) ** 2 + cos(φ1) * cos(φ2) * sin(dλ / 2) ** 2
+    return R * 2 * atan2(sqrt(a), sqrt(1 - a))
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -474,9 +486,18 @@ def _build_static_features(streets: gpd.GeoDataFrame) -> pd.DataFrame:
 
     static = static.fillna(0)
 
+    # ── CBD distance: metres from street centroid to Hoddle Grid centre ──────
+    # Uses MELB_LAT / MELB_LON from config (same point used for weather fetch).
+    # Strongest single location predictor: Flinders St area >> Docklands.
+    static["cbd_distance_m"] = [
+        _haversine_m(lat, lon, MELB_LAT, MELB_LON)
+        for lat, lon in zip(static["centroid_lat"], static["centroid_lon"])
+    ]
+
     # ── Column order per spec ────────────────────────────────────────────────
     col_order = [
         "street_id", "area_m2", "centroid_lat", "centroid_lon",
+        "cbd_distance_m",
         "total_jobs", "cafe_count", "cafe_total_seats",
         "bar_count", "bar_patron_capacity", "business_count", "building_count",
         "poi_total", "dining_capacity", "offstreet_spaces", "dwelling_count",
@@ -504,6 +525,7 @@ def _validate(sensor_map: pd.DataFrame, static: pd.DataFrame):
     assert len(static) == n_streets, f"Expected {n_streets} streets, got {len(static)}"
     expected_cols = {
         "street_id", "area_m2", "centroid_lat", "centroid_lon",
+        "cbd_distance_m",
         "total_jobs", "cafe_count", "cafe_total_seats",
         "bar_count", "bar_patron_capacity", "business_count", "building_count",
         "poi_total", "dining_capacity", "offstreet_spaces", "dwelling_count",

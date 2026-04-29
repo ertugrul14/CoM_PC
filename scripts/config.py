@@ -10,7 +10,7 @@ SUPABASE_KEY = os.environ.get('SUPABASE_KEY') or os.environ.get('SUPABASE_SERVIC
 
 # Melbourne Open Data API Endpoints
 PARKING_API_URL = 'https://data.melbourne.vic.gov.au/api/explore/v2.1/catalog/datasets/on-street-parking-bay-sensors/records'
-PEDESTRIAN_API_URL = 'https://data.melbourne.vic.gov.au/api/explore/v2.1/catalog/datasets/pedestrian-counting-system-monthly-counts-per-hour/records'
+PEDESTRIAN_API_URL = 'https://data.melbourne.vic.gov.au/api/explore/v2.1/catalog/datasets/pedestrian-counting-system-past-hour-counts-per-minute/records'
 
 # Fetch Configuration
 RECORDS_LIMIT = 1000

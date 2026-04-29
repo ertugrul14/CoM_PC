@@ -12,13 +12,8 @@ import os
 # Ensure scripts/ directory is on path so config.py can be found
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import (
-    SUPABASE_URL, SUPABASE_KEY, get_timestamp
+    SUPABASE_URL, SUPABASE_KEY, PEDESTRIAN_API_URL, get_timestamp
 )
-
-# Correct API endpoint from runner.py
-BASE = "https://data.melbourne.vic.gov.au/api/explore/v2.1/catalog/datasets"
-DATASET_ID = "pedestrian-counting-system-past-hour-counts-per-minute"
-PEDESTRIAN_API_URL = f"{BASE}/{DATASET_ID}/records"
 
 def _to_utc_iso(dt_str: str) -> str:
     """Normalize datetime to UTC ISO format"""

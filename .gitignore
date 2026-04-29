@@ -33,8 +33,10 @@ logs/*.log
 *.swo
 *.bak
 
-# Ignore all dot-prefixed folders anywhere (e.g. .claude, .github)
+# Ignore all dot-prefixed folders anywhere (e.g. .claude) but not .github (needed for Actions)
 **/.*/
+!.github/
+!.github/**
 
 # OS
 .DS_Store

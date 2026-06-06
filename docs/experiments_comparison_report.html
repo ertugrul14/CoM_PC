@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experiments &amp; Training Versions — Comparison</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#dcdcdc;
+    --blue:#0b5394; --green:#38761d; --red:#990000; --purple:#7a3e9d; --amber:#9a6b00;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  body{font-family:"Segoe UI",Helvetica,Arial,sans-serif; color:var(--ink); line-height:1.5; margin:0; font-size:11pt}
+  .wrap{max-width:900px; margin:0 auto; padding:30px 28px 60px}
+  h1{font-size:22pt; margin:0 0 3px; letter-spacing:-.3px}
+  h2{font-size:15pt; margin:30px 0 10px; padding-bottom:5px; border-bottom:2px solid var(--ink); break-after:avoid}
+  h3{font-size:12.5pt; margin:18px 0 6px; color:var(--purple); break-after:avoid}
+  p{margin:7px 0} .sub{color:var(--muted); font-size:10.5pt; margin:0}
+  code{font-family:"Cascadia Mono",Consolas,monospace; font-size:9.6pt; background:#f3f3f3; padding:1px 4px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:11px 0; font-size:10pt; break-inside:avoid}
+  th,td{border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top}
+  th{background:#eef0f2; font-weight:600}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .best{background:#e9f7e9} .worst{background:#fbeeee}
+  .win{color:var(--green); font-weight:700} .lose{color:var(--red); font-weight:700}
+  .lead{font-size:11.5pt; color:#333}
+  .card{border:1px solid var(--line); border-radius:8px; padding:0; margin:14px 0; break-inside:avoid; overflow:hidden}
+  .card .hd{padding:8px 14px; color:#fff; font-weight:700; font-size:11.5pt; display:flex; justify-content:space-between; align-items:center}
+  .card .bd{padding:10px 14px}
+  .hd.v0{background:#8a8a8a} .hd.v1{background:var(--blue)} .hd.v2{background:var(--red)} .hd.v3{background:var(--green)}
+  .pill{font-size:8.5pt; font-weight:700; background:rgba(255,255,255,.25); padding:1px 8px; border-radius:10px}
+  .kv{display:flex; flex-wrap:wrap; gap:6px 20px; font-size:10pt; margin:4px 0}
+  .kv div{min-width:150px} .kv b{color:#000}
+  .callout{border-left:4px solid; border-radius:0 6px 6px 0; padding:9px 13px; margin:10px 0; break-inside:avoid; font-size:10.3pt}
+  .c-blue{border-color:var(--blue); background:#eef4fb}
+  .c-green{border-color:var(--green); background:#eef7e9}
+  .c-red{border-color:var(--red); background:#fbeeee}
+  .c-amber{border-color:var(--amber); background:#fdf6e3}
+  .tag{display:inline-block; font-size:8.5pt; font-weight:700; text-transform:uppercase; letter-spacing:.4px; padding:1px 6px; border-radius:3px; color:#fff; margin-right:6px}
+  .t-blue{background:var(--blue)} .t-green{background:var(--green)} .t-red{background:var(--red)} .t-amber{background:var(--amber)}
+  /* bar chart */
+  .bars{margin:12px 0; break-inside:avoid}
+  .bar{display:flex; align-items:center; gap:10px; margin:5px 0; font-size:10pt}
+  .bar .lbl{width:200px; text-align:right; color:#333}
+  .bar .track{flex:1; background:#f0f0f0; border-radius:4px; height:22px; position:relative}
+  .bar .fill{height:22px; border-radius:4px; display:flex; align-items:center; justify-content:flex-end; padding-right:7px; color:#fff; font-weight:700; font-size:9.3pt}
+  .f-red{background:var(--red)} .f-grey{background:#8a8a8a} .f-green{background:var(--green)} .f-blue{background:var(--blue)}
+  .meta{font-size:9.4pt; color:var(--muted)}
+  ul{margin:6px 0 6px 0; padding-left:22px} li{margin:3px 0}
+  footer{margin-top:38px; padding-top:12px; border-top:1px solid var(--line); font-size:9pt; color:var(--muted)}
+  @page{margin:15mm 13mm}
+  @media print{ .wrap{max-width:none; padding:0} a{color:inherit} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Experiments &amp; Training Versions</h1>
+  <p class="sub">Curbside Intensification — detailed comparison of every trained model and what each proves &nbsp;·&nbsp; 2026-06-04</p>
+</header>
+
+<p class="lead">Four models were trained across two cube generations. Two are <b>full deployable models</b>
+(they differ only by the data cube they were trained on); two are <b>controlled ablation conditions</b>
+(they differ by which graph and which loss scope is used). This document reports each version’s exact
+configuration and results, then decomposes <i>why</i> the results differ.</p>
+
+<div class="callout c-amber">
+<span class="tag t-amber">Read the two MAE columns separately</span>
+<b>All-street MAE</b> averages over all 1,397 modelled streets; <b>sensor MAE</b> averages over only the
+74 streets with real pedestrian counters. The sensor streets are the busiest and most variable in the city,
+so their absolute error is much larger. The two columns measure different populations — compare <i>down</i>
+each column, never <i>across</i>.
+</div>
+
+<!-- ===== OVERVIEW TABLE ===== -->
+<h2>1 · All versions at a glance</h2>
+<table>
+<tr>
+  <th>Version</th><th>Cube</th><th>Graph</th><th>Ped-loss scope</th><th class="num">Seeds</th>
+  <th class="num">Test all-street MAE</th><th class="num">Test sensor MAE</th><th>Status</th>
+</tr>
+<tr>
+  <td><b>V0</b> · old all-street</td><td>old (pre-fix)</td><td>full 1,397</td><td>all streets</td><td class="num">1</td>
+  <td class="num">5.535</td><td class="num">~30.7 *</td><td>superseded</td>
+</tr>
+<tr class="best">
+  <td><b>V1</b> · Category-A all-street</td><td>new</td><td>full 1,397</td><td>all streets</td><td class="num">1</td>
+  <td class="num"><b>4.45</b></td><td class="num">28.02</td><td><b>DEPLOYED</b></td>
+</tr>
+<tr class="worst">
+  <td><b>V2</b> · ExpA sensor-only</td><td>new</td><td>74-node (35 isolated)</td><td>74 sensors</td><td class="num">3</td>
+  <td class="num">—</td><td class="num">54.71 ± 1.32</td><td>ablation</td>
+</tr>
+<tr class="best">
+  <td><b>V3</b> · ExpB masked full graph</td><td>new</td><td>full 1,397</td><td>74 sensors (masked)</td><td class="num">3</td>
+  <td class="num">7.4–7.8</td><td class="num"><b>24.97 ± 0.28</b></td><td>ablation</td>
+</tr>
+</table>
+<p class="meta">* V0’s sensor figure was measured on the old cube with linear de-normalisation; it is
+<b>not comparable</b> to V1–V3 and is shown greyed only for narrative continuity. V2 has no all-street
+figure — it contains only the 74 sensor nodes.</p>
+
+<!-- ===== HEADLINE BAR CHART ===== -->
+<h2>2 · The headline result (same-cube sensor accuracy)</h2>
+<p>This is the only fully fair comparison: V1, V2, V3 evaluated on the <b>same</b> new cube, on the
+<b>same</b> 74 sensor streets, with the <b>same</b> <code>expm1</code> de-normalisation. Lower is better.</p>
+<div class="bars">
+  <div class="bar"><div class="lbl">V2 · ExpA — sensor-only graph</div>
+    <div class="track"><div class="fill f-red" style="width:91%">54.71</div></div></div>
+  <div class="bar"><div class="lbl">V1 · Deployed (all-street loss)</div>
+    <div class="track"><div class="fill f-grey" style="width:47%">28.02</div></div></div>
+  <div class="bar"><div class="lbl">V3 · ExpB — masked full graph</div>
+    <div class="track"><div class="fill f-green" style="width:42%">24.97</div></div></div>
+  <div class="meta" style="text-align:right">Test pedestrian MAE on the 74 sensor streets &nbsp;(axis 0 → 60)</div>
+</div>
+<div class="callout c-green">
+<span class="tag t-green">One-line verdict</span>
+Keeping the <b>full graph</b> (V3 = 24.97) crushes the sensor-only graph (V2 = 54.71) by more than 2×, and
+masking the loss to real sensors (V3) edges out the unmasked deployed model (V1 = 28.02) by ~3 MAE.
+<b>Connectivity is the big win; the mask is the small win.</b>
+</div>
+
+<!-- ===== PER-VERSION CARDS ===== -->
+<h2>3 · Each version in detail</h2>
+
+<!-- V0 -->
+<div class="card">
+  <div class="hd v0"><span>V0 · Old all-street model (D-009)</span><span class="pill">SUPERSEDED</span></div>
+  <div class="bd">
+    <div class="kv">
+      <div>Cube: <b>old (pre-Category-A)</b></div><div>Graph: <b>full 1,397</b></div>
+      <div>Ped loss: <b>all streets</b></div><div>Params: <b>68,076</b></div><div>Seeds: <b>1</b></div>
+    </div>
+    <table>
+      <tr><th></th><th class="num">Val</th><th class="num">Test</th></tr>
+      <tr><td>Ped MAE (all-street)</td><td class="num">5.646</td><td class="num">5.535</td></tr>
+      <tr><td>Ped R²</td><td class="num">0.892</td><td class="num">0.890</td></tr>
+    </table>
+    <p class="meta">The model before the five Category-A data-correctness fixes. Replaced by V1 once the cube
+    was rebuilt (log1p target, weather-timezone fix, outage masking, per-street confidence, non-sensor
+    occupancy). Listed for provenance; not used in any current claim.</p>
+  </div>
+</div>
+
+<!-- V1 -->
+<div class="card">
+  <div class="hd v1"><span>V1 · Category-A all-street model</span><span class="pill">DEPLOYED</span></div>
+  <div class="bd">
+    <div class="kv">
+      <div>Cube: <b>new (Category-A)</b></div><div>Graph: <b>full 1,397</b></div>
+      <div>Ped loss: <b>all streets</b></div><div>Params: <b>68,076</b></div>
+      <div>Best epoch: <b>179</b></div><div>Seed: <b>42</b></div>
+    </div>
+    <table>
+      <tr><th></th><th class="num">Val</th><th class="num">Test</th></tr>
+      <tr><td>Ped MAE — all-street</td><td class="num">4.689</td><td class="num"><b>4.454</b></td></tr>
+      <tr><td>Ped R² — all-street</td><td class="num">0.908</td><td class="num">0.911</td></tr>
+      <tr><td>Ped MAE — sensor only</td><td class="num">30.62</td><td class="num">28.02</td></tr>
+      <tr><td>Parking MAE</td><td class="num">0.057</td><td class="num">0.050</td></tr>
+      <tr><td>Parking R²</td><td class="num">0.887</td><td class="num">0.883</td></tr>
+    </table>
+    <div class="callout c-blue"><span class="tag t-blue">What it is for</span>
+    The production model. Its ped loss is computed on <b>all</b> streets, so it produces a plausible value
+    <i>everywhere</i> — essential for scenario simulation, where an intervention must propagate through the
+    whole network. Optimised for <b>city-wide coverage</b>: excellent all-street accuracy (4.45), moderate
+    accuracy on the high-variance sensor streets (28.0).</div>
+  </div>
+</div>
+
+<!-- V2 -->
+<div class="card">
+  <div class="hd v2"><span>V2 · ExpA — sensor-only subgraph</span><span class="pill">ABLATION</span></div>
+  <div class="bd">
+    <div class="kv">
+      <div>Cube: <b>new</b></div><div>Graph: <b>74-node only</b></div>
+      <div>Isolated nodes: <b>35 / 74</b></div><div>Ped loss: <b>74 sensors</b></div>
+      <div>Params: <b>65,430</b></div><div>Seeds: <b>42, 1, 2</b></div>
+    </div>
+    <table>
+      <tr><th>Metric (test, sensor)</th><th class="num">seed 42</th><th class="num">seed 1</th><th class="num">seed 2</th><th class="num">mean ± std</th></tr>
+      <tr><td>Ped MAE</td><td class="num">53.08</td><td class="num">56.31</td><td class="num">54.74</td><td class="num"><b>54.71 ± 1.32</b></td></tr>
+      <tr><td>Ped R²</td><td class="num">0.600</td><td class="num">0.572</td><td class="num">0.526</td><td class="num">0.566 ± 0.030</td></tr>
+      <tr><td>Train time (s)</td><td class="num">135</td><td class="num">139</td><td class="num">150</td><td class="num">~141</td></tr>
+    </table>
+    <div class="callout c-red"><span class="tag t-red">What it proves</span>
+    Throwing away the unsensored streets and training only on the 74 real ones is <b>far worse</b> (54.7).
+    The cause is structural: deleting the in-between streets leaves <b>35 of 74</b> sensor nodes with no
+    graph neighbours at all — the spatial branch collapses for half the network. One seed also destabilised
+    (validation R² ≈ 0.07), so the sensor-only model is <b>erratic as well as inaccurate</b>.</div>
+  </div>
+</div>
+
+<!-- V3 -->
+<div class="card">
+  <div class="hd v3"><span>V3 · ExpB — masked full graph</span><span class="pill">BEST SENSOR ACCURACY</span></div>
+  <div class="bd">
+    <div class="kv">
+      <div>Cube: <b>new</b></div><div>Graph: <b>full 1,397</b></div>
+      <div>Ped loss: <b>masked to 74 sensors</b></div><div>Params: <b>68,076</b></div>
+      <div>Seeds: <b>42, 1, 2</b></div>
+    </div>
+    <table>
+      <tr><th>Metric (test)</th><th class="num">seed 42</th><th class="num">seed 1</th><th class="num">seed 2</th><th class="num">mean ± std</th></tr>
+      <tr><td>Ped MAE — sensor</td><td class="num">25.22</td><td class="num">24.58</td><td class="num">25.11</td><td class="num"><b>24.97 ± 0.28</b></td></tr>
+      <tr><td>Ped R² — sensor</td><td class="num">0.880</td><td class="num">0.888</td><td class="num">0.886</td><td class="num">0.884 ± 0.004</td></tr>
+      <tr><td>Ped MAE — all-street</td><td class="num">7.78</td><td class="num">7.39</td><td class="num">7.46</td><td class="num">7.54</td></tr>
+      <tr><td>Train time (s)</td><td class="num">4256</td><td class="num">4847</td><td class="num">2521</td><td class="num">~3875</td></tr>
+    </table>
+    <div class="callout c-green"><span class="tag t-green">What it proves</span>
+    Keep the full graph for connectivity, but compute the pedestrian loss <b>only on real sensors</b>. This
+    gives the best sensor accuracy (24.97) — better than the deployed model (28.0) — because it never trains
+    on the noisy imputed targets (median imputation R² ≈ 0.18). The trade-off: it is mediocre on all-street
+    coverage (7.5 vs the deployed 4.45), which is exactly why it is an experiment, not the product.</div>
+  </div>
+</div>
+
+<!-- ===== DECOMPOSITION ===== -->
+<h2>4 · Why the results differ — two independent levers</h2>
+<p>The three new-cube models isolate two separate effects. They must not be merged.</p>
+<table>
+<tr><th>Lever</th><th>Comparison</th><th class="num">Effect on sensor MAE</th><th>Mechanism</th></tr>
+<tr>
+  <td><b>Network connectivity</b></td>
+  <td>V2 (74-node) → V3 (full graph)</td>
+  <td class="num"><span class="win">54.71 → 24.97<br>(−30, ≈ 2.2×)</span></td>
+  <td>The unsensored streets are the <b>bridges</b> between sparse sensors. Including them restores message-passing; removing them isolates 35/74 nodes.</td>
+</tr>
+<tr>
+  <td><b>Loss masking</b></td>
+  <td>V1 (unmasked) → V3 (masked), both full graph</td>
+  <td class="num"><span class="win">28.02 → 24.97<br>(−3)</span></td>
+  <td>Not training on imputed (noisy) pedestrian targets stops the model from learning to reproduce guesses, sharpening the real-sensor fit.</td>
+</tr>
+</table>
+<div class="callout c-amber"><span class="tag t-amber">Do not confuse the levers</span>
+Connectivity comes from <b>including the full graph</b>, not from the mask. The unmasked deployed model
+(V1) also has the full graph — which is why it sits at 28, not 55. The mask adds a separate, smaller gain
+on top.</div>
+
+<!-- ===== COVERAGE VS ACCURACY ===== -->
+<h2>5 · Coverage vs accuracy — the same model, two regimes</h2>
+<p>V1 and V3 share architecture, data and graph; they differ only in <b>where the pedestrian loss is
+computed</b>. That single choice produces two complementary models:</p>
+<table>
+<tr><th>Model</th><th>Ped-loss scope</th><th class="num">All-street MAE<br>(coverage)</th><th class="num">Sensor MAE<br>(accuracy)</th><th>Best used for</th></tr>
+<tr><td>V1 · Deployed</td><td>all streets</td><td class="num win">4.45</td><td class="num">28.0</td><td>City-wide coverage; scenario propagation needs a value on every street</td></tr>
+<tr><td>V3 · ExpB</td><td>masked to sensors</td><td class="num">7.5</td><td class="num win">24.97</td><td>Maximum accuracy on verifiable (sensor) streets</td></tr>
+</table>
+<p class="meta">This is a deliberate engineering knob, not a defect: optimise the loss for the whole city and
+you cover everything moderately well; optimise it for the sensors and you sharpen those at the cost of the
+rest.</p>
+
+<!-- ===== COMPARABILITY ===== -->
+<h2>6 · Comparability &amp; honesty notes</h2>
+<div class="callout c-red"><span class="tag t-red">Critical</span>
+<ul style="margin:0">
+<li><b>Old vs new ablation are not comparable.</b> An earlier single-seed ablation on the old cube reported
+ExpA ≈ ExpB ≈ 22 with linear de-normalisation. That used a different dataset and a different inverse
+transform; the new-cube ablation (this report) <b>reverses</b> the conclusion — connectivity now clearly
+helps. Only the within-this-run ranking (V1/V2/V3) is valid; one cannot claim “ExpA went 22 → 55”.</li>
+<li><b>Direction is certain; magnitude is scale-sensitive.</b> The <code>expm1</code> inverse of the
+<code>log1p</code> target amplifies errors on high-count streets, so the precise 2.2× ratio is softer than
+it looks. Across all 3 seeds the ranking never changes: full graph ≫ sensor-only.</li>
+<li><b>Sensor MAE ≠ all-street MAE.</b> 4.45 (V1 all-street) and 25–55 (sensor) describe different
+populations. Never present them as a regression of each other.</li>
+</ul>
+</div>
+
+<h2>7 · Bottom line</h2>
+<ul>
+<li><b>Best sensor accuracy:</b> V3 (ExpB), 24.97 ± 0.28 — full graph + masked loss.</li>
+<li><b>Best coverage / deployed product:</b> V1, all-street MAE 4.45.</li>
+<li><b>Worst:</b> V2 (ExpA), 54.71 — proves the in-between streets are essential, not optional.</li>
+<li><b>Thesis claim, substantiated with error bars:</b> imputed network connectivity <b>materially improves</b>
+pedestrian-flow accuracy on the streets we can verify; the unsensored streets carry the message-passing
+that links the sparse sensors.</li>
+</ul>
+
+<footer>
+Figures: V0/V1 from <code>model_eval.json</code> (and old D-009 metrics); V2/V3 from the 3-seed ablation
+<code>ablation_results04.06.26.json</code> on the Category-A cube. The old pre-Category-A ablation is
+intentionally excluded from quantitative comparison as non-comparable.
+</footer>
+
+</div>
+</body>
+</html>

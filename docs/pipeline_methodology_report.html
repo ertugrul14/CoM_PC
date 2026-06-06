@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curbside Intensification — Pipeline Methodology & Experiments</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#555; --line:#d9d9d9;
+    --ml:#0b5394; --ml-bg:#eef4fb;
+    --world:#38761d; --world-bg:#eef7e9;
+    --honest:#990000; --honest-bg:#fbeeee;
+    --accent:#7a3e9d;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  body{
+    font-family:"Segoe UI",Helvetica,Arial,sans-serif;
+    color:var(--ink); line-height:1.5; margin:0;
+    font-size:11pt;
+  }
+  .wrap{max-width:880px; margin:0 auto; padding:32px 28px 60px}
+  h1{font-size:23pt; margin:0 0 4px; letter-spacing:-.3px}
+  h2{font-size:15.5pt; margin:34px 0 10px; padding-bottom:5px; border-bottom:2px solid var(--ink); break-after:avoid}
+  h3{font-size:12.5pt; margin:20px 0 6px; color:var(--accent); break-after:avoid}
+  h4{font-size:11pt; margin:14px 0 4px}
+  p{margin:7px 0}
+  .sub{color:var(--muted); font-size:10.5pt; margin:0 0 2px}
+  code{font-family:"Cascadia Mono",Consolas,monospace; font-size:9.7pt; background:#f3f3f3; padding:1px 4px; border-radius:3px}
+  pre{font-family:"Cascadia Mono",Consolas,monospace; font-size:9.2pt; background:#f6f6f6; border:1px solid var(--line);
+      border-radius:6px; padding:12px 14px; overflow:auto; line-height:1.35; break-inside:avoid}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:10pt; break-inside:avoid}
+  th,td{border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top}
+  th{background:#f0f0f0; font-weight:600}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .lead{font-size:11.5pt; color:#333}
+  .callout{border-left:4px solid; border-radius:0 6px 6px 0; padding:9px 13px; margin:9px 0; break-inside:avoid}
+  .ml{border-color:var(--ml); background:var(--ml-bg)}
+  .world{border-color:var(--world); background:var(--world-bg)}
+  .honest{border-color:var(--honest); background:var(--honest-bg)}
+  .tag{display:inline-block; font-size:8.5pt; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
+       padding:1px 6px; border-radius:3px; margin-right:6px; vertical-align:1px}
+  .tag.ml{background:var(--ml); color:#fff; border:none}
+  .tag.world{background:var(--world); color:#fff; border:none}
+  .tag.honest{background:var(--honest); color:#fff; border:none}
+  .step{break-inside:avoid-page; margin:18px 0; padding-top:6px}
+  .stepnum{display:inline-block; background:var(--ink); color:#fff; font-weight:700; border-radius:5px;
+           padding:1px 9px; margin-right:8px; font-size:11pt}
+  .frozen{display:inline-block; font-size:8pt; font-weight:700; color:#7a5b00; background:#fdf3d0;
+          border:1px solid #e8d38a; border-radius:3px; padding:0 5px; margin-left:6px; vertical-align:2px}
+  .best{background:#e9f7e9; font-weight:700}
+  .worst{background:#fbeeee}
+  .meta{font-size:9.5pt; color:var(--muted)}
+  ul{margin:6px 0 6px 0; padding-left:22px} li{margin:3px 0}
+  .kpi{display:flex; gap:14px; flex-wrap:wrap; margin:10px 0}
+  .kpi div{flex:1 1 150px; border:1px solid var(--line); border-radius:7px; padding:9px 12px; background:#fafafa}
+  .kpi b{display:block; font-size:18pt; line-height:1.1; color:var(--ml)}
+  .kpi span{font-size:9.3pt; color:var(--muted)}
+  hr{border:none; border-top:1px solid var(--line); margin:26px 0}
+  .toc{font-size:10pt; columns:2; column-gap:30px}
+  .toc a{color:var(--ink); text-decoration:none}
+  footer{margin-top:40px; padding-top:12px; border-top:1px solid var(--line); font-size:9pt; color:var(--muted)}
+  @page{margin:16mm 14mm}
+  @media print{
+    .wrap{max-width:none; padding:0}
+    h2{break-after:avoid} a{color:inherit; text-decoration:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Curbside Intensification</h1>
+  <p class="sub">Spatio-temporal pipeline for data-driven curbside reallocation — Melbourne CBD</p>
+  <p class="sub">Methodology, pipeline walkthrough, and experimental comparison &nbsp;·&nbsp; Generated 2026-06-04</p>
+</header>
+
+<p class="lead">This report documents the full analysis pipeline that turns raw parking, pedestrian,
+land-use and weather data into curbside-reallocation recommendations, and compares the deployed
+model against two controlled alternatives. Every pipeline step is described twice: once as an
+<b>ML-engineering operation</b> and once for its <b>real-world meaning</b> on an actual street.</p>
+
+<div class="callout honest">
+<span class="tag honest">How to read the numbers</span>
+Two pedestrian error figures appear throughout: <b>all-street MAE</b> (averaged over all 1,397 modelled
+streets) and <b>sensor-only MAE</b> (averaged over the 74 streets with real pedestrian counters). They
+measure <b>different populations</b> and must never be compared to each other. The sensor streets are the
+busiest, highest-variance streets in the city, so their absolute error is naturally much larger. Each
+figure is labelled wherever it appears.
+</div>
+
+<h2>Contents</h2>
+<div class="toc">
+1. Purpose &amp; research questions<br>
+2. Pipeline at a glance<br>
+3. Steps 01–12 (engineer + real-world)<br>
+4. The model: dual-head MultiGCN<br>
+5. Experiments compared<br>
+6. Findings mapped to the research questions<br>
+7. Limitations &amp; decision provenance<br>
+</div>
+
+<!-- ============================ 1. PURPOSE ============================ -->
+<h2>1 · Purpose &amp; research questions</h2>
+<p>Urban street design is essentially <b>static</b>, yet how people use streets changes hour by hour
+and day by day. The curbside — the contested 2–3 metres at the edge of the road — is permanently
+reserved for vehicles, even when, at certain hours, pedestrians, diners or markets would make far
+better use of it. Existing practice (NYC Dynamic Curb Management, Seattle Flex Zones) reallocates the
+curb through <b>manual observation and political feedback</b>, not algorithmic analysis. This project
+asks whether the decision can be made <b>data-driven</b>.</p>
+
+<div class="callout world">
+<span class="tag world">Research question</span>
+<b>“How can we reallocate curbside functions based on streets’ temporal behaviour, with the assistance
+of data-driven methods, using parking and pedestrian activity?”</b>
+</div>
+
+<table>
+<tr><th style="width:34px">#</th><th>Sub-research question</th><th>Answered by</th></tr>
+<tr><td>1</td><td>Which streets have temporal <b>flexibility windows</b> that make curbside reallocation viable?</td><td>Step 07 — clustering &amp; flexibility-window detection</td></tr>
+<tr><td>2</td><td>What spatio-temporal <b>factors drive</b> the behavioural patterns of urban streets?</td><td>Step 10 — permutation importance &amp; branch attribution</td></tr>
+<tr><td>3</td><td>How does a single-street intervention <b>propagate</b> across the surrounding network?</td><td>Step 11 — counterfactual scenario simulation</td></tr>
+</table>
+
+<!-- ============================ 2. OVERVIEW ============================ -->
+<h2>2 · Pipeline at a glance</h2>
+<p>The study universe is the Melbourne CBD arterial street network: <b>N = 1,397 streets</b> over
+<b>T = 14,400 fifteen-minute bins</b> (Nov 2025 – Mar 2026), with <b>F = 23 features</b> per street per bin.
+Of these, 74 streets carry real pedestrian counters and 143 carry parking sensors; the remainder are
+filled by a graph-informed imputation model and exist primarily to carry network connectivity.</p>
+
+<pre>
+ RAW INGEST        SPATIALISE         REPRESENT           LEARN              EXPLAIN / ACT
+ ──────────        ──────────         ─────────           ─────              ─────────────
+ 01 fetch    ──▶   02 snap      ──▶   06 profiles  ──┐                  ┌─▶ 10 interpret
+ (Supabase,        04 graphs          07 cluster     │                  │
+  CLUE,            (spatial+           ───────────    ├─▶ 08 cube ─▶ 09 train ─▶ 11 scenario
+  Open-Meteo)      semantic)          05 impute      │   (N×T×F)    (MultiGCN)  │
+ 03 temporal ──▶                      (XGBoost) ─────┘                  └─▶ 12 export (map/API)
+</pre>
+
+<p class="meta">Steps 01–09 are the <b>frozen</b> data-and-training foundation; steps 10–12 are the active
+post-training layer. The five Category-A data-correctness fixes (D-011…D-015) and the methodology
+decisions (D-016…D-018) are summarised in §7.</p>
+
+<!-- ============================ 3. STEPS ============================ -->
+<h2>3 · The pipeline, step by step</h2>
+
+<!-- STEP 01 -->
+<div class="step">
+<h3><span class="stepnum">01</span>Fetch — raw data ingestion <span class="frozen">FROZEN</span></h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+Idempotent ingestion of heterogeneous sources into <code>data/raw/</code>: Supabase views for parking
+and pedestrian events, the Open-Meteo hourly archive (fetched in <code>Australia/Melbourne</code> — D-011),
+fourteen City-of-Melbourne CLUE land-use datasets (cafés, bars, jobs, businesses, floorspace, landmarks),
+and PTV/bus transit stops. No transformation — a clean, re-runnable raw layer is the contract.</div>
+<div class="callout world"><span class="tag world">Real world</span>
+This is the city’s evidence base: <i>who parks where and when, how many people walk past, and what sits
+around them</i> — the cafés, offices and bars that generate footfall — plus the weather overhead. Nothing
+is interpreted yet; we are simply gathering every instrument the city already has.</div>
+</div>
+
+<!-- STEP 02 -->
+<div class="step">
+<h3><span class="stepnum">02</span>Snap — sensors &amp; land-use onto streets <span class="frozen">FROZEN</span></h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+A spatial join in projected coordinates (EPSG:3111). Every parking/pedestrian sensor is mapped to its
+street polygon (nearest-neighbour fallback ≤ 50 m); every CLUE point is assigned to its single nearest
+arterial within a 250 m catchment as an <b>integer count</b> (interpretable: “11 cafés in this street’s
+catchment”). A hard arterial filter — <code>str_type ∈ {Arterial, Council Major}</code> — discards minor
+and private segments so signal is not snapped to streets that later get dropped. Output:
+<code>static_features.parquet</code> (23 land-use columns).</div>
+<div class="callout world"><span class="tag world">Real world</span>
+This turns anonymous sensor IDs and scattered points into street-level facts: <i>“this counter measures
+Bourke Street; these 11 cafés feed pedestrians onto it.”</i> Restricting to arterials focuses the whole
+study on the streets where reallocating the curb is actually meaningful — not on driveways and laneway
+stubs.</div>
+</div>
+
+<!-- STEP 03 -->
+<div class="step">
+<h3><span class="stepnum">03</span>Temporal — time &amp; weather features <span class="frozen">FROZEN</span></h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+Builds the master 15-minute index (14,400 bins). Hourly weather is forward-filled to 15-min resolution;
+time is encoded <b>cyclically</b> (<code>hour_sin/cos</code>, <code>dow_sin/cos</code>) so that 23:45 and
+00:00 are adjacent in feature space rather than maximally distant. Victorian public- and school-holiday
+flags are attached.</div>
+<div class="callout world"><span class="tag world">Real world</span>
+Encodes the context a planner intuits: <i>what time is it, is it a weekday or a holiday, is it raining?</i>
+A street behaves nothing like itself between 3 a.m. and 1 p.m., or between a normal Tuesday and Melbourne
+Cup Day — the cyclic encoding lets the model treat the daily and weekly rhythm as the continuous loop it
+really is.</div>
+</div>
+
+<!-- STEP 04 -->
+<div class="step">
+<h3><span class="stepnum">04</span>Graphs — spatial &amp; semantic adjacency <span class="frozen">FROZEN</span></h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+Two graphs over the 1,397 nodes. <b>Spatial</b>: intersection-topology — polygons that physically touch
+are connected, weighted by a Gaussian kernel <code>exp(−d/σ)</code> on centroid distance (5,635 directed
+edges; 25 geometric isolates each get a zero-weight k=1 fallback so every node has a valid row).
+<b>Semantic</b>: cosine similarity on z-scored <code>log1p</code> land-use vectors, filtered by
+<b>mutual k-NN</b> so two streets connect only if each is in the other’s top-K (8,097 edges; prevents
+hub-and-spoke degeneration). Both are symmetrically normalised (<code>D<sup>−½</sup>AD<sup>−½</sup></code>)
+in Step 08.</div>
+<div class="callout world"><span class="tag world">Real world</span>
+Two different meanings of “neighbour.” The <b>spatial</b> graph is <i>where you are</i> — streets that meet
+at a real intersection, so a change here can flow to there. The <b>semantic</b> graph is <i>what you are</i>
+— a café-and-bar dining strip resembles another dining strip even on the far side of the city. The model
+gets to reason along both: physical adjacency and functional similarity.</div>
+</div>
+
+<!-- STEP 05 -->
+<div class="step">
+<h3><span class="stepnum">05</span>Process — parking reconstruction &amp; pedestrian imputation <span class="frozen">FROZEN</span></h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+Two products. (a) <b>Parking occupancy</b> reconstructed from raw events with a time-aware duration cap
+(D-009). (b) <b>Pedestrian imputation</b> with XGBoost under <code>GroupKFold(5)</code> over streets — the
+fold split is by <i>street</i>, so cross-validation genuinely measures generalisation to <b>unseen
+streets</b>, not unseen times. The target is <code>log1p(ped_flow)</code> (heavy right skew); features
+include a <b>spatial-graph lag</b> (mean flow of sensored neighbours — “what are nearby streets seeing
+now?”). Three honesty mechanisms: per-street confidence via similarity transfer (D-014); short gaps ≤ 4
+bins interpolated while longer runs are flagged as outages, not zero-filled (D-013); non-sensor occupancy
+set to the sensor mean — “unknown,” not “empty” (D-015).</div>
+<div class="callout world"><span class="tag world">Real world</span>
+Only 74 streets have pedestrian counters and 143 have parking sensors, but reallocation decisions are
+needed everywhere. This step <i>estimates</i> the missing streets from their land use, the time of day, and
+what their neighbours are measuring. The discipline is what makes it honest: every estimate carries a
+confidence score, and a broken sensor is recorded as “we don’t know,” never as “nobody walked here” —
+because a fake zero would manufacture a fake opportunity to pedestrianise.</div>
+</div>
+
+<!-- STEP 06 -->
+<div class="step">
+<h3><span class="stepnum">06</span>Aggregate — weekly temporal profiles <span class="frozen">FROZEN</span></h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+Collapses the 14,400-bin series into a compact weekly fingerprint per street: 42 parking + 42 pedestrian
+features (7 days × 6 time-blocks). Pedestrian profiles are <b>row-normalised</b> by each street’s own mean
+flow, so the clustering downstream compares <i>shape</i> (when a street is busy) rather than <i>scale</i>
+(how busy) — putting a quiet lane and a busy boulevard on equal footing.</div>
+<div class="callout world"><span class="tag world">Real world</span>
+A signature of how each street “breathes” across a typical week — the morning commuter pulse, the lunch
+spike, the evening dining surge, the weekend drift. This is the object a human planner carries in their
+head; here it becomes a vector.</div>
+</div>
+
+<!-- STEP 07 -->
+<div class="step">
+<h3><span class="stepnum">07</span>Cluster — behavioural archetypes &amp; flexibility windows <span class="frozen">FROZEN</span></h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+<code>StandardScaler → PCA(20 comps, 99.5% variance) → Gaussian Mixture</code>, with a BIC sweep over
+k = 2…10 selecting the true minimum at <b>k = 4</b>. Stability is checked by bootstrap ARI (0.888) and
+silhouette (0.526). Each cluster is labelled by its parking centroid peak; <b>flexibility windows</b> are
+time-blocks where pedestrian demand is high <i>and</i> parking occupancy is low.</div>
+<div class="callout world"><span class="tag world">Real world</span>
+Sorts the city into a handful of street “personalities” and — directly answering <b>sub-RQ 1</b> — flags
+the moments when a street is full of people but its parking sits empty: the prime candidates for handing
+the curb to pedestrians. <b>1,109 streets</b> show at least one such window.</div>
+<table>
+<tr><th>Cluster</th><th>Archetype</th><th class="num">Streets</th></tr>
+<tr><td>3</td><td>major_pedestrian_corridor</td><td class="num">50</td></tr>
+<tr><td>1</td><td>parking_reallocation_priority</td><td class="num">139</td></tr>
+<tr><td>2</td><td>latent_evening_potential_high</td><td class="num">227</td></tr>
+<tr><td>0</td><td>latent_evening_potential_medium</td><td class="num">981</td></tr>
+</table>
+<p class="meta">BIC minimum at k=4; PCA retains 99.5% of profile variance; 3 streets flagged low-confidence
+(max GMM posterior &lt; 0.70).</p>
+</div>
+
+<!-- STEP 08 -->
+<div class="step">
+<h3><span class="stepnum">08</span>Cube — the model’s input substrate <span class="frozen">FROZEN</span></h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+Assembles the dense <code>float32</code> tensor <b>[N=1,397 × T=14,400 × F=23]</b> in node order, builds the
+two symmetrically-normalised sparse adjacencies, and computes <code>norm_stats</code> — with
+<code>log1p</code> applied to <code>ped_flow</code> before z-scoring (D-012), which collapses the heavy
+z = 4–10 tail of raw counts. Also emits <code>ped_valid_mask</code> [N×T] so training can ignore sensor
+outages. The cube is stored raw and normalised on the fly, so the log-transform contract lives in a single
+pair of helper functions.</div>
+<div class="callout world"><span class="tag world">Real world</span>
+Everything the city knows — footfall, parking, clock, calendar, weather, land use — stacked into one
+aligned block of space × time × feature. This is the unified “world” the learning model will read; every
+earlier step exists to fill one slice of it correctly.</div>
+</div>
+
+<!-- STEP 09 -->
+<div class="step">
+<h3><span class="stepnum">09</span>Train — dual-head MultiGCN <span class="frozen">FROZEN</span></h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+At each of the 96 timesteps in a 24-hour window, two GCN branches (spatial + semantic) map
+<code>F → H = 64</code>; their concatenation feeds a 2-layer GRU that compresses the window to a per-node
+hidden state, which two linear heads turn into next-step <code>ped_flow</code> and
+<code>occupancy_rate</code> (each with a per-node bias). Joint loss
+<code>MAE_ped + 0.5 · masked_MAE_park</code>; parking supervision is masked to the 143 sensor streets.
+Chronological 70/15/15 split (no leakage), Adam 1e-3, ReduceLROnPlateau, early stop on val ped MAE.
+68,076 parameters.</div>
+<div class="callout world"><span class="tag world">Real world</span>
+The model learns to answer: <i>“given the last 24 hours on this street and its neighbours, what happens in
+the next 15 minutes?”</i> The spatial branch passes influence between connected streets, the semantic
+branch between similar streets, and the GRU remembers the daily rhythm. It predicts <b>people and parking
+jointly</b> because curbside decisions trade one against the other.</div>
+<div class="kpi">
+  <div><b>4.45</b><span>Test ped MAE (all-street)</span></div>
+  <div><b>0.911</b><span>Test ped R²</span></div>
+  <div><b>0.050</b><span>Test parking MAE</span></div>
+  <div><b>0.883</b><span>Test parking R²</span></div>
+</div>
+</div>
+
+<!-- STEP 10 -->
+<div class="step">
+<h3><span class="stepnum">10</span>Interpret — what drives the prediction</h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+Permutation importance: each of the 23 feature columns is replaced with noise in the validation set and the
+MAE increase is measured (3 repeats, averaged). Branch attribution zeroes each GCN branch in turn. Baseline
+MAE 5.03.</div>
+<div class="callout world"><span class="tag world">Real world</span>
+Opens the black box and answers <b>sub-RQ 2</b>. Pedestrian flow is overwhelmingly driven by its own recent
+momentum and by <i>how trustworthy the local data is</i> — not by the weather. The physical-adjacency graph
+matters about three times as much as the functional-similarity graph: where a street is beats what it is.</div>
+<table>
+<tr><th>Signal</th><th class="num">Δ MAE (↑ = more important)</th><th>Reading</th></tr>
+<tr><td><code>ped_flow</code> (own recent flow)</td><td class="num">+23.18</td><td>Dominant — flow is mostly its own momentum</td></tr>
+<tr><td><code>ped_confidence</code></td><td class="num">+4.36</td><td>Data trustworthiness is itself predictive</td></tr>
+<tr><td>Spatial GCN branch</td><td class="num">+13.59</td><td>Physical network is the primary structural signal</td></tr>
+<tr><td>Semantic GCN branch</td><td class="num">+4.74</td><td>Functional similarity — real but secondary</td></tr>
+<tr><td><code>temperature_2m</code></td><td class="num">+0.30</td><td>Now <i>useful</i> after the timezone fix (was −0.63)</td></tr>
+<tr><td>Other weather / holidays</td><td class="num">≈ 0 to −0.8</td><td>At or below the noise floor</td></tr>
+</table>
+<p class="meta">The positive flip on <code>temperature_2m</code> is the falsifiable confirmation that the
+weather-timezone fix (D-011) worked: a feature that previously <i>hurt</i> the model now helps it.</p>
+</div>
+
+<!-- STEP 11 -->
+<div class="step">
+<h3><span class="stepnum">11</span>Scenario — counterfactual intervention simulation</h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+An autoregressive rollout runs two futures from the same starting window — a clean <b>baseline</b> and a
+<b>treated</b> one — and reports their difference per street per step. Three interventions:
+<code>pedestrianise</code> (occupancy → 0), <code>restrict_park</code> (occupancy → m), <code>boost_ped</code>
+(+raw uplift). Network effects are characterised by the joint parking head (learned spillover), analytical
+graph diffusion <code>A<sup>k</sup></code> (k = 1…3 hops), semantic-neighbour reporting, confidence-weighted
+ranking, and rebound half-life. An <b>honesty gate</b> (D-017) refuses, by default, to run on a street that
+lacks a real sensor for the signal being perturbed.</div>
+<div class="callout world"><span class="tag world">Real world</span>
+Answers <b>sub-RQ 3</b>: <i>“if I pedestrianise this block for four hours, what happens here — and to the
+streets around it?”</i> It lets a planner test an intervention <b>before</b> touching the real curb, and see
+the knock-on effects ripple outward through the network. The honesty gate enforces the project’s core
+principle: quantitative claims are made only where the perturbed quantity is actually measured.</div>
+</div>
+
+<!-- STEP 12 -->
+<div class="step">
+<h3><span class="stepnum">12</span>Export — interactive planner tool</h3>
+<div class="callout ml"><span class="tag ml">Engineer</span>
+Enriches <code>streets_viz.geojson</code> with opportunity scores, predictions and scenario outputs, and
+writes the summary JSONs consumed by the Mapbox-GL frontend and the Flask scenario API.</div>
+<div class="callout world"><span class="tag world">Real world</span>
+Turns the whole analysis into something a planner can use: an interactive map where you click a street, see
+its archetype and flexibility windows, and run a live what-if scenario.</div>
+</div>
+
+<!-- ============================ 4. MODEL ============================ -->
+<h2>4 · The model: dual-head MultiGCN</h2>
+<pre>
+Input  [batch, W=96, N=1397, F=23]
+  ├─ GCN branch (spatial graph)   F → 64   ─┐
+  ├─ GCN branch (semantic graph)  F → 64   ─┤ concat → [batch, W, N, 128]
+  │                                          └─▶ GRU (2 layers, dropout 0.1) → [batch, N, 64]
+  │                                                 ├─ head_ped   → next-step ped_flow      (+per-node bias)
+  │                                                 └─ head_park  → next-step occupancy_rate (+per-node bias)
+Loss = MAE_ped  +  0.5 · masked_MAE_park        (parking loss masked to 143 sensor streets)
+Parameters = 68,076
+</pre>
+<p>The architecture is deliberately small. The point of the thesis is not raw predictive power but a
+<b>faithful, interpretable</b> spatio-temporal model whose graph structure can be probed (Step 10) and
+counterfactually perturbed (Step 11). Two GCN views + a GRU is the minimal design that is genuinely
+spatio-<i>temporal</i>: graph message-passing for space, recurrence for time.</p>
+
+<!-- ============================ 5. EXPERIMENTS ============================ -->
+<h2>5 · Experiments compared</h2>
+<p>To isolate <i>why</i> the pipeline works, three models were trained and evaluated on the <b>same</b>
+Category-A cube, with pedestrian accuracy measured on the 74 real sensor streets. ExpA and ExpB were each
+run across <b>3 seeds</b> (42, 1, 2) and are reported as mean ± std, so the comparison survives random-seed
+noise.</p>
+
+<table>
+<tr>
+  <th>Model</th><th>Graph used for message-passing</th><th>Where ped loss is computed</th>
+  <th class="num">Test sensor MAE</th><th class="num">Test all-street MAE</th>
+</tr>
+<tr>
+  <td><b>Deployed model</b><br><span class="meta">the “first”/production model</span></td>
+  <td>Full 1,397-node graph</td><td>All 1,397 streets</td>
+  <td class="num">28.02</td><td class="num best">4.45</td>
+</tr>
+<tr class="worst">
+  <td><b>Exp A</b> — sensor-only subgraph</td>
+  <td>74-node subgraph (35 isolated)</td><td>74 sensor streets</td>
+  <td class="num">54.71 <span class="meta">± 1.32</span></td><td class="num">—</td>
+</tr>
+<tr class="best">
+  <td><b>Exp B</b> — masked full graph</td>
+  <td>Full 1,397-node graph</td><td>74 sensor streets (masked)</td>
+  <td class="num">24.97 <span class="meta">± 0.28</span></td><td class="num">7.4–7.8</td>
+</tr>
+</table>
+<p class="meta">Lower MAE is better. Sensor-MAE and all-street-MAE are different populations — read down each
+column, never across. ExpA’s <code>—</code>: an all-street figure is undefined, since ExpA contains only the
+74 sensor nodes.</p>
+
+<h3>Finding 1 — network connectivity is the dominant lever</h3>
+<p>Restricting the graph to only the sensor streets (ExpA, <b>54.71</b>) is more than <b>twice as bad</b> as
+keeping the full graph (ExpB, <b>24.97</b>). The gap (~30 MAE) dwarfs the seed-to-seed std (≈ 1.3 and 0.3),
+so it is not noise. The mechanism is visible in the data: deleting the non-sensor streets leaves
+<b>35 of the 74</b> sensor nodes <b>completely isolated</b>.</p>
+<div class="callout world"><span class="tag world">Why</span>
+Sensors are sparse in space — two sensor streets are almost never physically adjacent. In the real road
+network they connect to each other <i>through</i> the unsensored streets in between. Cutting those out does
+not merely remove context; it <b>severs the bridges</b> that link the sensors, and the spatial branch
+collapses for half of them. This is the empirical answer to <i>“do the streets in between matter?”</i> —
+emphatically yes.</div>
+
+<h3>Finding 2 — loss masking is a separate, smaller lever</h3>
+<p>ExpB (masked, <b>24.97</b>) beats the deployed model on sensor streets (<b>28.02</b>) by ~3 MAE. Both use
+the identical full graph, so this gain is <b>not</b> connectivity — it comes from <i>not training on the
+imputed pedestrian targets</i>, which are themselves estimates (median imputation R² ≈ 0.18, near noise).
+Masking stops the model from learning to reproduce noisy guesses on 1,323 streets and lets it concentrate
+on the real signal.</p>
+<div class="callout honest"><span class="tag honest">Don’t merge the two levers</span>
+Connectivity (the big win) comes from <b>including the full graph</b>; clean supervision (the small win)
+comes from <b>the loss mask</b>. They are independent: the unmasked deployed model also has the full graph,
+which is why it sits at 28, not 55.</div>
+
+<h3>Finding 3 — coverage vs accuracy is a deliberate knob</h3>
+<table>
+<tr><th>Model</th><th class="num">All-street MAE<br>(coverage)</th><th class="num">Sensor MAE<br>(accuracy)</th><th>Optimised for</th></tr>
+<tr><td>Deployed (ped loss on all streets)</td><td class="num">4.45</td><td class="num">28.0</td><td>City-wide coverage — a value for every street</td></tr>
+<tr><td>Exp B (ped loss masked to sensors)</td><td class="num">7.4–7.8</td><td class="num">25.0</td><td>Sensor-street accuracy</td></tr>
+</table>
+<p>The same architecture and data yield two regimes depending only on <b>where the loss is computed</b>. The
+deployed model is the right choice for the product — scenario simulation needs a plausible value on
+<i>every</i> street for the network to propagate through — while ExpB demonstrates the accuracy ceiling on
+the streets we can actually verify. Reporting both, honestly, is the point.</p>
+
+<div class="callout honest"><span class="tag honest">Comparability guardrails</span>
+<ul style="margin-bottom:0">
+<li><b>Old vs new ablation are not comparable.</b> An earlier ablation on the pre-Category-A cube (with
+linear de-normalisation) reported ExpA ≈ ExpB ≈ 22. That run used a different dataset and a different
+inverse transform; only the <i>within-this-run</i> ranking above is valid. One cannot claim “ExpA went from
+22 to 55.”</li>
+<li><b>Magnitude is scale-sensitive, direction is certain.</b> The <code>expm1</code> inverse of the
+<code>log1p</code> target amplifies errors on high-count streets, so the precise 2.2× ratio is softer than
+it looks; the ranking (full graph ≫ sensor-only) holds across every seed.</li>
+<li><b>ExpA is unstable as well as worse.</b> One ExpA seed collapsed to validation R² ≈ 0.07 — the
+sensor-only model is erratic, not merely less accurate.</li>
+</ul>
+</div>
+
+<!-- ============================ 6. FINDINGS → RQs ============================ -->
+<h2>6 · Findings mapped to the research questions</h2>
+<table>
+<tr><th>Question</th><th>Evidence</th><th>Answer</th></tr>
+<tr><td><b>Main RQ</b> — can curbside reallocation be made data-driven from temporal behaviour?</td>
+<td>Whole pipeline; deployed model R² 0.91 (ped), 0.88 (park)</td>
+<td>Yes — a single spatio-temporal model jointly predicts pedestrian and parking behaviour well enough to
+drive reallocation candidates and what-if simulation.</td></tr>
+<tr><td><b>Sub-RQ 1</b> — which streets have flexibility windows?</td>
+<td>Step 07: GMM k=4, 1,109 streets with high-ped/low-parking windows</td>
+<td>A concrete shortlist of streets and the specific time-blocks when their curb is reallocatable.</td></tr>
+<tr><td><b>Sub-RQ 2</b> — what drives street behaviour?</td>
+<td>Step 10: own flow Δ+23.2, spatial branch Δ+13.6 ≫ semantic Δ+4.7, weather ≈ 0</td>
+<td>Recent local momentum and physical-network position dominate; functional similarity is secondary;
+weather is near-irrelevant.</td></tr>
+<tr><td><b>Sub-RQ 3</b> — how does an intervention propagate?</td>
+<td>Step 11: autoregressive rollout + graph diffusion + learned parking spillover + rebound half-life</td>
+<td>Effects spread measurably to spatial and semantic neighbours and decay at a quantifiable rate; the
+ablation proves the propagation channel (the graph) is what carries the signal.</td></tr>
+</table>
+
+<!-- ============================ 7. LIMITATIONS ============================ -->
+<h2>7 · Limitations &amp; decision provenance</h2>
+
+<h3>Category-A foundation fixes (cube + retrain)</h3>
+<table>
+<tr><th>ID</th><th>Fix</th><th>What it corrected</th></tr>
+<tr><td>D-011</td><td>Weather timezone</td><td>Open-Meteo fetched in Melbourne local time, not UTC (an 11-hour shift). Confirmed by the temperature-importance flip −0.63 → +0.30.</td></tr>
+<tr><td>D-012</td><td><code>log1p</code> ped normalisation</td><td>Tames the heavy right tail of raw counts; inverse is <code>expm1</code>. Single-source-of-truth helpers.</td></tr>
+<tr><td>D-013</td><td>Missing-vs-zero</td><td>Sensor outages flagged and excluded from loss, not zero-filled (which would fake quiet periods).</td></tr>
+<tr><td>D-014</td><td>Per-street confidence</td><td>Imputation trust transferred from each street’s nearest sensored neighbours, not a single global tier.</td></tr>
+<tr><td>D-015</td><td>Non-sensor occupancy</td><td>Filled to the sensor mean (“unknown”), not 0 (“empty”).</td></tr>
+<tr><td>D-016–18</td><td>Methodology</td><td>Pedestrian-loss-scope flag (D-016); scenario honesty gate (D-017); multi-seed + <code>log1p</code>-aware ablation (D-018).</td></tr>
+</table>
+
+<h3>Known limitations (carried as thesis caveats)</h3>
+<ul>
+<li><b>Imputation is for coverage, not sensor accuracy.</b> The ablation shows the imputed streets exist to
+carry network connectivity; the verifiable accuracy ceiling is set by the sensor streets.</li>
+<li><b>Parking-head extrapolation.</b> 1,254 non-sensor streets have no parking supervision — their occupancy
+predictions are extrapolations.</li>
+<li><b>Autoregressive horizon.</b> Scenario rollouts beyond ~4 hours (16 steps) are indicative, not precise —
+prediction error compounds.</li>
+<li><b>Confidence honesty.</b> Median per-street imputation R² ≈ 0.18; only 2 streets earn the high-confidence
+tier. This is reported, not hidden.</li>
+<li><b>Study window.</b> Nov 2025 – Mar 2026 (southern-hemisphere summer/autumn); seasonal generalisation is
+untested.</li>
+</ul>
+
+<footer>
+Curbside Intensification — pipeline methodology &amp; experimental comparison. Figures sourced from
+<code>model_eval.json</code>, <code>feature_importance.json</code>, <code>cluster_report.json</code>, and the
+3-seed ablation (<code>ablation_results04.06.26.json</code>). All sensor-vs-all-street figures are population-
+labelled; the old pre-Category-A ablation is intentionally excluded as non-comparable.
+</footer>
+
+</div>
+</body>
+</html>

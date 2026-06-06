@@ -1,0 +1,112 @@
+{
+  "config": {
+    "k_folds": 3,
+    "n_seeds": 1,
+    "fold_epochs": 200,
+    "arms": [
+      "A",
+      "B"
+    ],
+    "smoke_test": false,
+    "n_sensor_streets": 74
+  },
+  "folds": [
+    {
+      "seed": 42,
+      "fold": 0,
+      "n_held_out": 25,
+      "arms": {
+        "A": {
+          "val": {
+            "ped_mae": 51.8628,
+            "ped_r2": 0.5399
+          },
+          "test": {
+            "ped_mae": 44.1351,
+            "ped_r2": 0.6604
+          },
+          "train_s": 905.6
+        },
+        "B": {
+          "val": {
+            "ped_mae": 52.0494,
+            "ped_r2": 0.5519
+          },
+          "test": {
+            "ped_mae": 45.7934,
+            "ped_r2": 0.6494
+          },
+          "train_s": 744.3
+        }
+      },
+      "xgb_only_mae": 61.457
+    },
+    {
+      "seed": 42,
+      "fold": 1,
+      "n_held_out": 25,
+      "arms": {
+        "A": {
+          "val": {
+            "ped_mae": 91.6531,
+            "ped_r2": 0.3441
+          },
+          "test": {
+            "ped_mae": 89.9188,
+            "ped_r2": 0.356
+          },
+          "train_s": 790.6
+        },
+        "B": {
+          "val": {
+            "ped_mae": 94.4168,
+            "ped_r2": 0.2951
+          },
+          "test": {
+            "ped_mae": 91.3361,
+            "ped_r2": 0.3155
+          },
+          "train_s": 835.7
+        }
+      },
+      "xgb_only_mae": 86.9311
+    },
+    {
+      "seed": 42,
+      "fold": 2,
+      "n_held_out": 24,
+      "arms": {
+        "A": {
+          "val": {
+            "ped_mae": 65.9522,
+            "ped_r2": 0.232
+          },
+          "test": {
+            "ped_mae": 59.3347,
+            "ped_r2": 0.3217
+          },
+          "train_s": 1341.3
+        },
+        "B": {
+          "val": {
+            "ped_mae": 63.1838,
+            "ped_r2": 0.2931
+          },
+          "test": {
+            "ped_mae": 56.6184,
+            "ped_r2": 0.355
+          },
+          "train_s": 1823.6
+        }
+      },
+      "xgb_only_mae": 73.2099
+    }
+  ],
+  "summary": {
+    "armA_gnn_xgboost_test_mae": 64.4629,
+    "armB_gnn_alone_test_mae": 64.5826,
+    "xgb_only_test_mae": 73.866,
+    "gap_B_minus_A": 0.1197,
+    "verdict_hint": "A\u2248B \u2192 GNN reconstructs without XGBoost (drop stage); A\u226aB \u2192 XGBoost input helps (keep stage)."
+  }
+}

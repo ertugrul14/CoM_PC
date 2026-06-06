@@ -51,7 +51,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from config import PROCESSED_DIR
+from config import PROCESSED_DIR, LOG_NORMALISE_FEATURES
 
 log = logging.getLogger(__name__)
 
@@ -143,25 +143,38 @@ def run() -> dict[str, Path]:
     ped_df["time_bin"]  = pd.to_datetime(ped_df["time_bin"], utc=True)
     ped_pivot = ped_df.pivot(index="street_id", columns="time_bin", values="ped_flow")
     conf_pivot = ped_df.pivot(index="street_id", columns="time_bin", values="ped_confidence")
+    # Fix #3 (D-013): ped validity mask — False on sensor-outage bins to exclude from loss
+    valid_pivot = ped_df.pivot(index="street_id", columns="time_bin", values="ped_valid")
 
     # Reindex to node order; streets not in ped → 0
-    ped_pivot  = ped_pivot.reindex(node_order).fillna(0.0)
-    conf_pivot = conf_pivot.reindex(node_order).fillna(0.5)
+    ped_pivot   = ped_pivot.reindex(node_order).fillna(0.0)
+    conf_pivot  = conf_pivot.reindex(node_order).fillna(0.5)
+    valid_pivot = valid_pivot.reindex(node_order).fillna(False)
     time_index = ped_pivot.columns.tolist()
     T = len(time_index)
     log.info(f"  T={T} time bins")
 
     ped_arr  = ped_pivot.values.astype(np.float32)   # (N, T)
     conf_arr = conf_pivot.values.astype(np.float32)  # (N, T)
-    del ped_pivot, conf_pivot
+    # Save ped-validity mask for the training loss (D-013)
+    ped_valid_mask = torch.tensor(valid_pivot.values.astype(bool))   # (N, T)
+    torch.save(ped_valid_mask, PROCESSED_DIR / "ped_valid_mask.pt")
+    log.info(f"  Saved ped_valid_mask.pt  ({int(ped_valid_mask.sum()):,}/{ped_valid_mask.numel():,} bins valid)")
+    del ped_pivot, conf_pivot, valid_pivot
 
     # ── Pivot parking occupancy ───────────────────────────────────────────────
     log.info("  Pivoting parking_occupancy...")
     park_df["street_id"] = park_df["street_id"].astype(str)
     park_df["time_bin"]  = pd.to_datetime(park_df["time_bin"], utc=True)
     park_pivot = park_df.pivot(index="street_id", columns="time_bin", values="occupancy_rate")
-    park_pivot = park_pivot.reindex(node_order).fillna(0.0)
+    park_pivot = park_pivot.reindex(node_order)
+    # Fix #5 (D-015): non-sensor streets have NO parking data — impute to the sensor
+    # mean (≈ neutral/"unknown" after z-score) instead of 0 ("definitely empty").
+    # Parking head loss + eval stay masked to the 143 real sensor streets.
+    occ_sensor_mean = float(park_df["occupancy_rate"].mean())
+    park_pivot = park_pivot.fillna(occ_sensor_mean)
     park_arr   = park_pivot.values.astype(np.float32)  # (N, T)
+    log.info(f"  Non-sensor occupancy imputed to sensor mean {occ_sensor_mean:.4f} (D-015)")
     del park_pivot
 
     # ── Temporal features: broadcast to (N, T) ───────────────────────────────
@@ -207,6 +220,10 @@ def run() -> dict[str, Path]:
     for fi in NORMALISE_IDX:
         name = FEATURE_NAMES[fi]
         vals = cube[:, :T_train, fi].ravel()
+        # log-normalised features (ped_flow): stats computed in log1p space so the
+        # saved scalar mean/std match the log transform applied by consumers (D-012)
+        if name in LOG_NORMALISE_FEATURES:
+            vals = np.log1p(np.maximum(vals, 0.0))
         mu  = float(np.mean(vals))
         std = float(np.std(vals))
         std = max(std, 1e-6)

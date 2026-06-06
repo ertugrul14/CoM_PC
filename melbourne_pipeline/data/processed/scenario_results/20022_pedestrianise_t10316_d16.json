@@ -1,0 +1,1225 @@
+{
+  "meta": {
+    "street_id": "20022",
+    "node_idx": 11,
+    "t_start_bin": 10316,
+    "duration_bins": 16,
+    "rollout_steps": 16,
+    "step_minutes": 15,
+    "intervention_type": "pedestrianise",
+    "magnitude": 0.0,
+    "parking_mask_active": true,
+    "assumptions": [
+      "Non-ped features are real observed values from the data cube.",
+      "Graph structure is unchanged by the intervention.",
+      "Parking occupancy for sensor-observed streets is model-predicted (joint head), propagating learned spillover through the rollout.",
+      "Autoregressive error compounds; interpret rollouts > 4h cautiously.",
+      "Confidence tiers (1.0/0.8/0.5) weight the trustworthiness of per-street deltas."
+    ]
+  },
+  "baseline": {
+    "ped_flow_treated_street": [
+      107.62300872802734,
+      96.61693572998047,
+      85.29200744628906,
+      73.6004638671875,
+      61.754886627197266,
+      50.36139678955078,
+      39.40369415283203,
+      28.69648551940918,
+      18.682714462280273,
+      8.73715591430664,
+      -1.580179214477539,
+      -10.88405990600586,
+      -18.817718505859375,
+      -25.20266342163086,
+      -30.242259979248047,
+      -34.18366241455078
+    ],
+    "occ_rate_observed": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "occ_rate_predicted": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "treated": {
+    "ped_flow_treated_street": [
+      107.62300872802734,
+      96.61693572998047,
+      85.2919921875,
+      73.6004638671875,
+      61.754886627197266,
+      50.36139678955078,
+      39.40369415283203,
+      28.696489334106445,
+      18.682722091674805,
+      8.737154006958008,
+      -1.5801753997802734,
+      -10.884063720703125,
+      -18.817718505859375,
+      -25.20266342163086,
+      -30.242259979248047,
+      -34.18366241455078
+    ],
+    "occ_rate_predicted": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "delta": {
+    "ped_flow_treated_street": [
+      0.0,
+      0.0,
+      -1.52587890625e-05,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      3.814697265625e-06,
+      7.62939453125e-06,
+      -1.9073486328125e-06,
+      3.814697265625e-06,
+      -3.814697265625e-06,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "occ_rate_treated_street": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "top_affected_ped_series": {
+      "20160": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -1.52587890625e-05,
+        0.0,
+        -1.52587890625e-05,
+        0.0,
+        -3.0517578125e-05,
+        0.0
+      ],
+      "21647": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.52587890625e-05,
+        0.0,
+        -1.52587890625e-05,
+        -7.62939453125e-06,
+        -7.62939453125e-06,
+        -1.52587890625e-05,
+        0.0,
+        0.0,
+        -1.52587890625e-05
+      ],
+      "20057": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -1.52587890625e-05,
+        0.0,
+        -7.62939453125e-06,
+        0.0,
+        -1.52587890625e-05,
+        -7.62939453125e-06,
+        -7.62939453125e-06,
+        -3.814697265625e-06,
+        -1.9073486328125e-06
+      ],
+      "20161": [
+        0.0,
+        0.0,
+        0.0,
+        1.52587890625e-05,
+        1.52587890625e-05,
+        1.52587890625e-05,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        3.814697265625e-06,
+        -3.814697265625e-06,
+        3.814697265625e-06,
+        3.814697265625e-06,
+        7.62939453125e-06,
+        3.814697265625e-06
+      ],
+      "20055": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -1.52587890625e-05,
+        -1.52587890625e-05,
+        -7.62939453125e-06,
+        0.0,
+        -7.62939453125e-06,
+        0.0,
+        0.0,
+        3.814697265625e-06
+      ],
+      "20051": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -3.814697265625e-06,
+        -3.814697265625e-06,
+        0.0,
+        0.0,
+        -5.7220458984375e-06,
+        -1.9073486328125e-06,
+        -5.7220458984375e-06,
+        3.814697265625e-06
+      ],
+      "20007": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -7.62939453125e-06,
+        -7.62939453125e-06,
+        -3.814697265625e-06,
+        -3.814697265625e-06,
+        -1.1444091796875e-05,
+        -5.7220458984375e-06,
+        -3.814697265625e-06
+      ],
+      "20157": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -7.62939453125e-06,
+        0.0,
+        0.0,
+        0.0,
+        -7.62939453125e-06,
+        -1.9073486328125e-06,
+        1.9073486328125e-06,
+        -7.62939453125e-06
+      ],
+      "20053": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        7.62939453125e-06,
+        0.0,
+        0.0,
+        0.0,
+        3.814697265625e-06,
+        3.814697265625e-06,
+        -1.9073486328125e-06,
+        2.86102294921875e-06
+      ],
+      "20082": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        7.62939453125e-06,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        7.62939453125e-06,
+        -3.814697265625e-06,
+        5.7220458984375e-06,
+        0.0
+      ],
+      "20150": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        3.814697265625e-06,
+        3.814697265625e-06,
+        0.0,
+        0.0,
+        1.9073486328125e-06,
+        0.0,
+        3.814697265625e-06
+      ],
+      "20214": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -1.52587890625e-05,
+        0.0,
+        3.814697265625e-06,
+        0.0,
+        3.814697265625e-06,
+        7.62939453125e-06,
+        0.0,
+        -7.62939453125e-06,
+        0.0,
+        7.62939453125e-06,
+        7.62939453125e-06
+      ],
+      "22819": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        3.814697265625e-06,
+        1.9073486328125e-06,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        7.62939453125e-06
+      ],
+      "20206": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.9073486328125e-06,
+        0.0,
+        1.9073486328125e-06,
+        1.9073486328125e-06,
+        0.0,
+        3.814697265625e-06,
+        1.9073486328125e-06,
+        3.814697265625e-06
+      ],
+      "20093": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        3.814697265625e-06,
+        3.814697265625e-06,
+        3.814697265625e-06,
+        0.0,
+        3.814697265625e-06,
+        3.814697265625e-06,
+        -3.814697265625e-06,
+        0.0
+      ],
+      "20166": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -7.62939453125e-06,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        3.814697265625e-06
+      ],
+      "20142": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -3.814697265625e-06,
+        3.814697265625e-06,
+        -3.814697265625e-06,
+        -5.7220458984375e-06,
+        -1.9073486328125e-06,
+        -3.814697265625e-06,
+        -3.814697265625e-06,
+        -3.814697265625e-06,
+        -3.814697265625e-06
+      ],
+      "20080": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -7.62939453125e-06,
+        -3.814697265625e-06,
+        -3.814697265625e-06,
+        -3.814697265625e-06,
+        3.814697265625e-06,
+        3.814697265625e-06,
+        -3.814697265625e-06,
+        0.0
+      ],
+      "20038": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.52587890625e-05,
+        0.0,
+        7.62939453125e-06,
+        3.814697265625e-06,
+        0.0,
+        0.0
+      ],
+      "20162": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        7.62939453125e-06,
+        7.62939453125e-06,
+        0.0,
+        0.0,
+        0.0,
+        3.814697265625e-06
+      ]
+    },
+    "top_affected_park_series": {
+      "20055": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        3.725290298461914e-09,
+        -7.450580596923828e-09,
+        -3.725290298461914e-09,
+        2.2351741790771484e-08,
+        0.0,
+        3.725290298461914e-09,
+        -7.450580596923828e-09,
+        7.450580596923828e-09
+      ],
+      "20007": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.4901161193847656e-08,
+        7.450580596923828e-09,
+        -7.450580596923828e-09,
+        3.725290298461914e-09,
+        0.0,
+        7.450580596923828e-09,
+        7.450580596923828e-09,
+        0.0,
+        1.4901161193847656e-08
+      ],
+      "20053": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.7939677238464355e-09,
+        0.0,
+        -2.7939677238464355e-09,
+        2.7939677238464355e-09,
+        -5.587935447692871e-09,
+        -6.51925802230835e-09,
+        -6.51925802230835e-09,
+        0.0
+      ],
+      "20150": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "22819": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "20206": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "20093": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "20142": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "20080": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "network_summary": {
+    "treated_street": {
+      "node_idx": 11,
+      "street_id": "20022",
+      "mean_ped_delta": -1.1425466794889871e-07,
+      "cumulative_ped_delta": -1.8280746871823794e-06,
+      "ped_confidence": 1.0,
+      "mean_park_delta": null
+    },
+    "spatial_neighbours": [
+      {
+        "node_idx": 96,
+        "street_id": "20161",
+        "mean_ped_delta": 3.4276408769073896e-06,
+        "cumulative_ped_delta": 5.4842254030518234e-05,
+        "confidence_weighted_delta": 1.7138204384536948e-06,
+        "ped_confidence": 0.5,
+        "mean_park_delta": null
+      },
+      {
+        "node_idx": 615,
+        "street_id": "21647",
+        "mean_ped_delta": -1.8280751419297303e-06,
+        "cumulative_ped_delta": -2.9249202270875685e-05,
+        "confidence_weighted_delta": -1.8280751419297303e-06,
+        "ped_confidence": 1.0,
+        "mean_park_delta": null
+      },
+      {
+        "node_idx": 104,
+        "street_id": "20169",
+        "mean_ped_delta": -1.0854196261789184e-06,
+        "cumulative_ped_delta": -1.7366714018862695e-05,
+        "confidence_weighted_delta": -5.427098130894592e-07,
+        "ped_confidence": 0.5,
+        "mean_park_delta": null
+      },
+      {
+        "node_idx": 599,
+        "street_id": "21618",
+        "mean_ped_delta": -9.140375141214463e-07,
+        "cumulative_ped_delta": -1.462460022594314e-05,
+        "confidence_weighted_delta": -4.5701875706072315e-07,
+        "ped_confidence": 0.5,
+        "mean_park_delta": null
+      }
+    ],
+    "semantic_neighbours": [
+      {
+        "node_idx": 140,
+        "street_id": "20214",
+        "mean_ped_delta": 9.140375709648652e-07,
+        "cumulative_ped_delta": 1.4624601135437842e-05,
+        "confidence_weighted_delta": 9.140375709648652e-07,
+        "ped_confidence": 1.0,
+        "mean_park_delta": null
+      },
+      {
+        "node_idx": 610,
+        "street_id": "21633",
+        "mean_ped_delta": 1.4281836513418966e-07,
+        "cumulative_ped_delta": 2.2850938421470346e-06,
+        "confidence_weighted_delta": 7.140918256709483e-08,
+        "ped_confidence": 0.5,
+        "mean_park_delta": null
+      }
+    ],
+    "top_affected": [
+      {
+        "node_idx": 95,
+        "street_id": "20160",
+        "mean_ped_delta": -2.7421126560511766e-06,
+        "cumulative_ped_delta": -4.3873802496818826e-05,
+        "confidence_weighted_delta": -2.7421126560511766e-06,
+        "ped_confidence": 1.0,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 615,
+        "street_id": "21647",
+        "mean_ped_delta": -1.8280751419297303e-06,
+        "cumulative_ped_delta": -2.9249202270875685e-05,
+        "confidence_weighted_delta": -1.8280751419297303e-06,
+        "ped_confidence": 1.0,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": true,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 29,
+        "street_id": "20057",
+        "mean_ped_delta": -3.4847682854888262e-06,
+        "cumulative_ped_delta": -5.575629256782122e-05,
+        "confidence_weighted_delta": -1.7423841427444131e-06,
+        "ped_confidence": 0.5,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 96,
+        "street_id": "20161",
+        "mean_ped_delta": 3.4276408769073896e-06,
+        "cumulative_ped_delta": 5.4842254030518234e-05,
+        "confidence_weighted_delta": 1.7138204384536948e-06,
+        "ped_confidence": 0.5,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": true,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 28,
+        "street_id": "20055",
+        "mean_ped_delta": -2.9706220630032476e-06,
+        "cumulative_ped_delta": -4.752995300805196e-05,
+        "confidence_weighted_delta": -1.4853110315016238e-06,
+        "ped_confidence": 0.5,
+        "mean_park_delta": 1.7501077254067354e-09,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 26,
+        "street_id": "20051",
+        "mean_ped_delta": -1.3710563280255883e-06,
+        "cumulative_ped_delta": -2.1936901248409413e-05,
+        "confidence_weighted_delta": -1.3710563280255883e-06,
+        "ped_confidence": 1.0,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 3,
+        "street_id": "20007",
+        "mean_ped_delta": -2.5136032490991056e-06,
+        "cumulative_ped_delta": -4.021765198558569e-05,
+        "confidence_weighted_delta": -1.2568016245495528e-06,
+        "ped_confidence": 0.5,
+        "mean_park_delta": 2.3334769672089806e-09,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 92,
+        "street_id": "20157",
+        "mean_ped_delta": -1.1425469210735173e-06,
+        "cumulative_ped_delta": -1.8280750737176277e-05,
+        "confidence_weighted_delta": -1.1425469210735173e-06,
+        "ped_confidence": 1.0,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 27,
+        "street_id": "20053",
+        "mean_ped_delta": 1.0568559218882e-06,
+        "cumulative_ped_delta": 1.69096947502112e-05,
+        "confidence_weighted_delta": 1.0568559218882e-06,
+        "ped_confidence": 1.0,
+        "mean_park_delta": -9.722820326629744e-10,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 43,
+        "street_id": "20082",
+        "mean_ped_delta": 1.0568559218882e-06,
+        "cumulative_ped_delta": 1.69096947502112e-05,
+        "confidence_weighted_delta": 1.0568559218882e-06,
+        "ped_confidence": 1.0,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 85,
+        "street_id": "20150",
+        "mean_ped_delta": 9.71164922702883e-07,
+        "cumulative_ped_delta": 1.5538638763246126e-05,
+        "confidence_weighted_delta": 9.71164922702883e-07,
+        "ped_confidence": 1.0,
+        "mean_park_delta": 2.7223898690920123e-09,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 140,
+        "street_id": "20214",
+        "mean_ped_delta": 9.140375709648652e-07,
+        "cumulative_ped_delta": 1.4624601135437842e-05,
+        "confidence_weighted_delta": 9.140375709648652e-07,
+        "ped_confidence": 1.0,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": true
+      },
+      {
+        "node_idx": 1216,
+        "street_id": "22819",
+        "mean_ped_delta": 9.140375709648652e-07,
+        "cumulative_ped_delta": 1.4624601135437842e-05,
+        "confidence_weighted_delta": 9.140375709648652e-07,
+        "ped_confidence": 1.0,
+        "mean_park_delta": 5.833692418022451e-10,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 136,
+        "street_id": "20206",
+        "mean_ped_delta": 9.140375709648652e-07,
+        "cumulative_ped_delta": 1.4624601135437842e-05,
+        "confidence_weighted_delta": 9.140375709648652e-07,
+        "ped_confidence": 1.0,
+        "mean_park_delta": 0.0,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 49,
+        "street_id": "20093",
+        "mean_ped_delta": 9.140375141214463e-07,
+        "cumulative_ped_delta": 1.462460022594314e-05,
+        "confidence_weighted_delta": 9.140375141214463e-07,
+        "ped_confidence": 1.0,
+        "mean_park_delta": 0.0,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 101,
+        "street_id": "20166",
+        "mean_ped_delta": -9.140375141214463e-07,
+        "cumulative_ped_delta": -1.462460022594314e-05,
+        "confidence_weighted_delta": -9.140375141214463e-07,
+        "ped_confidence": 1.0,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 77,
+        "street_id": "20142",
+        "mean_ped_delta": -1.7709478470351314e-06,
+        "cumulative_ped_delta": -2.8335165552562103e-05,
+        "confidence_weighted_delta": -8.854739235175657e-07,
+        "ped_confidence": 0.5,
+        "mean_park_delta": -3.8891290188303174e-10,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 42,
+        "street_id": "20080",
+        "mean_ped_delta": -8.283465149361291e-07,
+        "cumulative_ped_delta": -1.3253544238978066e-05,
+        "confidence_weighted_delta": -8.283465149361291e-07,
+        "ped_confidence": 1.0,
+        "mean_park_delta": -1.3611949345460062e-09,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 19,
+        "street_id": "20038",
+        "mean_ped_delta": 1.5424384400830604e-06,
+        "cumulative_ped_delta": 2.4679015041328967e-05,
+        "confidence_weighted_delta": 7.712192200415302e-07,
+        "ped_confidence": 0.5,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      },
+      {
+        "node_idx": 97,
+        "street_id": "20162",
+        "mean_ped_delta": 6.855281640127942e-07,
+        "cumulative_ped_delta": 1.0968450624204706e-05,
+        "confidence_weighted_delta": 6.855281640127942e-07,
+        "ped_confidence": 1.0,
+        "mean_park_delta": null,
+        "is_treated": false,
+        "is_spatial_neighbour": false,
+        "is_semantic_neighbour": false
+      }
+    ],
+    "graph_diffusion": {
+      "spatial": [
+        {
+          "hop": 1,
+          "top_streets": [
+            {
+              "street_id": "20057",
+              "diffused_delta": -1.8515930833018501e-06
+            },
+            {
+              "street_id": "20161",
+              "diffused_delta": 1.6880308066902217e-06
+            },
+            {
+              "street_id": "20007",
+              "diffused_delta": -1.6466268561998731e-06
+            },
+            {
+              "street_id": "20055",
+              "diffused_delta": -1.4089030173636274e-06
+            },
+            {
+              "street_id": "20160",
+              "diffused_delta": -1.4023589756106958e-06
+            }
+          ]
+        },
+        {
+          "hop": 2,
+          "top_streets": [
+            {
+              "street_id": "20167",
+              "diffused_delta": -1.3643905276694568e-06
+            },
+            {
+              "street_id": "20057",
+              "diffused_delta": -1.3314233910932671e-06
+            },
+            {
+              "street_id": "20007",
+              "diffused_delta": -1.320074147770356e-06
+            },
+            {
+              "street_id": "20055",
+              "diffused_delta": -1.0807763146658544e-06
+            },
+            {
+              "street_id": "20160",
+              "diffused_delta": -8.625253826721746e-07
+            }
+          ]
+        },
+        {
+          "hop": 3,
+          "top_streets": [
+            {
+              "street_id": "20167",
+              "diffused_delta": -1.2183351145722554e-06
+            },
+            {
+              "street_id": "20007",
+              "diffused_delta": -1.0901865152845858e-06
+            },
+            {
+              "street_id": "20057",
+              "diffused_delta": -1.0537750085859443e-06
+            },
+            {
+              "street_id": "20055",
+              "diffused_delta": -9.191314802592387e-07
+            },
+            {
+              "street_id": "20166",
+              "diffused_delta": -7.443651384164696e-07
+            }
+          ]
+        }
+      ],
+      "semantic": [
+        {
+          "hop": 1,
+          "top_streets": [
+            {
+              "street_id": "20161",
+              "diffused_delta": 1.988758640436572e-06
+            },
+            {
+              "street_id": "20057",
+              "diffused_delta": -1.4932704743841896e-06
+            },
+            {
+              "street_id": "22670",
+              "diffused_delta": 1.05709693798417e-06
+            },
+            {
+              "street_id": "20154",
+              "diffused_delta": -9.876531521513243e-07
+            },
+            {
+              "street_id": "21618",
+              "diffused_delta": -9.140375141214463e-07
+            }
+          ]
+        },
+        {
+          "hop": 2,
+          "top_streets": [
+            {
+              "street_id": "20161",
+              "diffused_delta": 1.6040697801145143e-06
+            },
+            {
+              "street_id": "20057",
+              "diffused_delta": -9.838423693508958e-07
+            },
+            {
+              "street_id": "22670",
+              "diffused_delta": 9.69356960922596e-07
+            },
+            {
+              "street_id": "21618",
+              "diffused_delta": -9.140375141214463e-07
+            },
+            {
+              "street_id": "20051",
+              "diffused_delta": -8.365617532035685e-07
+            }
+          ]
+        },
+        {
+          "hop": 3,
+          "top_streets": [
+            {
+              "street_id": "20161",
+              "diffused_delta": 1.3419928563962458e-06
+            },
+            {
+              "street_id": "22670",
+              "diffused_delta": 9.369423423777334e-07
+            },
+            {
+              "street_id": "21618",
+              "diffused_delta": -9.140375141214463e-07
+            },
+            {
+              "street_id": "20057",
+              "diffused_delta": -7.175526093305962e-07
+            },
+            {
+              "street_id": "20051",
+              "diffused_delta": -7.102470362951863e-07
+            }
+          ]
+        }
+      ]
+    },
+    "rebound": {
+      "treated_street": {
+        "half_life_steps": -1,
+        "half_life_minutes": -1,
+        "peak_delta": 0.0,
+        "recovery_fraction": 1.0
+      },
+      "slowest_to_recover": [
+        {
+          "street_id": "20001",
+          "half_life_steps": -1,
+          "half_life_minutes": -1,
+          "peak_delta": 0.0,
+          "recovery_fraction": 1.0
+        },
+        {
+          "street_id": "20003",
+          "half_life_steps": -1,
+          "half_life_minutes": -1,
+          "peak_delta": 0.0,
+          "recovery_fraction": 1.0
+        },
+        {
+          "street_id": "20005",
+          "half_life_steps": -1,
+          "half_life_minutes": -1,
+          "peak_delta": 0.0,
+          "recovery_fraction": 1.0
+        },
+        {
+          "street_id": "20007",
+          "half_life_steps": -1,
+          "half_life_minutes": -1,
+          "peak_delta": 0.0,
+          "recovery_fraction": 1.0
+        },
+        {
+          "street_id": "20009",
+          "half_life_steps": -1,
+          "half_life_minutes": -1,
+          "peak_delta": 0.0,
+          "recovery_fraction": 1.0
+        },
+        {
+          "street_id": "20011",
+          "half_life_steps": -1,
+          "half_life_minutes": -1,
+          "peak_delta": 0.0,
+          "recovery_fraction": 1.0
+        },
+        {
+          "street_id": "20013",
+          "half_life_steps": -1,
+          "half_life_minutes": -1,
+          "peak_delta": 0.0,
+          "recovery_fraction": 1.0
+        },
+        {
+          "street_id": "20014",
+          "half_life_steps": -1,
+          "half_life_minutes": -1,
+          "peak_delta": 0.0,
+          "recovery_fraction": 1.0
+        },
+        {
+          "street_id": "20016",
+          "half_life_steps": -1,
+          "half_life_minutes": -1,
+          "peak_delta": 0.0,
+          "recovery_fraction": 1.0
+        },
+        {
+          "street_id": "20018",
+          "half_life_steps": -1,
+          "half_life_minutes": -1,
+          "peak_delta": 0.0,
+          "recovery_fraction": 1.0
+        }
+      ]
+    },
+    "all_deltas": {}
+  }
+}

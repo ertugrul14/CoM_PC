@@ -1,0 +1,455 @@
+2026-04-13 09:09:45,514  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\ped_raw.parquet  (8,571,919 rows)
+2026-04-13 09:09:45,526  steps.step_01_fetch  INFO  Fetching weather from Open-Meteo ...
+2026-04-13 09:09:46,117  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\weather_raw.parquet  (3,600 rows)
+2026-04-13 09:09:46,118  steps.step_01_fetch  INFO  Fetching CLUE: clue_cafe (cafes-and-restaurants-with-seating-capacity) ...
+2026-04-13 09:09:47,662  steps.step_01_fetch  INFO      total_count=66,356
+2026-04-13 09:09:48,714  steps.step_01_fetch  INFO      dataset > 10K rows, filtering to census_year=2024
+2026-04-13 09:09:49,905  steps.step_01_fetch  INFO      filtered total_count=3,249
+2026-04-13 09:10:37,381  steps.step_01_fetch  INFO    clue_cafe: 3,249 records
+2026-04-13 09:10:37,403  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_cafe.parquet
+2026-04-13 09:10:37,404  steps.step_01_fetch  INFO  Fetching CLUE: clue_bar (bars-and-pubs-with-patron-capacity) ...
+2026-04-13 09:10:38,464  steps.step_01_fetch  INFO      total_count=5,304
+2026-04-13 09:11:55,496  steps.step_01_fetch  INFO    clue_bar: 5,304 records
+2026-04-13 09:11:55,530  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_bar.parquet
+2026-04-13 09:11:55,530  steps.step_01_fetch  INFO  Fetching CLUE: clue_business (business-establishments-with-address-and-industry-classification) ...
+2026-04-13 09:11:56,873  steps.step_01_fetch  INFO      total_count=413,550
+2026-04-13 09:11:58,209  steps.step_01_fetch  INFO      dataset > 10K rows, filtering to census_year=2024
+2026-04-13 09:11:59,640  steps.step_01_fetch  INFO      filtered total_count=19,672
+2026-04-13 09:11:59,640  steps.step_01_fetch  INFO      still > 10K after year filter, splitting by block_id ranges
+2026-04-13 09:13:32,983  steps.step_01_fetch  INFO        block_id < 50: 6,397 rows
+2026-04-13 09:14:33,359  steps.step_01_fetch  INFO        block_id >= 50 and block_id < 100: 3,977 rows
+2026-04-13 09:15:06,732  steps.step_01_fetch  INFO        block_id >= 100 and block_id < 300: 2,018 rows
+2026-04-13 09:15:30,415  steps.step_01_fetch  INFO        block_id >= 300 and block_id < 500: 1,509 rows
+2026-04-13 09:15:45,853  steps.step_01_fetch  INFO        block_id >= 500 and block_id < 700: 1,076 rows
+2026-04-13 09:16:50,554  steps.step_01_fetch  INFO        block_id >= 700: 4,695 rows
+2026-04-13 09:16:50,555  steps.step_01_fetch  INFO      total after block splits: 19,672
+2026-04-13 09:16:50,557  steps.step_01_fetch  INFO    clue_business: 19,672 records
+2026-04-13 09:16:50,656  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_business.parquet
+2026-04-13 09:16:50,657  steps.step_01_fetch  INFO  Fetching CLUE: clue_jobs (employment-by-block-by-space-use) ...
+2026-04-13 09:16:51,790  steps.step_01_fetch  INFO      total_count=13,519
+2026-04-13 09:16:53,017  steps.step_01_fetch  INFO      dataset > 10K rows, filtering to census_year=2024
+2026-04-13 09:16:54,207  steps.step_01_fetch  INFO      filtered total_count=603
+2026-04-13 09:17:04,803  steps.step_01_fetch  INFO    clue_jobs: 603 records
+2026-04-13 09:17:04,815  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_jobs.parquet
+2026-04-13 09:17:04,815  steps.step_01_fetch  INFO  Fetching CLUE: clue_buildings (buildings-with-name-age-size-accessibility-and-bicycle-facilities) ...
+2026-04-13 09:17:05,871  steps.step_01_fetch  INFO      total_count=305,557
+2026-04-13 09:17:07,160  steps.step_01_fetch  INFO      dataset > 10K rows, filtering to census_year=2024
+2026-04-13 09:17:08,439  steps.step_01_fetch  INFO      filtered total_count=14,094
+2026-04-13 09:17:08,440  steps.step_01_fetch  INFO      still > 10K after year filter, splitting by block_id ranges
+2026-04-13 09:17:19,965  steps.step_01_fetch  INFO        block_id < 50: 592 rows
+2026-04-13 09:17:35,245  steps.step_01_fetch  INFO        block_id >= 50 and block_id < 100: 853 rows
+2026-04-13 09:18:13,950  steps.step_01_fetch  INFO        block_id >= 100 and block_id < 300: 2,421 rows
+2026-04-13 09:19:03,622  steps.step_01_fetch  INFO        block_id >= 300 and block_id < 500: 3,300 rows
+2026-04-13 09:19:48,677  steps.step_01_fetch  INFO        block_id >= 500 and block_id < 700: 2,992 rows
+2026-04-13 09:20:49,982  steps.step_01_fetch  INFO        block_id >= 700: 3,936 rows
+2026-04-13 09:20:49,983  steps.step_01_fetch  INFO      total after block splits: 14,094
+2026-04-13 09:20:49,983  steps.step_01_fetch  INFO    clue_buildings: 14,094 records
+2026-04-13 09:20:50,176  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_buildings.parquet
+2026-04-13 09:20:50,179  steps.step_01_fetch  INFO  Fetching CLUE: clue_blocks (blocks-for-census-of-land-use-and-employment-clue) ...
+2026-04-13 09:20:51,605  steps.step_01_fetch  INFO      total_count=603
+2026-04-13 09:21:05,155  steps.step_01_fetch  INFO    clue_blocks: 603 records
+2026-04-13 09:21:05,215  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_blocks.geojson
+2026-04-13 09:21:05,216  steps.step_01_fetch  INFO  Fetching CLUE: clue_offstreet (off-street-car-parks-with-capacity-and-type) ...
+2026-04-13 09:21:06,504  steps.step_01_fetch  INFO      total_count=151,199
+2026-04-13 09:21:07,790  steps.step_01_fetch  INFO      dataset > 10K rows, filtering to census_year=2024
+2026-04-13 09:21:09,225  steps.step_01_fetch  INFO      filtered total_count=7,185
+2026-04-13 09:22:56,349  steps.step_01_fetch  INFO    clue_offstreet: 7,185 records
+2026-04-13 09:22:56,426  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_offstreet.parquet
+2026-04-13 09:22:56,428  steps.step_01_fetch  INFO  Fetching CLUE: clue_dwellings (residential-dwellings) ...
+2026-04-13 09:22:57,637  steps.step_01_fetch  INFO      total_count=219,680
+2026-04-13 09:22:58,992  steps.step_01_fetch  INFO      dataset > 10K rows, filtering to census_year=2024
+2026-04-13 09:23:00,325  steps.step_01_fetch  INFO      filtered total_count=10,516
+2026-04-13 09:23:00,325  steps.step_01_fetch  INFO      still > 10K after year filter, splitting by block_id ranges
+2026-04-13 09:23:04,951  steps.step_01_fetch  INFO        block_id < 50: 125 rows
+2026-04-13 09:23:10,813  steps.step_01_fetch  INFO        block_id >= 50 and block_id < 100: 203 rows
+2026-04-13 09:23:38,362  steps.step_01_fetch  INFO        block_id >= 100 and block_id < 300: 1,725 rows
+2026-04-13 09:24:20,363  steps.step_01_fetch  INFO        block_id >= 300 and block_id < 500: 2,641 rows
+2026-04-13 09:25:00,630  steps.step_01_fetch  INFO        block_id >= 500 and block_id < 700: 2,649 rows
+2026-04-13 09:25:48,107  steps.step_01_fetch  INFO        block_id >= 700: 3,173 rows
+2026-04-13 09:25:48,108  steps.step_01_fetch  INFO      total after block splits: 10,516
+2026-04-13 09:25:48,110  steps.step_01_fetch  INFO    clue_dwellings: 10,516 records
+2026-04-13 09:25:48,217  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_dwellings.parquet
+2026-04-13 09:25:48,218  steps.step_01_fetch  INFO  Fetching CLUE: clue_floorspace_industry (floor-space-by-block-by-clue-industry) ...
+2026-04-13 09:25:49,487  steps.step_01_fetch  INFO      total_count=13,519
+2026-04-13 09:25:50,660  steps.step_01_fetch  INFO      dataset > 10K rows, filtering to census_year=2024
+2026-04-13 09:25:51,816  steps.step_01_fetch  INFO      filtered total_count=603
+2026-04-13 09:26:03,262  steps.step_01_fetch  INFO    clue_floorspace_industry: 603 records
+2026-04-13 09:26:03,276  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_floorspace_industry.parquet
+2026-04-13 09:26:03,277  steps.step_01_fetch  INFO  Fetching CLUE: clue_floorspace_use (floor-space-by-use-by-block) ...
+2026-04-13 09:26:04,592  steps.step_01_fetch  INFO      total_count=13,519
+2026-04-13 09:26:05,876  steps.step_01_fetch  INFO      dataset > 10K rows, filtering to census_year=2024
+2026-04-13 09:26:07,202  steps.step_01_fetch  INFO      filtered total_count=603
+2026-04-13 09:26:20,099  steps.step_01_fetch  INFO    clue_floorspace_use: 603 records
+2026-04-13 09:26:20,110  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_floorspace_use.parquet
+2026-04-13 09:26:20,118  steps.step_01_fetch  INFO  Fetching CLUE: clue_landmarks (landmarks-and-places-of-interest-including-schools-theatres-health-services-spor) ...
+2026-04-13 09:26:21,271  steps.step_01_fetch  INFO      total_count=242
+2026-04-13 09:26:26,804  steps.step_01_fetch  INFO    clue_landmarks: 242 records
+2026-04-13 09:26:26,806  steps.step_01_fetch  INFO    -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\clue_landmarks.parquet
+2026-04-13 09:26:26,809  steps.step_01_fetch  INFO  Fetching PTV public transport stops GeoJSON (~7.8 MB)...
+2026-04-13 09:26:31,739  steps.step_01_fetch  INFO    PTV stops: 7998 KB -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\ptv_stops.geojson
+2026-04-13 09:26:31,739  steps.step_01_fetch  INFO  Fetching Melbourne City bus stops...
+2026-04-13 09:26:38,924  steps.step_01_fetch  INFO    Melbourne bus stops: 309 records -> D:\melbourne_ingestor\melbourne_pipeline\data\raw\bus_stops.parquet
+2026-04-13 09:26:38,927  steps.step_01_fetch  INFO  Step 01 complete -- 16 files written to D:\melbourne_ingestor\melbourne_pipeline\data\raw
+2026-04-13 09:26:38,931  pipeline  INFO  Step 1 done.
+
+2026-04-13 09:26:38,941  pipeline  INFO  Pipeline finished.
+
+(.venv) D:\melbourne_ingestor\melbourne_pipeline>python run_pipeline.py 2 4
+2026-04-13 10:59:20,194  pipeline  INFO  Pipeline run: steps 2-4  |  log -> D:\melbourne_ingestor\melbourne_pipeline\logs\pipeline_20260413_105920.log
+2026-04-13 10:59:20,194  pipeline  INFO  ============================================================
+2026-04-13 10:59:20,194  pipeline  INFO  Step 2: Snap sensors + CLUE spatial aggregation → static_features
+2026-04-13 10:59:20,194  pipeline  INFO  ============================================================
+2026-04-13 10:59:21,305  steps.step_02_snap  INFO    Loaded 3975 street polygons
+2026-04-13 10:59:21,305  steps.step_02_snap  INFO  Part A: Sensor snapping
+2026-04-13 10:59:21,393  steps.step_02_snap  INFO    Parking: 1981 unique sensors
+2026-04-13 10:59:21,483  steps.step_02_snap  INFO      PIP matched: 1946, unmatched: 35
+2026-04-13 10:59:21,534  steps.step_02_snap  INFO    Parking match rate: 100.0%
+2026-04-13 10:59:21,677  steps.step_02_snap  INFO    Pedestrian: 99 unique location_ids in Supabase data
+2026-04-13 10:59:24,363  steps.step_02_snap  INFO    Fetched 145 ped sensor locations from API
+2026-04-13 10:59:24,438  steps.step_02_snap  INFO    Matched 99/99 ped sensors to API locations
+2026-04-13 10:59:24,446  steps.step_02_snap  INFO      PIP matched: 67, unmatched: 32
+2026-04-13 10:59:24,458  steps.step_02_snap  INFO    Pedestrian match rate: 98.0%
+2026-04-13 10:59:24,509  steps.step_02_snap  INFO  Part B: CLUE spatial aggregation
+2026-04-13 10:59:24,533  steps.step_02_snap  INFO    Loaded 603 CLUE blocks
+2026-04-13 10:59:24,544  steps.step_02_snap  INFO    clue_cafe: columns=['census_year', 'block_id', 'property_id', 'base_property_id', 'building_address', 'clue_small_area', 'trading_name', 'business_address', 'industry_anzsic4_code', 'industry_anzsic4_description', 'seating_type', 'number_of_seats', 'longitude', 'latitude', 'location.lon', 'location.lat']
+2026-04-13 10:59:24,572  steps.step_02_snap  INFO      clue_cafe: filtered to census_year=2024 -> 3249 rows
+2026-04-13 10:59:24,589  steps.step_02_snap  INFO      Cafes: 3249 seating rows -> 2248 unique venues
+2026-04-13 10:59:24,589  steps.step_02_snap  INFO      clue_cafe: pre-filter 3249 -> 2248 rows
+2026-04-13 10:59:24,631  steps.step_02_snap  INFO      clue_cafe: 2132 points matched to streets (nearest, max 50m)
+2026-04-13 10:59:24,657  steps.step_02_snap  INFO    clue_bar: columns=['census_year', 'block_id', 'property_id', 'base_property_id', 'building_address', 'clue_small_area', 'trading_name', 'business_address', 'number_of_patrons', 'longitude', 'latitude', 'location.lon', 'location.lat', 'location']
+2026-04-13 10:59:24,658  steps.step_02_snap  INFO      clue_bar: filtered to census_year=2024 -> 304 rows
+2026-04-13 10:59:24,670  steps.step_02_snap  INFO      clue_bar: 295 points matched to streets (nearest, max 50m)
+2026-04-13 10:59:24,689  steps.step_02_snap  INFO    clue_business: columns=['census_year', 'block_id', 'property_id', 'base_property_id', 'clue_small_area', 'trading_name', 'business_address', 'industry_anzsic4_code', 'industry_anzsic4_description', 'longitude', 'latitude', 'point.lon', 'point.lat']
+2026-04-13 10:59:24,690  steps.step_02_snap  INFO      clue_business: filtered to census_year=2024 -> 19672 rows
+2026-04-13 10:59:24,693  steps.step_02_snap  INFO      clue_business: pre-filter 19672 -> 14798 rows
+2026-04-13 10:59:24,900  steps.step_02_snap  INFO      clue_business: 13907 points matched to streets (nearest, max 50m)
+2026-04-13 10:59:24,918  steps.step_02_snap  INFO    clue_buildings: columns=['census_year', 'block_id', 'property_id', 'base_property_id', 'building_name', 'street_address', 'clue_small_area', 'construction_year', 'refurbished_year', 'number_of_floors_above_ground', 'predominant_space_use', 'accessibility_type', 'accessibility_type_description', 'accessibility_rating', 'bicycle_spaces', 'has_showers', 'longitude', 'latitude', 'location.lon', 'location.lat']
+2026-04-13 10:59:24,920  steps.step_02_snap  INFO      clue_buildings: filtered to census_year=2024 -> 14094 rows
+2026-04-13 10:59:25,132  steps.step_02_snap  INFO      clue_buildings: 13831 points matched to streets (nearest, max 50m)
+2026-04-13 10:59:25,146  steps.step_02_snap  INFO    clue_offstreet: columns=['census_year', 'block_id', 'property_id', 'base_property_id', 'building_address', 'clue_small_area', 'parking_type', 'parking_spaces', 'longitude', 'latitude', 'location.lon', 'location.lat']
+2026-04-13 10:59:25,147  steps.step_02_snap  INFO      clue_offstreet: filtered to census_year=2024 -> 7185 rows
+2026-04-13 10:59:25,290  steps.step_02_snap  INFO      clue_offstreet: 6982 points matched to streets (nearest, max 50m)
+2026-04-13 10:59:25,307  steps.step_02_snap  INFO    clue_dwellings: columns=['census_year', 'block_id', 'property_id', 'base_property_id', 'building_address', 'clue_small_area', 'dwelling_type', 'dwelling_number', 'longitude', 'latitude', 'location.lon', 'location.lat']
+2026-04-13 10:59:25,308  steps.step_02_snap  INFO      clue_dwellings: filtered to census_year=2024 -> 10516 rows
+2026-04-13 10:59:25,466  steps.step_02_snap  INFO      clue_dwellings: 10486 points matched to streets (nearest, max 50m)
+2026-04-13 10:59:25,480  steps.step_02_snap  INFO    clue_landmarks: columns=['theme', 'sub_theme', 'feature_name', 'co_ordinates.lon', 'co_ordinates.lat']
+2026-04-13 10:59:25,491  steps.step_02_snap  INFO      clue_landmarks: 181 points matched to streets (nearest, max 50m)
+2026-04-13 10:59:25,506  steps.step_02_snap  INFO    clue_jobs: columns=['census_year', 'block_id', 'clue_small_area', 'commercial_accommodation', 'common_area', 'community_use', 'educational_research', 'entertainment_recreation_indoor', 'equipment_installation', 'hospital_clinic', 'house_townhouse', 'institutional_accommodation', 'manufacturing', 'office', 'park_reserve', 'parking_commercial_covered', 'parking_commercial_uncovered', 'parking_private_covered', 'parking_private_uncovered', 'performances_conferences_ceremonies', 'private_outdoor_space', 'public_display_area', 'residential_apartment', 'retail_cars', 'retail_shop', 'retail_showroom', 'retail_stall', 'sports_and_recreation_outdoor', 'square_promenade', 'storage', 'student_accommodation', 'transport', 'transport_storage_uncovered', 'unoccupied_under_construction', 'unoccupied_under_demolition_condemned', 'unoccupied_under_renovation', 'unoccupied_undeveloped_site', 'unoccupied_unused', 'wholesale', 'workshop_studio', 'total_jobs_in_block']
+2026-04-13 10:59:25,507  steps.step_02_snap  INFO      clue_jobs: filtered to census_year=2024 -> 603 rows
+2026-04-13 10:59:26,018  steps.step_02_snap  INFO      clue_floorspace_use: filtered to census_year=2024 -> 603 rows
+2026-04-13 10:59:26,018  steps.step_02_snap  INFO    clue_floorspace_use retail columns: ['retail_cars', 'retail_shop', 'retail_showroom', 'retail_stall']
+2026-04-13 10:59:26,034  steps.step_02_snap  INFO    floorspace_retail: columns=['census_year', 'block_id', 'clue_small_area', 'commercial_accommodation', 'common_area', 'community_use', 'educational_research', 'entertainment_recreation_indoor', 'equipment_installation', 'hospital_clinic', 'house_townhouse', 'institutional_accommodation', 'manufacturing', 'office', 'park_reserve', 'parking_commercial_covered', 'parking_commercial_uncovered', 'parking_private_covered', 'parking_private_uncovered', 'performances_conferences_ceremonies', 'private_outdoor_space', 'public_display_area', 'residential_apartment', 'retail_cars', 'retail_shop', 'retail_showroom', 'retail_stall', 'sports_and_recreation_outdoor', 'square_promenade', 'storage', 'student_accommodation', 'transport', 'transport_storage_uncovered', 'unoccupied_under_construction', 'unoccupied_under_demolition_condemned', 'unoccupied_under_renovation', 'unoccupied_undeveloped_site', 'unoccupied_unused', 'wholesale', 'workshop_studio', 'total_floor_space_in_block', 'retail_total']
+2026-04-13 10:59:26,035  steps.step_02_snap  INFO      floorspace_retail: filtered to census_year=2024 -> 603 rows
+2026-04-13 10:59:26,312  steps.step_02_snap  INFO    floorspace_office: columns=['census_year', 'block_id', 'clue_small_area', 'commercial_accommodation', 'common_area', 'community_use', 'educational_research', 'entertainment_recreation_indoor', 'equipment_installation', 'hospital_clinic', 'house_townhouse', 'institutional_accommodation', 'manufacturing', 'office', 'park_reserve', 'parking_commercial_covered', 'parking_commercial_uncovered', 'parking_private_covered', 'parking_private_uncovered', 'performances_conferences_ceremonies', 'private_outdoor_space', 'public_display_area', 'residential_apartment', 'retail_cars', 'retail_shop', 'retail_showroom', 'retail_stall', 'sports_and_recreation_outdoor', 'square_promenade', 'storage', 'student_accommodation', 'transport', 'transport_storage_uncovered', 'unoccupied_under_construction', 'unoccupied_under_demolition_condemned', 'unoccupied_under_renovation', 'unoccupied_undeveloped_site', 'unoccupied_unused', 'wholesale', 'workshop_studio', 'total_floor_space_in_block', 'retail_total']
+2026-04-13 10:59:26,313  steps.step_02_snap  INFO      floorspace_office: filtered to census_year=2024 -> 603 rows
+D:\melbourne_ingestor\melbourne_pipeline\steps\step_02_snap.py:480: UserWarning: Geometry is in a geographic CRS. Results from 'centroid' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
+
+  centroids_wgs["centroid_lon"] = centroids_wgs.geometry.centroid.x
+D:\melbourne_ingestor\melbourne_pipeline\steps\step_02_snap.py:481: UserWarning: Geometry is in a geographic CRS. Results from 'centroid' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
+
+  centroids_wgs["centroid_lat"] = centroids_wgs.geometry.centroid.y
+2026-04-13 10:59:26,806  steps.step_02_snap  INFO    sensor_map: 2080 rows (parking=1981, ped=99)
+2026-04-13 10:59:26,984  steps.step_02_snap  INFO    Top 5 streets by total_jobs:
+2026-04-13 10:59:27,008  steps.step_02_snap  INFO      street_id=30081  total_jobs=5063
+2026-04-13 10:59:27,009  steps.step_02_snap  INFO      street_id=22555  total_jobs=2939
+2026-04-13 10:59:27,009  steps.step_02_snap  INFO      street_id=30082  total_jobs=2693
+2026-04-13 10:59:27,010  steps.step_02_snap  INFO      street_id=20001  total_jobs=2209
+2026-04-13 10:59:27,010  steps.step_02_snap  INFO      street_id=30077  total_jobs=2063
+2026-04-13 10:59:27,010  steps.step_02_snap  INFO    Top 5 streets by cafe_total_seats:
+2026-04-13 10:59:27,011  steps.step_02_snap  INFO      street_id=22180  cafe_total_seats=5116
+2026-04-13 10:59:27,012  steps.step_02_snap  INFO      street_id=20040  cafe_total_seats=3038
+2026-04-13 10:59:27,012  steps.step_02_snap  INFO      street_id=22879  cafe_total_seats=2765
+2026-04-13 10:59:27,012  steps.step_02_snap  INFO      street_id=30743  cafe_total_seats=2470
+2026-04-13 10:59:27,012  steps.step_02_snap  INFO      street_id=30729  cafe_total_seats=2180
+2026-04-13 10:59:27,593  steps.step_02_snap  INFO    Viz export: 2080 sensors, 3975 streets
+2026-04-13 10:59:27,596  steps.step_02_snap  INFO  Step 2 complete: sensor_map=2080 sensors, static_features=3975 streets x 18 cols
+2026-04-13 10:59:27,597  pipeline  INFO  Step 2 done.
+
+2026-04-13 10:59:27,598  pipeline  INFO  ============================================================
+2026-04-13 10:59:27,598  pipeline  INFO  Step 3: Temporal encoding + weather forward-fill
+2026-04-13 10:59:27,598  pipeline  INFO  ============================================================
+2026-04-13 10:59:27,751  steps.step_03_temporal  INFO  Building weather.parquet ...
+2026-04-13 10:59:27,780  steps.step_03_temporal  INFO  Building temporal_features.parquet ...
+2026-04-13 10:59:27,803  steps.step_03_temporal  INFO    weather: 14400 rows, temp range [6.4, 43.3]C
+2026-04-13 10:59:27,811  steps.step_03_temporal  INFO    temporal: 14400 rows, public_holiday_bins=576, school_holiday_bins=4860
+2026-04-13 10:59:27,822  steps.step_03_temporal  INFO  Step 3 complete: weather.parquet=14400 rows, temporal_features.parquet=14400 rows, public_holiday_bins=576, school_holiday_bins=4860
+2026-04-13 10:59:27,823  pipeline  INFO  Step 3 done.
+
+2026-04-13 10:59:27,823  pipeline  INFO  ============================================================
+2026-04-13 10:59:27,823  pipeline  INFO  Step 4: Spatial + semantic graph construction
+2026-04-13 10:59:27,823  pipeline  INFO  ============================================================
+2026-04-13 10:59:28,814  steps.step_04_graph  INFO    Street filter: 1397 eligible (2111 type-qualified, 718 intersection segments removed)
+2026-04-13 10:59:28,820  steps.step_04_graph  INFO    static after filter: 1397 streets
+2026-04-13 10:59:28,822  steps.step_04_graph  INFO    Node index: 1397 streets
+2026-04-13 10:59:28,822  steps.step_04_graph  INFO  Part A: Spatial graph (k=8)
+2026-04-13 10:59:28,829  steps.step_04_graph  INFO    σ=131.2 m  max=1433.2 m
+2026-04-13 10:59:28,888  steps.step_04_graph  INFO    Spatial edges: 13,160
+2026-04-13 10:59:28,889  steps.step_04_graph  INFO  Part B: Semantic graph (per-feature ratio matching)
+2026-04-13 10:59:28,889  steps.step_04_graph  INFO    Features: ['total_jobs', 'cafe_count', 'cafe_total_seats', 'bar_count', 'bar_patron_capacity', 'business_count', 'poi_total']
+2026-04-13 10:59:28,890  steps.step_04_graph  INFO    Rules: ≥3 active features, ≥2 shared (≥60% of smaller profile), ALL shared features must have log1p ratio ≥ 0.7
+2026-04-13 10:59:28,891  steps.step_04_graph  INFO    Eligible: 352 / 1397 streets
+2026-04-13 10:59:28,987  steps.step_04_graph  INFO    Candidates: 7,040 → passed shared: 7,040 → passed per-feature ratio: 1,831
+2026-04-13 10:59:28,989  steps.step_04_graph  INFO    Semantic edges: 2,230 (bidirectional)
+2026-04-13 10:59:28,990  steps.step_04_graph  INFO    Weight range: [0.760, 0.997]
+2026-04-13 10:59:28,991  steps.step_04_graph  INFO    1075 nodes have no semantic edges (low-activity or ineligible streets — expected)
+2026-04-13 10:59:28,991  steps.step_04_graph  INFO    Validation OK — 1397 nodes | 13,160 spatial | 2,230 semantic edges
+2026-04-13 10:59:29,241  steps.step_04_graph  INFO    graph_viz.geojson: 1397 nodes + 6,580 spatial + 1,115 semantic edges
+2026-04-13 10:59:29,242  steps.step_04_graph  INFO    Enriching static_features with graph + transit features...
+2026-04-13 10:59:29,245  steps.step_04_graph  INFO    Computing betweenness centrality on spatial graph...
+2026-04-13 10:59:35,375  steps.step_04_graph  INFO    Betweenness centrality: max=0.0982
+2026-04-13 10:59:35,375  steps.step_04_graph  INFO    Loading PTV stops for tram proximity...
+2026-04-13 10:59:35,454  steps.step_04_graph  INFO    Tram stops in Melbourne bbox: 0
+2026-04-13 10:59:35,455  steps.step_04_graph  WARNING    No tram stops found in bbox — defaulting to 9999 m
+2026-04-13 10:59:35,455  steps.step_04_graph  INFO    Loading Melbourne bus stops...
+2026-04-13 10:59:35,529  steps.step_04_graph  INFO    Bus stops: 197 streets have a direct stop match
+2026-04-13 10:59:35,537  steps.step_04_graph  INFO    static_features enriched: 3975 streets × 23 cols  (+5 new: ['betweenness_centrality', 'nearest_tram_stop_m', 'tram_stops_200m', 'bus_stop_on_street', 'nearest_bus_stop_m'])
+2026-04-13 10:59:35,543  steps.step_04_graph  INFO  Step 4 complete: 1397 nodes | 13,160 spatial | 2,230 semantic edges
+2026-04-13 10:59:35,544  pipeline  INFO  Step 4 done.
+
+2026-04-13 10:59:35,544  pipeline  INFO  Pipeline finished.
+
+(.venv) D:\melbourne_ingestor\melbourne_pipeline>python run_pipeline.py 5
+2026-04-13 11:02:31,867  pipeline  INFO  Pipeline run: steps 5-5  |  log -> D:\melbourne_ingestor\melbourne_pipeline\logs\pipeline_20260413_110231.log
+2026-04-13 11:02:31,867  pipeline  INFO  ============================================================
+2026-04-13 11:02:31,867  pipeline  INFO  Step 5: Parking occupancy + XGBoost ped imputation (graph-informed)
+2026-04-13 11:02:31,867  pipeline  INFO  ============================================================
+2026-04-13 11:02:33,232  steps.step_05_process  INFO  Part A: Parking occupancy reconstruction
+2026-04-13 11:02:33,659  steps.step_05_process  INFO    Parking events with street_id: 1,465,858
+2026-04-13 11:02:39,301  steps.step_05_process  INFO    Occupancy intervals: 751,304
+2026-04-13 11:02:41,642  steps.step_05_process  INFO    Bin-bay occupancy entries: 2,264
+2026-04-13 11:02:43,239  steps.step_05_process  INFO    Streets with >= 5 events: 171
+2026-04-13 11:02:52,440  steps.step_05_process  INFO    parking_occupancy: 2,462,400 rows, 171 streets
+2026-04-13 11:02:52,570  steps.step_05_process  INFO  Part B: XGBoost ped imputation (v3 — graph-informed)
+2026-04-13 11:02:52,920  steps.step_05_process  INFO    Arterial filter: 1397 streets kept (minor/private/intersections excluded)
+2026-04-13 11:02:55,719  steps.step_05_process  INFO    Sensored: 67, unsensored: 1330, total: 1397
+2026-04-13 11:02:55,967  steps.step_05_process  INFO    Streets with parking data: 171
+2026-04-13 11:02:55,978  steps.step_05_process  INFO    Added hour_sin/cos × is_weekend interaction features
+2026-04-13 11:02:55,979  steps.step_05_process  INFO    Computing spatial graph lag feature...
+2026-04-13 11:02:56,118  steps.step_05_process  INFO    Spatial lag: 337/1397 streets have >= 1 sensored neighbour
+2026-04-13 11:02:56,512  steps.step_05_process  INFO    Training matrix: (964800, 39)
+2026-04-13 11:02:56,514  steps.step_05_process  INFO    Raw ped range: [0, 3026]  log1p: [0.000, 8.015]
+2026-04-13 11:02:56,514  steps.step_05_process  INFO    Running GroupKFold(5) CV over streets...
+2026-04-13 11:03:22,190  steps.step_05_process  INFO    Overall GroupKFold R2 (log scale): 0.585
+2026-04-13 11:03:22,190  steps.step_05_process  INFO    Per-street R2 -- median: 0.116  range: [-27.033, 0.843]
+2026-04-13 11:03:22,190  steps.step_05_process  INFO    Streets with R2 >= 0.6: 9/67
+2026-04-13 11:03:22,191  steps.step_05_process  INFO    Training final model (n_estimators=500)...
+2026-04-13 11:03:31,712  steps.step_05_process  INFO    Predicting for 1330 unsensored streets (batches of 300)...
+2026-04-13 11:03:34,952  steps.step_05_process  INFO      ... 300/1330 streets predicted
+2026-04-13 11:04:07,736  steps.step_05_process  INFO    Confidence tier for imputed streets: 0.5 (R²=0.585)
+2026-04-13 11:04:08,017  steps.step_05_process  INFO    ped_complete: 20,116,800 rows, 1397 streets
+2026-04-13 11:04:08,126  steps.step_05_process  INFO    parking_occupancy OK: 171 streets x 14400 bins
+2026-04-13 11:04:08,337  steps.step_05_process  INFO    ped_complete OK: 1397 streets, 67 sensored (confidence=1.0)
+2026-04-13 11:04:13,045  steps.step_05_process  INFO    Saved ped_street_summary.json (1397 streets)
+2026-04-13 11:04:13,242  steps.step_05_process  INFO  Step 5 complete: parking=171 streets, ped=1397 streets, GroupKFold_R2=0.585, median_per_street_R2=0.116
+2026-04-13 11:04:13,290  pipeline  INFO  Step 5 done.
+
+2026-04-13 11:04:13,290  pipeline  INFO  Pipeline finished.
+
+(.venv) D:\melbourne_ingestor\melbourne_pipeline>python run_pipeline.py 6
+2026-04-13 11:04:31,047  pipeline  INFO  Pipeline run: steps 6-6  |  log -> D:\melbourne_ingestor\melbourne_pipeline\logs\pipeline_20260413_110431.log
+2026-04-13 11:04:31,047  pipeline  INFO  ============================================================
+2026-04-13 11:04:31,047  pipeline  INFO  Step 6: Aggregate ped activity + parking occupancy → street profiles
+2026-04-13 11:04:31,047  pipeline  INFO  ============================================================
+2026-04-13 11:04:31,498  steps.step_06_aggregate  INFO  === Step 6: Aggregate street profiles ===
+2026-04-13 11:04:32,291  steps.step_06_aggregate  INFO    Streets (arterial, no intersections): 1397
+2026-04-13 11:04:32,291  steps.step_06_aggregate  INFO    Building parking weekly profiles (42 features)...
+2026-04-13 11:04:33,376  steps.step_06_aggregate  INFO    parking profile shape: (1397, 42)
+2026-04-13 11:04:33,376  steps.step_06_aggregate  INFO    Building ped weekly profiles (42 features, raw scale)...
+2026-04-13 11:04:41,812  steps.step_06_aggregate  INFO    ped profile shape: (1397, 42)
+2026-04-13 11:04:41,812  steps.step_06_aggregate  INFO    Computing summary features...
+2026-04-13 11:04:42,630  steps.step_06_aggregate  INFO    score_morning  range: [3.930, 409.463]
+2026-04-13 11:04:42,630  steps.step_06_aggregate  INFO    score_midday   range: [5.194, 1059.815]
+2026-04-13 11:04:42,630  steps.step_06_aggregate  INFO    score_evening  range: [3.145, 764.749]
+2026-04-13 11:04:42,631  steps.step_06_aggregate  INFO    score_weekend_ratio p50: 0.901
+2026-04-13 11:04:42,631  steps.step_06_aggregate  INFO    score_parking_flex  p50: 1.000
+2026-04-13 11:04:42,631  steps.step_06_aggregate  INFO    Final profile shape: (1397, 103)
+2026-04-13 11:04:42,631  steps.step_06_aggregate  INFO    Columns: 103 total (42 park + 42 ped + 5 scores + 4 summary + 9 static + 1 street_id)
+2026-04-13 11:04:42,632  steps.step_06_aggregate  INFO    Streets with mean_ped > 0: 1397
+2026-04-13 11:04:42,632  steps.step_06_aggregate  INFO    Streets with mean_parking > 0: 138
+2026-04-13 11:04:42,632  steps.step_06_aggregate  INFO    mean_ped range: [3.4, 560.5]
+2026-04-13 11:04:42,633  steps.step_06_aggregate  INFO    mean_parking range: [0.000, 0.001]
+2026-04-13 11:04:42,647  steps.step_06_aggregate  INFO    Saved: D:\melbourne_ingestor\melbourne_pipeline\data\processed\street_profiles.parquet
+2026-04-13 11:04:42,648  steps.step_06_aggregate  INFO  Step 6 complete.
+2026-04-13 11:04:42,663  pipeline  INFO  Step 6 done.
+
+2026-04-13 11:04:42,663  pipeline  INFO  Pipeline finished.
+
+(.venv) D:\melbourne_ingestor\melbourne_pipeline>python run_pipeline.py 7
+2026-04-13 11:05:09,209  pipeline  INFO  Pipeline run: steps 7-7  |  log -> D:\melbourne_ingestor\melbourne_pipeline\logs\pipeline_20260413_110509.log
+2026-04-13 11:05:09,209  pipeline  INFO  ============================================================
+2026-04-13 11:05:09,209  pipeline  INFO  Step 7: GMM clustering on full street character
+2026-04-13 11:05:09,209  pipeline  INFO  ============================================================
+2026-04-13 11:05:11,124  steps.step_07_cluster  INFO  === Step 7: GMM clustering ===
+2026-04-13 11:05:11,160  steps.step_07_cluster  INFO    Clustering 1397 streets on 84 temporal + 5 score features
+2026-04-13 11:05:11,160  steps.step_07_cluster  INFO    Score columns: ['score_morning', 'score_midday', 'score_evening', 'score_weekend_ratio', 'score_parking_flex']
+2026-04-13 11:05:11,203  steps.step_07_cluster  INFO    PCA: 89 -> 20 components, variance explained: 99.9%
+2026-04-13 11:05:17,216  steps.step_07_cluster  INFO    BIC-selected k=7  BIC=-52669.8
+2026-04-13 11:05:17,216  steps.step_07_cluster  INFO      k=2: BIC=-49182.8
+2026-04-13 11:05:17,217  steps.step_07_cluster  INFO      k=3: BIC=-51481.1
+2026-04-13 11:05:17,217  steps.step_07_cluster  INFO      k=4: BIC=-51940.1
+2026-04-13 11:05:17,217  steps.step_07_cluster  INFO      k=5: BIC=-51923.7
+2026-04-13 11:05:17,217  steps.step_07_cluster  INFO      k=6: BIC=-52445.1
+2026-04-13 11:05:17,217  steps.step_07_cluster  INFO      k=7: BIC=-52669.8  <-- selected
+2026-04-13 11:05:17,217  steps.step_07_cluster  INFO      k=8: BIC=-50475.7
+2026-04-13 11:05:17,217  steps.step_07_cluster  INFO      k=9: BIC=-50143.0
+2026-04-13 11:05:17,217  steps.step_07_cluster  INFO      k=10: BIC=-50190.7
+2026-04-13 11:05:17,972  steps.step_07_cluster  INFO    Cluster sizes: {0: 113, 1: 38, 2: 9, 3: 34, 4: 77, 5: 85, 6: 1041}
+2026-04-13 11:05:22,612  steps.step_07_cluster  INFO    ARI=0.942  silhouette=0.448
+2026-04-13 11:05:22,613  steps.step_07_cluster  INFO    Archetypes: {0: 'latent_evening_potential_medium', 1: 'midday_retail_activation', 2: 'major_pedestrian_corridor', 3: 'morning_pedestrianisation_high', 4: 'latent_evening_potential_high', 5: 'morning_pedestrianisation_medium', 6: 'latent_evening_potential_low'}
+2026-04-13 11:05:22,670  steps.step_07_cluster  WARNING    3/1397 streets have confidence < 0.7
+2026-04-13 11:05:22,697  steps.step_07_cluster  INFO    Streets with flexibility windows: 1114
+2026-04-13 11:05:22,697  steps.step_07_cluster  INFO    Saved: D:\melbourne_ingestor\melbourne_pipeline\data\processed\clustered.parquet
+2026-04-13 11:05:22,711  steps.step_07_cluster  INFO    Saved cluster_summary.json (1397 streets)
+2026-04-13 11:05:22,712  steps.step_07_cluster  INFO  Step 7 complete.
+2026-04-13 11:05:22,713  pipeline  INFO  Step 7 done.
+
+2026-04-13 11:05:22,713  pipeline  INFO  Pipeline finished.
+
+(.venv) D:\melbourne_ingestor\melbourne_pipeline>python run_pipeline.py 8
+2026-04-13 11:06:13,474  pipeline  INFO  Pipeline run: steps 8-8  |  log -> D:\melbourne_ingestor\melbourne_pipeline\logs\pipeline_20260413_110613.log
+2026-04-13 11:06:13,474  pipeline  INFO  ============================================================
+2026-04-13 11:06:13,475  pipeline  INFO  Step 8: Data cube assembly + dual graph construction
+2026-04-13 11:06:13,475  pipeline  INFO  ============================================================
+2026-04-13 11:06:26,374  steps.step_08_cube  INFO  === Step 8: Data cube assembly ===
+2026-04-13 11:06:26,860  steps.step_08_cube  INFO    N=1397 nodes in node_index order
+2026-04-13 11:06:26,860  steps.step_08_cube  INFO    Pivoting ped_complete...
+2026-04-13 11:06:33,159  steps.step_08_cube  INFO    T=14400 time bins
+2026-04-13 11:06:33,210  steps.step_08_cube  INFO    Pivoting parking_occupancy...
+2026-04-13 11:06:33,555  steps.step_08_cube  INFO    Preparing temporal + weather features...
+2026-04-13 11:06:33,572  steps.step_08_cube  INFO    Allocating cube [1397 × 14400 × 23] float32 (1.85 GB)...
+2026-04-13 11:06:34,429  steps.step_08_cube  INFO    Cube assembled: shape=(1397, 14400, 23)
+2026-04-13 11:06:34,436  steps.step_08_cube  INFO    Computing normalisation stats (first 80% of timesteps)...
+2026-04-13 11:06:37,489  steps.step_08_cube  INFO    Saved cube.npy  (1.85 GB)
+2026-04-13 11:06:37,489  steps.step_08_cube  INFO    Building spatial adjacency (N=1397, E=13160)...
+2026-04-13 11:06:38,324  steps.step_08_cube  INFO    Saved graph_spatial.pt  (nnz=14557)
+2026-04-13 11:06:38,324  steps.step_08_cube  INFO    Building semantic adjacency (N=1397, E=2230)...
+2026-04-13 11:06:38,327  steps.step_08_cube  INFO    Saved graph_semantic.pt  (nnz=3627)
+2026-04-13 11:06:38,328  steps.step_08_cube  INFO    Saved cube_meta.json, norm_stats.json
+2026-04-13 11:06:38,328  steps.step_08_cube  INFO    Features normalised: ['ped_flow', 'occupancy_rate', 'temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'precipitation', 'total_jobs', 'cafe_count', 'cafe_total_seats', 'bar_count', 'bar_patron_capacity', 'business_count', 'poi_total', 'dining_capacity', 'area_m2']
+2026-04-13 11:06:38,329  steps.step_08_cube  INFO  Step 8 complete.
+2026-04-13 11:06:38,424  pipeline  INFO  Step 8 done.
+
+2026-04-13 11:06:38,424  pipeline  INFO  Pipeline finished.
+
+(.venv) D:\melbourne_ingestor\melbourne_pipeline>python run_pipeline.py 9
+2026-04-13 11:07:28,383  pipeline  INFO  Pipeline run: steps 9-9  |  log -> D:\melbourne_ingestor\melbourne_pipeline\logs\pipeline_20260413_110728.log
+2026-04-13 11:07:28,383  pipeline  INFO  ============================================================
+2026-04-13 11:07:28,383  pipeline  INFO  Step 9: MultiGCN training (GRU + dual GCN)
+2026-04-13 11:07:28,383  pipeline  INFO  ============================================================
+2026-04-13 11:07:29,737  steps.step_09_train  INFO  === Step 9: MultiGCN training (joint ped + parking heads) ===
+2026-04-13 11:07:29,741  steps.step_09_train  INFO    Backed up existing checkpoint to best_model_ped_only.pt
+2026-04-13 11:07:29,781  steps.step_09_train  INFO    Device: cpu
+2026-04-13 11:07:29,792  steps.step_09_train  INFO    Cube: N=1397, T=14400, F=23
+2026-04-13 11:07:29,792  steps.step_09_train  INFO    Split  Train: 0..10080  Val: 10080..12240  Test: 12240..14400
+D:\melbourne_ingestor\melbourne_pipeline\steps\step_09_train.py:356: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\utils\tensor_numpy.cpp:219.)
+  parking_mask[park_nodes] = True
+2026-04-13 11:07:30,074  steps.step_09_train  INFO    Parking mask: 138 / 1397 streets have sensor data
+2026-04-13 11:07:30,081  steps.step_09_train  INFO    Loading cube.npy...
+2026-04-13 11:07:30,618  steps.step_09_train  INFO    Normalising cube...
+2026-04-13 11:07:34,370  steps.step_09_train  INFO    Model parameters: 68,076
+2026-04-13 11:07:38,868  steps.step_09_train  INFO    Training: max 200 epochs, 256 steps/epoch, batch=8, window=96, hidden=64, park_weight=0.5
+2026-04-13 11:11:33,450  steps.step_09_train  INFO    Epoch   1  train=0.3235  ped_MAE=16.038  ped_R2=0.296  park_MAE=0.000  park_R2=-8434.919
+2026-04-13 11:58:38,140  steps.step_09_train  INFO    Epoch  10  train=0.1409  ped_MAE=8.369  ped_R2=0.759  park_MAE=0.000  park_R2=-530.360
+2026-04-13 12:55:00,260  steps.step_09_train  INFO    Epoch  20  train=0.1193  ped_MAE=7.636  ped_R2=0.811  park_MAE=0.000  park_R2=-98.491
+2026-04-13 13:50:32,121  steps.step_09_train  INFO    Epoch  30  train=0.1080  ped_MAE=6.951  ped_R2=0.840  park_MAE=0.000  park_R2=-1995.292
+2026-04-13 14:48:45,844  steps.step_09_train  INFO    Epoch  40  train=0.0957  ped_MAE=6.463  ped_R2=0.854  park_MAE=0.000  park_R2=-292.629
+2026-04-13 15:48:33,871  steps.step_09_train  INFO    Epoch  50  train=0.0945  ped_MAE=6.324  ped_R2=0.867  park_MAE=0.000  park_R2=-357.564
+2026-04-13 18:52:47,654  steps.step_09_train  INFO    Epoch  60  train=0.0915  ped_MAE=5.895  ped_R2=0.880  park_MAE=0.000  park_R2=-103.363
+2026-04-13 19:54:27,415  steps.step_09_train  INFO    Epoch  70  train=0.0916  ped_MAE=5.655  ped_R2=0.888  park_MAE=0.000  park_R2=-372.981
+2026-04-13 20:57:41,563  steps.step_09_train  INFO    Epoch  80  train=0.0820  ped_MAE=5.666  ped_R2=0.896  park_MAE=0.000  park_R2=-100.652
+2026-04-13 22:02:55,315  steps.step_09_train  INFO    Epoch  90  train=0.0876  ped_MAE=5.711  ped_R2=0.897  park_MAE=0.000  park_R2=-324.932
+
+
+
+
+★ Insight ─────────────────────────────────────
+  Reading the architecture before diagnosing is critical here — the code already contains a counterfactual rollout framework, so the question isn't "does it exist?" but "what limits its reliability as a causal network-impact estimator?"  
+  ─────────────────────────────────────────────────
+
+  Here's the full picture. The good news first: Step 11 already does exactly this — it runs a baseline and a treated autoregressive rollout, computes delta across all 3,975 streets, and reports top affected, spatial neighbours, semantic  
+  neighbours, diffusion, and rebound. The framework is built.
+
+  What limits or prevents it from being a reliable causal network-impact predictor:
+
+  ---
+  1. The model was trained as a forecaster, not a causal model
+
+  This is the most fundamental constraint. The MultiGCN learned to predict t+1 from the last 24h of observed data. It learned correlational patterns from the cube — streets that co-vary in real life. When you clamp a street's features    
+  (e.g., occ_rate = 0 for pedestrianise), the GCN propagates that signal through the graph, but what it propagates reflects learned co-occurrence, not a causal mechanism.
+
+  Concretely: if street A and street B always have similar pedestrian flow (because of shared land use), the model will show a large delta on B when you change A — not because B is causally affected by A, but because the model learned    
+  they move together.
+
+  ---
+  2. Parking spillover is supervised on only 138 / 3,975 streets (~3.5%)
+
+  # step_09_train.py:426
+  park_loss = criterion(
+      pred_park[:, parking_mask, :],   # ← only 138 streets contribute gradient
+      y_park[:, parking_mask, :],
+  )
+
+  The parking head has zero training signal for the remaining 3,837 streets. Their parking predictions are unconstrained extrapolations from the shared GCN+GRU backbone. This means:
+  - The parking displacement effect you see on non-sensor streets is pattern-inferred, not learned from data
+  - You can trust parking network deltas only on the 138 parking_mask streets
+
+  ---
+  3. Parking values in the cube are very low (~12.5% max occupancy)
+
+  From current_state.md known issues: "Cube parking values are very small (~12.5% max)." The parking head was trained almost entirely in the range [0, 0.125]. Interventions like pedestrianise (setting target to 0) or restrict_park (e.g., 
+  setting to 0.8) push the model far outside its training distribution, making spillover predictions unreliable.
+
+  ---
+  4. Graph edges are fixed — topology cannot change
+
+  From step_11's own design assumptions (line 38):
+
+  ▎ "The intervention modifies node features only — graph edges are unchanged. In reality, pedestrianisation may alter network connectivity; this is not modelled."
+
+  Pedestrianising a street often changes routing — vehicles can't pass through, creating detours. The spatial graph (k-NN, Gaussian kernel) was built on physical proximity and is fixed at build time. The model cannot represent a street   
+  becoming a dead end or losing its role as a through-route.
+
+  ---
+  5. Only ped_flow is fed back autoregressively for non-sensor streets
+
+  # step_11_scenario.py:481-486
+  next_row[:, FI_PED_FLOW] = pred_ped_norm              # all streets — autoregressive
+  if parking_mask is not None:
+      next_row[parking_mask, FI_OCC_RATE] = pred_park_norm[parking_mask]  # sensor streets only
+
+  For the 3,837 non-sensor streets, the parking occupancy in the sliding window is always real historical data from the cube, never the model's prediction. So parking spillover cannot propagate autoregressively through non-sensor streets 
+  — only pedestrian effects do.
+
+  ---
+  6. Autoregressive error compounds beyond ~4 hours
+
+
+  ---
+  Summary table
+
+  ┌─────────────────────────────────────────┬──────────────────────────────────────────────────────────────────┬─────────────┐
+  │                 Barrier                 │                          What it blocks                          │  Severity   │
+  ├─────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┼─────────────┤
+  │ Forecaster ≠ causal model               │ All network deltas are correlation-based                         │ Fundamental │
+  ├─────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┼─────────────┤
+  │ 138/3,975 parking supervision           │ Parking spillover on 96.5% of streets is untrained extrapolation │ High        │
+  ├─────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┼─────────────┤
+  │ Low parking range (~12.5%)              │ Out-of-distribution interventions on parking                     │ High        │
+  ├─────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┼─────────────┤
+  │ Fixed graph topology                    │ Can't model rerouting or access changes                          │ Medium      │
+  ├─────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┼─────────────┤
+  │ Non-sensor streets: no parking feedback │ Parking effects don't propagate beyond sensor streets            │ Medium      │
+  ├─────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┼─────────────┤
+  │ Autoregressive error compounding        │ Reliable horizon is ~4h (16 steps)                               │ Medium      │
+  └─────────────────────────────────────────┴──────────────────────────────────────────────────────────────────┴─────────────┘
+
+  ---
+  What you can reliably do right now
+
+  Step 11 is most trustworthy when:
+  - The treated street is a parking sensor street (training signal exists for its parking response)
+  - You look at ped delta on streets with confidence=1.0 (67 sensor streets)
+  - The rollout horizon stays ≤ 16 steps (4 hours)
+  - You treat results as relative ordering ("this street is more affected than that one") rather than precise counts
+
+  Would you like to discuss whether any of these constraints are addressable before your thesis submission, or whether they belong as documented limitations?

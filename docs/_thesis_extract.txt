@@ -1,0 +1,234 @@
+===== PAGE 1 =====
+Curbside Intensification
+ERTUĞRUL AKDEMİR
+   |    MAAI
+===== PAGE 2 =====
+ · problem   
+Urban street design is essentially static, but how people actually use streets changes hour by hour, day by day. 
+   |    MAAI
+===== PAGE 3 =====
+ · and curbside spaces are reserved places for vehicles
+Drivers, delivery vehicles, cyclists, pedestrians, diners, markets, accessibility users. All competing for the same 2–3 metres.
+   |    MAAI
+
+===== PAGE 4 =====
+ · existing curbside applications
+   |    MAAI
+NYC - Dynamic Curb Management (2021)
+The NYC DOT is driven by manual observation, political feedback, and general traﬃc knowledge. The  methodology is conceptual planning + 
+pilot-based testing, not algorithmic analysis. ANALOG VS DATA DRIVEN, IMPACT EVALUATION AT THE END.
+===== PAGE 5 =====
+ · existing curbside applications
+   |    MAAI
+Seattle - Flex Zones (2015)
+—-------------------------------------------------------------------------------------------
+
+===== PAGE 6 =====
+ · state of the art
+SPATIOTEMPORAL 
+STREET CLASSIFICATION FRAMEWORK
+PEDESTRIAN FLOW PREDICTION
+PREDICTING PARKING BEHAVIOUR
+
+===== PAGE 7 =====
+ · research gap
+   |    MAAI
+
+===== PAGE 8 =====
+“How we can reallocate the curbside functions based on streets’ temporal behavior with the assistance of data-driven 
+methods by using parking and pedestrian activities?”
+ · research question
+   |    MAAI
+===== PAGE 9 =====
+· "Which streets have temporal ﬂexibility windows that make curbside reallocation viable?"
+· "What spatio-temporal factors drive the behavioural patterns of urban streets?"
+· "How does a single-street curbside intervention propagate across the surrounding street network?"
+ · sub-research questions
+   |    MAAI
+===== PAGE 10 =====
+MELBOURNE– REASONS 
+EXISTING TOOLS, APPLICATIONS, GAP IN THE REAL WORLD
+===== PAGE 11 =====
+an AI-driven framework that analyses parking occupancy and pedestrian activity across a joint spatiotemporal street 
+network to identify curbside reallocation opportunities and simulate their network-wide impact. 
+ · solution
+   |    MAAI
+===== PAGE 12 =====
+Melbourne is the case study of this thesis due to data availability and granularity.
+ · case study 
+   |    MAAI
+MELBOURNE
+===== PAGE 13 =====
+ · methodology steps
+   |    MAAI
+===== PAGE 14 =====
+ · pipeline steps
+   |    MAAI
+
+===== PAGE 15 =====
+ · data foundation
+   |    MAAI
+
+===== PAGE 16 =====
+ · step 1 - fetching raw data
+   |    MAAI
+  - Pedestrian Sensor Counts
+  - Parking Occupancy Sensor Readings 
+These two datasets are being collected in real time since November 1st 
+2025 with an automated workﬂow via Github Actions from Melbourne 
+Open Data Portal by their API.
+parking data
+pedestrian dataautomated workﬂow that fetches data and stores it
+===== PAGE 17 =====
+ · step 1 - fetching raw data
+   |    MAAI
+Limitation: Not all the streets have sensors.
+
+===== PAGE 18 =====
+ · step 1 - fetching raw data
+   |    MAAI
+*Transport
+  - Bus Stop Locations                                                                                                           
+  - Public Transport Victoria (PTV) Stop Locations                                                            
+                                                                                                                                 
+*CLUE — Census of Land Use and Employment (City of 
+Melbourne)                                                                   
+  - CLUE Blocks (spatial boundaries)
+  - CLUE Buildings                                                                                                               
+  - CLUE Business Establishments
+  - CLUE Cafes and Restaurants
+  - CLUE Licensed Bars and Venues
+  - CLUE Dwellings
+  - CLUE Floor Space by Industry
+  - CLUE Floor Space by Use
+  - CLUE Employment (Jobs by location)
+  - CLUE Landmarks and Points of Interest
+  - CLUE Oﬀ-Street Car Parks
+Weather
+  - Open-Meteo Weather Observations (raw)
+ * These datasets are publicly available by City of Melbourne.
+
+===== PAGE 19 =====
+ · step 2 - snapping 
+   |    MAAI
+This pipeline step snaps sensors (parking and pedestrian) and aggregates CLUE features to the arterial street geometries. This operation helps to 
+deﬁne the characteristics of the street by understanding what are the functions in each street.
+
+===== PAGE 20 =====
+ · step 3 - temporal features
+   |    MAAI
+For every 15-minute slot across the study period it records what time of day it is, what day of the week, whether it's a holiday, and what the 
+weather was like.
+
+===== PAGE 21 =====
+ · step 4 - building graph
+   |    MAAI
+It builds two relationship maps of Melbourne streets. One is connecting streets that physically meet at intersections, and another one is connecting 
+streets that are functionally similar (same mix of cafes, jobs, activity)  even if geographically distant.
+spatial graph: two streets are connected if their geometries physically 
+touch (share a boundary point), with edge weight decaying by centroid 
+distance via a Gaussian kernel.
+semantic graph: streets are embedded as feature vectors (jobs, 
+cafes, etc.), cosine similarity is computed across all pairs, and only 
+mutual top-K neighbours above a similarity threshold are kept as 
+edges.
+
+===== PAGE 22 =====
+ · step 5.1 - parking reconstruction 
+   |    MAAI
+it reconstructs parking occupancy from raw sensor events.
+Parking sensors only log when a car arrives or leaves, so 
+parking reconstruction operation replays that event history to 
+derive occupancy at every 15-minute slot. Each sensor was 
+snapped to the streets they are belong to. This operation 
+creates occupancy rate by looking at the occupancy of each 
+sensor in 15min time bin.
+
+===== PAGE 23 =====
+ · step 5.2 - pedestrian imputation
+   |    MAAI
+an XGBoost model was trained on the streets that do have sensors, learning the relationship between a street's static proﬁle (cafes, jobs, etc.), the 
+time of day, and its observed pedestrian count. That trained model is then applied to the sensor-less streets to predict what their counts would likely 
+be. 
+streets that have pedestrian sensors and their activity level 
+streets that don’t have pedestrian sensors and their activity level after imputation
+
+===== PAGE 24 =====
+ · what do we have after these 5 steps?
+   |    MAAI
+Pedestrian, parking, land use, weather data
+Street geometries with the aggregated data
+Temporal features for each time bin (15min)
+Spatial and semantic graph with street geometries
+Reconstructed parking status changes to 15 mins time bins
+===== PAGE 25 =====
+ · understanding streets
+   |    MAAI
+===== PAGE 26 =====
+ · step 6 - weekly proﬁles
+   |    MAAI
+averaging pedestrian and parking activity into 6 time blocks per day across 7 days, producing a 42-feature "personality 
+proﬁle".
+Time blocks (6 per day, 15-min bins aggregated):
+
+===== PAGE 27 =====
+ · step 7 - clustering
+   |    MAAI
+Street proﬁles derived from ﬁve months of pedestrian and parking sensor data are clustered into four archetypes that 
+capture each street's characteristic pattern of activity.
+
+===== PAGE 28 =====
+ · archetypes after clustering
+   |    MAAI
+===== PAGE 29 =====
+ · step 8 - data cube
+   |    MAAI
+assembles all pre-processed signals (pedestrian ﬂow, parking, weather, temporal features, static land-use) into a single [N=1397 × T=14400 × F=23] data 
+cube (cube.npy) and serialises the spatial/semantic graph edge tensors
+Feature layout
+| Index | Name | Type | Normalised |
+|---|---|---|---|
+| 0 | ped_ﬂow | time-varying, continuous | Yes |
+| 1 | ccupancy_rate | time-varying, continuous | Yes |
+| 2 | ped_conﬁdence | time-varying, ordinal (1.0/0.8/0.5) | No |
+| 3 | hour_sin | cyclic [-1,1] | No |
+| 4 | hour_cos | cyclic [-1,1] | No |
+| 5 | dow_sin | cyclic [-1,1] | No |
+| 6 | dow_cos | cyclic [-1,1] | No |
+| 7 | is_weekend | binary | No |
+| 8 | is_public_holiday | binary | No |
+| 9 | is_school_holiday | binary | No |
+| 10 | temperature_2m | time-varying, continuous | Yes |
+| 11 | relative_humidity_2m | time-varying, continuous | Yes |
+| 12 | wind_speed_10m | time-varying, continuous | Yes |
+| 13 | precipitation | time-varying, continuous | Yes |
+| 14 | total_jobs | static, broadcast | Yes |
+| 15 | cafe_count | static, broadcast | Yes |
+| 16 | cafe_total_seats | static, broadcast | Yes |
+| 17 | bar_count | static, broadcast | Yes |
+| 18 | bar_patron_capacity | static, broadcast | Yes |
+| 19 | business_count | static, broadcast | Yes |
+| 20 | poi_total | static, broadcast | Yes |
+| 21 | dining_capacity | static, broadcast | Yes |
+| 22 | area_m2 | static, broadcast | Yes |
+The data cube help us to make training faster and optimized, otherwise 
+querying all the datas and the features from diﬀerent datasets would make 
+the process harder and costly.
+===== PAGE 30 =====
+ · step 9 - train
+   |    MAAI
+1397 streets, 23 features values per street per time bin 
+1397 streets, 64+64 hidden features (numeric values created by 
+the model) that explains the relation of streets per time bin
+128 features per street per time bin
+Reading the values for each time bin understands how the streets 
+are aﬀecting each other thanks to dual GCN
+Predicting two features: ped_ﬂow, occupancy_rate
+===== PAGE 31 =====
+ · counterfactual scenario simulation
+   |    MAAI
+assembles all pre-processed signals (pedestrian ﬂow, parking, weather, temporal features, static land-use) into a single [N=1397 × T=14400 × F=23] data 
+cube (cube.npy) and serialises the spatial/semantic graph edge tensors
+
+===== PAGE 32 =====
+THANK YOU

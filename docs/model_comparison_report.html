@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Model Comparison — Old · Ablation · Foundation-Fixed</title>
+<style>
+  :root { --ink:#1a1a1a; --mut:#555; --line:#ccc; --bg:#f6f7f9; --acc:#0b5; --warn:#b26b00;
+          --a:#eef6ff; --b:#fff6ee; }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.55 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+         color: var(--ink); max-width: 900px; margin: 30px auto; padding: 0 22px; }
+  h1 { font-size: 23px; margin: 0 0 2px; }
+  h2 { font-size: 17px; margin: 26px 0 6px; padding-bottom: 4px; border-bottom: 2px solid var(--ink); }
+  h3 { font-size: 14.5px; margin: 14px 0 4px; }
+  .sub { color: var(--mut); font-size: 12.5px; margin-bottom: 14px; }
+  p { margin: 6px 0; }
+  code { background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12.6px; }
+  th, td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  .win { color: var(--acc); font-weight: 700; }
+  .grpA td { background: var(--a); }
+  .grpB td { background: var(--b); }
+  .tag { display:inline-block; font-size:10.5px; font-weight:700; padding:1px 6px; border-radius:3px; color:#fff; }
+  .tag.all { background:#2b6cb0; } .tag.sen { background:#b26b00; }
+  .box { border: 1px solid var(--line); border-left: 4px solid var(--acc); border-radius: 5px;
+         padding: 10px 14px; margin: 12px 0; background: #fcfdfc; }
+  .warnbox { border:1px solid #e6c789; border-left: 4px solid var(--warn); background: #fffaf0;
+             border-radius: 5px; padding: 10px 14px; margin: 14px 0; }
+  .warnbox h3 { color: var(--warn); margin-top: 2px; }
+  ul { margin: 5px 0; padding-left: 20px; } li { margin: 3px 0; }
+  .small { font-size: 12.3px; color: var(--mut); }
+  @media print {
+    body { margin: 0; max-width: none; font-size: 11.5px; }
+    h2 { page-break-after: avoid; } .box, .warnbox, table { page-break-inside: avoid; }
+    .grpA td { background:#eef6ff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .grpB td { background:#fff6ee !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    a { color: var(--ink); text-decoration:none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Three-Way Model Comparison</h1>
+<p class="sub">Curbside Intensification · dual-head MultiGCN (1,397 streets × 14,400 bins, 68,076 params) ·
+old production model vs. the ablation study vs. the foundation-fixed retrain · 4 June 2026.</p>
+
+<p>This document compares three things: <b>(1)</b> the previous production model, <b>(2)</b> the ablation
+experiments that probed how the model should be trained/evaluated, and <b>(3)</b> the latest model after the
+data-foundation fixes. Read the headline table together with the warning beneath it — two of the rows are
+measured on a different street population and must not be compared with the others.</p>
+
+<h2>1. Headline comparison</h2>
+<table>
+<tr><th>#</th><th>Model / experiment</th><th>Evaluated on</th><th class="num">Test ped&nbsp;MAE</th>
+    <th class="num">Test ped&nbsp;R²</th><th class="num">Test park&nbsp;MAE / R²</th></tr>
+<tr class="grpA"><td>1</td><td><b>Old model</b> (previous production)</td>
+    <td><span class="tag all">ALL 1,397</span></td><td class="num">5.535</td><td class="num">0.890</td><td class="num">0.048 / 0.887</td></tr>
+<tr class="grpA"><td>3</td><td><b>New model</b> (foundation-fixed)</td>
+    <td><span class="tag all">ALL 1,397</span></td><td class="num win">4.454</td><td class="num win">0.911</td><td class="num">0.050 / 0.883</td></tr>
+<tr class="grpB"><td>2a</td><td>Ablation — <b>Baseline</b> (old model, re-scored)</td>
+    <td><span class="tag sen">74 SENSOR</span></td><td class="num">30.72</td><td class="num">0.815</td><td class="num">—</td></tr>
+<tr class="grpB"><td>2b</td><td>Ablation — <b>Exp A</b> (sensor-only subgraph)</td>
+    <td><span class="tag sen">74 SENSOR</span></td><td class="num">22.34</td><td class="num">0.929</td><td class="num">—</td></tr>
+<tr class="grpB"><td>2c</td><td>Ablation — <b>Exp B</b> (full graph, masked loss)</td>
+    <td><span class="tag sen">74 SENSOR</span></td><td class="num">22.84</td><td class="num">0.917</td><td class="num">—</td></tr>
+</table>
+<p class="small"><span class="tag all">blue</span> rows are averaged over all 1,397 streets;
+<span class="tag sen">amber</span> rows over the 74 sensor streets only. Within a colour the numbers are
+comparable; across colours they are not.</p>
+
+<div class="warnbox">
+<h3>The one rule for reading this table</h3>
+<p>The <b>4.454</b> (new, all-street) and <b>22.84</b> (Exp B, sensor-only) measure <b>different street
+populations</b>. The all-street average is dominated by the ~1,323 easy, imputed streets; the sensor-only
+average reflects only streets with ground truth. "22.8 → 4.45" is <b>not</b> a valid improvement. The only
+fair head-to-head here is <b>row 1 vs row 3</b> (old vs new, both all-street): <span class="win">5.535 → 4.454,
+a 19.5% error reduction</span>. The new model's sensor-only figure — the one directly comparable to the
+ablation rows — <b>has not yet been measured</b>.</p>
+</div>
+
+<h2>2. The old model (baseline production)</h2>
+<p>The previous dual-head MultiGCN. Pedestrian loss was trained across all 1,397 streets on a single global
+normalisation, with weather merged 11&nbsp;hours out of sync and sensor outages filled with zeros. It reported
+a strong-looking all-street test MAE of <b>5.535</b> — but the ablation below showed that figure is flattered
+by the imputed streets.</p>
+
+<h2>3. The ablation study (how should we train &amp; evaluate?)</h2>
+<p>All three ablation conditions were scored on the <b>74 sensor streets only</b> — the honest test set —
+to ask whether the imputed network and loss-masking actually help accuracy where we can verify it.</p>
+<table>
+<tr><th>Condition</th><th>What it did</th><th class="num">MAE</th><th>Verdict</th></tr>
+<tr><td><b>Baseline</b></td><td>Old model re-scored on the 74 sensor streets</td><td class="num">30.72</td>
+    <td>The "true" accuracy on real streets — 5.5× worse than its all-street 5.5</td></tr>
+<tr><td><b>Exp A</b></td><td>Deleted the 1,323 unsensored streets; trained the 74-node subgraph</td>
+    <td class="num">22.34</td><td>Better — but <b>35 of 74</b> nodes became isolated (network fragmented)</td></tr>
+<tr><td><b>Exp B</b></td><td>Kept all 1,397 as context; pedestrian loss computed only on the 74</td>
+    <td class="num">22.84</td><td>Comparable to A; preserves the network</td></tr>
+</table>
+<div class="box">
+<h3>What the ablation taught us</h3>
+<ul>
+<li><b>Report accuracy disaggregated.</b> The same model scores 5.5 across all streets but 30.7 on the streets
+with ground truth — a 5.5× gap. The all-street number alone is misleading.</li>
+<li><b>Honest (masked) treatment of the target gives a truer, better sensor-street number</b> (~22 vs 30.7).</li>
+<li><b>The unsensored streets are needed for connectivity.</b> Removing them isolated 35 of 74 sensor nodes —
+their neighbours <em>were</em> the unsensored streets. Imputation earns its place as network connective
+tissue, independent of any accuracy claim.</li>
+</ul>
+</div>
+<div class="warnbox">
+<h3>Limits of the ablation</h3>
+<p>Single random seed; Exp A and B used different normalisation (a confound); Exp B was under-trained. So
+A (22.34) vs B (22.84) is within noise — it does <b>not</b> prove "subgraph beats full graph." Only the three
+lessons above are robust.</p>
+</div>
+
+<h2>4. The new model — what changed, and why it is better</h2>
+<p>A stress-test found five data-foundation defects; all were fixed before this retrain
+(detail in <code>docs/notes/decisions.md</code>, D-011→D-015):</p>
+<table>
+<tr><th>Fix</th><th>Effect</th></tr>
+<tr><td>Weather timezone (was 11&nbsp;h out)</td><td>Weather now aligned to local activity — should turn a
+harmful feature into a useful one</td></tr>
+<tr><td><code>log1p</code> on foot-traffic</td><td>Busy streets no longer in an unstable numeric range
+(4–10 std-devs) — better conditioning citywide</td></tr>
+<tr><td>Sensor-outage masking</td><td>6.3% of fake-zero bins excluded from training &amp; scoring — error
+now measured only on real data</td></tr>
+<tr><td>Per-street confidence + parking "unknown"</td><td>Honesty fixes; reliability of estimated streets
+made explicit</td></tr>
+</table>
+<table>
+<tr><th>All-street metric</th><th class="num">Old</th><th class="num">New</th><th class="num">Change</th></tr>
+<tr><td>Test ped MAE</td><td class="num">5.535</td><td class="num win">4.454</td><td class="num">−19.5%</td></tr>
+<tr><td>Test ped R²</td><td class="num">0.890</td><td class="num win">0.911</td><td class="num">+0.021</td></tr>
+<tr><td>Val ped MAE</td><td class="num">5.646</td><td class="num win">4.689</td><td class="num">−17%</td></tr>
+<tr><td>Test park MAE / R²</td><td class="num">0.048 / 0.887</td><td class="num">0.050 / 0.883</td><td class="num">~flat</td></tr>
+<tr><td>Best epoch</td><td class="num">~190</td><td class="num">179</td><td class="num">faster</td></tr>
+</table>
+<div class="box">
+<h3>Why the gain is genuine — and understated</h3>
+<ul>
+<li>The outage mask <em>removes</em> easy "predict 0" wins, which should <em>raise</em> error — yet error
+still fell ~20%. The <code>log1p</code> conditioning gain outweighed that headwind, so the real improvement
+is larger than 19.5%.</li>
+<li><b>R² rose alongside MAE</b> (0.890 → 0.911). R² is scale-relative and barely affected by the changed
+evaluation denominator, so it confirms a real gain rather than a metric artefact.</li>
+<li><b>Parking unchanged</b> — the parking pathway was untouched; clean convergence, no instability.</li>
+</ul>
+</div>
+
+<h2>5. Bottom line &amp; open item</h2>
+<ul>
+<li><b>Fair, proven result:</b> the foundation fixes improved the all-street model from <b>5.535 → 4.454</b>
+MAE (−19.5%) and R² <b>0.890 → 0.911</b> over the old model.</li>
+<li><b>Established separately by the ablation:</b> evaluation must be disaggregated; the imputed network is
+required for connectivity; honest (masked) targets give truer sensor-street accuracy.</li>
+<li><b>Still open:</b> the new model's <b>sensor-only</b> MAE — the figure directly comparable to Exp A/B
+(22–30) — has not yet been measured. Until it is, no claim should be made that the new model beats the
+ablation conditions on real streets.</li>
+</ul>
+
+<p class="small">Sources: old model <code>melbourne_pipeline/data/models/model_eval.json</code>;
+ablation D-010 (2026-06-02); new model <code>training_lightning/model_eval.json</code> (best epoch 179,
+seed 42). Pedestrian metrics for the old and new models are all-street; new-model ped metrics are over
+observed (non-outage) bins.</p>
+
+</body>
+</html>

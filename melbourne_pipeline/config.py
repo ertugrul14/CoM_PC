@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 
+import numpy as np
 from dotenv import load_dotenv
 
 # ── Paths ────────────────────────────────────────────────────────────────────
@@ -60,3 +61,44 @@ CLUE_DATASETS = {
 # ── Open-Meteo weather ──────────────────────────────────────────────────────
 OPEN_METEO_URL = "https://archive-api.open-meteo.com/v1/archive"
 WEATHER_PARAMS = "temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation"
+# Fetch weather in Melbourne local time so its wall-clock axis matches the
+# activity data, whose `local_datetime` is Melbourne wall-clock relabelled UTC.
+# Open-Meteo returns naive local timestamps + handles DST internally; the study
+# window (Nov 2025–Mar 2026) is entirely AEDT (UTC+11). See D-011.
+MELBOURNE_TZ = "Australia/Melbourne"
+
+# ── Normalisation contract (D-012) ───────────────────────────────────────────
+# Features that get a log1p transform BEFORE the global z-score. ped_flow is a
+# right-skewed count (mean 28, std 61) whose heavy tail put high-traffic sensor
+# streets at z=4-10 under a plain global z-score. log1p compresses the tail
+# while preserving cross-street magnitude. occupancy_rate is bounded [0,1] and
+# needs no transform. norm_stats.json stays scalar mean/std (computed in log
+# space for these features). ALL consumers must normalise/de-normalise via the
+# two helpers below so the transform can never be applied inconsistently.
+LOG_NORMALISE_FEATURES = ("ped_flow",)
+
+
+def normalise_feature(arr, name: str, norm_stats: dict):
+    """Z-score a feature, applying log1p first if it is a log-normalised feature.
+
+    arr        : raw values (np.ndarray or scalar).
+    name       : feature name (must be a key in norm_stats).
+    norm_stats : {feature: {"mean": float, "std": float}} where mean/std were
+                 computed in the SAME (possibly log) space as applied here.
+    Returns the normalised values; inverse of `denormalise_feature`.
+    """
+    mu  = norm_stats[name]["mean"]
+    std = norm_stats[name]["std"]
+    if name in LOG_NORMALISE_FEATURES:
+        arr = np.log1p(np.maximum(arr, 0.0))
+    return (arr - mu) / std
+
+
+def denormalise_feature(z, name: str, norm_stats: dict):
+    """Invert `normalise_feature`: z-score back to raw units (expm1 if log feature)."""
+    mu  = norm_stats[name]["mean"]
+    std = norm_stats[name]["std"]
+    x = z * std + mu
+    if name in LOG_NORMALISE_FEATURES:
+        x = np.expm1(x)
+    return x

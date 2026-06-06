@@ -1,0 +1,41 @@
+{
+  "k": 4,
+  "bic": {
+    "2": -44767.6,
+    "3": -52745.0,
+    "4": -56698.6,
+    "5": -56608.2,
+    "6": -55779.2,
+    "7": -55499.2,
+    "8": -54857.5,
+    "9": -53850.0,
+    "10": -52934.7
+  },
+  "ari": 0.8876,
+  "silhouette": 0.5261,
+  "pca_components": 20,
+  "pca_variance_explained": 0.9948,
+  "archetype_map": {
+    "0": "latent_evening_potential_medium",
+    "1": "parking_reallocation_priority",
+    "2": "latent_evening_potential_high",
+    "3": "major_pedestrian_corridor"
+  },
+  "cluster_sizes": {
+    "0": 981,
+    "1": 139,
+    "2": 227,
+    "3": 50
+  },
+  "n_uncertain": 3,
+  "n_with_flex_windows": 1041,
+  "evidence_tiers": {
+    "A_confirmed": 28,
+    "B_park_provisional": 115,
+    "C_ped_only_indicative": 46,
+    "D_indicative": 1208
+  },
+  "n_reallocation_candidates": 143,
+  "n_candidates_with_window": 83,
+  "gate": "hard_park_sensor"
+}

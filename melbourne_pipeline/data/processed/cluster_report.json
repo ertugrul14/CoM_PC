@@ -1,38 +1,32 @@
 {
-  "k": 7,
+  "k": 4,
   "bic": {
-    "2": -49182.8,
-    "3": -51481.1,
-    "4": -51940.1,
-    "5": -51923.7,
-    "6": -52445.1,
-    "7": -52669.8,
-    "8": -50475.7,
-    "9": -50143.0,
-    "10": -50190.7
+    "2": -44767.6,
+    "3": -52745.0,
+    "4": -56698.6,
+    "5": -56608.2,
+    "6": -55779.2,
+    "7": -55499.2,
+    "8": -54857.5,
+    "9": -53850.0,
+    "10": -52934.7
   },
-  "ari": 0.9416,
-  "silhouette": 0.4477,
+  "ari": 0.8876,
+  "silhouette": 0.5261,
   "pca_components": 20,
-  "pca_variance_explained": 0.9993,
+  "pca_variance_explained": 0.9948,
   "archetype_map": {
     "0": "latent_evening_potential_medium",
-    "1": "midday_retail_activation",
-    "2": "major_pedestrian_corridor",
-    "3": "morning_pedestrianisation_high",
-    "4": "latent_evening_potential_high",
-    "5": "morning_pedestrianisation_medium",
-    "6": "latent_evening_potential_low"
+    "1": "parking_reallocation_priority",
+    "2": "latent_evening_potential_high",
+    "3": "major_pedestrian_corridor"
   },
   "cluster_sizes": {
-    "0": 113,
-    "1": 38,
-    "2": 9,
-    "3": 34,
-    "4": 77,
-    "5": 85,
-    "6": 1041
+    "0": 981,
+    "1": 139,
+    "2": 227,
+    "3": 50
   },
   "n_uncertain": 3,
-  "n_with_flex_windows": 1114
+  "n_with_flex_windows": 1109
 }

@@ -54,7 +54,7 @@ import torch.nn as nn
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from config import PROCESSED_DIR
+from config import PROCESSED_DIR, normalise_feature, denormalise_feature
 
 log = logging.getLogger(__name__)
 
@@ -182,9 +182,8 @@ def _normalise_cube(cube: np.ndarray, norm_stats: dict, feat_names: list) -> np.
     cube = cube.copy()
     for fi, name in enumerate(feat_names):
         if name in norm_stats:
-            mu  = norm_stats[name]["mean"]
-            std = norm_stats[name]["std"]
-            cube[:, :, fi] = (cube[:, :, fi] - mu) / std
+            # D-012: helper applies log1p first for log-normalised features (ped_flow)
+            cube[:, :, fi] = normalise_feature(cube[:, :, fi], name, norm_stats)
     return cube
 
 
@@ -198,7 +197,9 @@ def _sample_windows(
     park_fi: int,
     device: torch.device,
     fixed_starts: np.ndarray | None = None,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ped_valid_mask: np.ndarray | None = None,
+    return_ped_mask: bool = False,
+) -> tuple[torch.Tensor, ...]:
     """
     Sample n_samples (window, next-timestep) pairs from [t_start, t_end).
     If fixed_starts is provided, cycle through it deterministically.
@@ -208,6 +209,7 @@ def _sample_windows(
     X       : [n_samples, W, N, F]
     y_ped   : [n_samples, N, 1]  target ped_flow at t+1
     y_park  : [n_samples, N, 1]  target occupancy_rate at t+1
+    m_ped   : [n_samples, N, 1]  ped-validity at t+1 (only if return_ped_mask) — D-013
     """
     N, T, F   = cube_norm.shape
     max_start = t_end - window - 1
@@ -221,16 +223,21 @@ def _sample_windows(
     else:
         starts = np.random.randint(t_start, max_start, size=n_samples)
 
-    X_list, y_ped_list, y_park_list = [], [], []
+    X_list, y_ped_list, y_park_list, m_ped_list = [], [], [], []
     for s in starts:
         win = cube_norm[:, s : s + window, :]
         X_list.append(win.transpose(1, 0, 2))
         y_ped_list.append(cube_norm[:, s + window, target_fi][:, np.newaxis])
         y_park_list.append(cube_norm[:, s + window, park_fi][:, np.newaxis])
+        if return_ped_mask:   # D-013: ped validity at the target bin
+            m_ped_list.append(ped_valid_mask[:, s + window][:, np.newaxis])
 
     X      = torch.tensor(np.stack(X_list),      dtype=torch.float32, device=device)
     y_ped  = torch.tensor(np.stack(y_ped_list),  dtype=torch.float32, device=device)
     y_park = torch.tensor(np.stack(y_park_list), dtype=torch.float32, device=device)
+    if return_ped_mask:
+        m_ped = torch.tensor(np.stack(m_ped_list), dtype=torch.float32, device=device)
+        return X, y_ped, y_park, m_ped
     return X, y_ped, y_park
 
 
@@ -238,6 +245,7 @@ def _evaluate(
     model, cube_norm, t_start, t_end, window, target_fi, park_fi,
     norm_stats, feat_names, device, fixed_starts: np.ndarray,
     parking_mask: torch.Tensor, eval_batch: int = 8,
+    ped_valid_mask: np.ndarray | None = None,
 ) -> tuple[float, float, float, float, float, float]:
     """
     Evaluate MAE / RMSE / R2 in raw units for both ped and parking heads.
@@ -257,29 +265,42 @@ def _evaluate(
 
     all_pred_ped, all_y_ped   = [], []
     all_pred_park, all_y_park = [], []
+    all_m_ped = []
+    want_mask = ped_valid_mask is not None
 
     model.eval()
     with torch.no_grad():
         for i in range(0, n_eval, eval_batch):
             batch_starts = fixed_starts[i : i + eval_batch]
-            X, y_ped_norm, y_park_norm = _sample_windows(
+            sampled = _sample_windows(
                 cube_norm, t_start, t_end, len(batch_starts),
                 window, target_fi, park_fi, device,
                 fixed_starts=batch_starts - t_start,
+                ped_valid_mask=ped_valid_mask, return_ped_mask=want_mask,
             )
+            if want_mask:
+                X, y_ped_norm, y_park_norm, m_ped = sampled
+                all_m_ped.append(m_ped.cpu().numpy())
+            else:
+                X, y_ped_norm, y_park_norm = sampled
             pred_ped_norm, pred_park_norm = model(X)
 
             # Denormalise ped → raw counts
-            all_pred_ped.append(pred_ped_norm.cpu().numpy() * std_ped + mu_ped)
-            all_y_ped.append(y_ped_norm.cpu().numpy()       * std_ped + mu_ped)
+            # D-012: denormalise_feature applies expm1 for log-normalised ped_flow
+            all_pred_ped.append(denormalise_feature(pred_ped_norm.cpu().numpy(), feat_names[target_fi], norm_stats))
+            all_y_ped.append(denormalise_feature(y_ped_norm.cpu().numpy(), feat_names[target_fi], norm_stats))
 
             # Denormalise parking → raw occupancy rate
             all_pred_park.append(pred_park_norm.cpu().numpy() * std_park + mu_park)
             all_y_park.append(y_park_norm.cpu().numpy()       * std_park + mu_park)
 
-    # Ped metrics: all streets, clipped at 0
+    # Ped metrics: clipped at 0; over valid (non-outage) bins only when masked (D-013)
     pred_ped_raw = np.clip(np.concatenate(all_pred_ped, axis=0), 0, None)  # [n, N, 1]
     y_ped_raw    = np.concatenate(all_y_ped, axis=0)
+    if want_mask:
+        m = np.concatenate(all_m_ped, axis=0).astype(bool)
+        pred_ped_raw = pred_ped_raw[m]
+        y_ped_raw    = y_ped_raw[m]
     ped_mae  = float(np.mean(np.abs(pred_ped_raw - y_ped_raw)))
     ped_rmse = float(np.sqrt(np.mean((pred_ped_raw - y_ped_raw) ** 2)))
     ss_res = np.sum((y_ped_raw - pred_ped_raw) ** 2)
@@ -363,6 +384,10 @@ def run() -> dict[str, Path]:
     cube_norm = _normalise_cube(cube_raw, norm_stats, feat_names)
     del cube_raw
 
+    # D-013: ped-validity mask — exclude sensor-outage bins from ped loss/metrics
+    ped_valid_mask_np = torch.load(PROCESSED_DIR / "ped_valid_mask.pt").numpy().astype(bool)  # [N,T]
+    log.info(f"  Ped valid mask: {ped_valid_mask_np.mean()*100:.1f}% of bins valid")
+
     # Precompute fixed val windows (same every epoch -> stable early stopping)
     val_max_start = T_val_end - WINDOW - 1
     val_fixed_starts = np.linspace(
@@ -412,14 +437,16 @@ def run() -> dict[str, Path]:
         n_steps    = 0
 
         for _ in range(BATCHES_EPOCH // BATCH_SIZE):
-            X, y_ped, y_park = _sample_windows(
+            X, y_ped, y_park, m_ped = _sample_windows(
                 cube_norm, 0, T_train_end, BATCH_SIZE,
                 WINDOW, target_fi, park_fi, device,
+                ped_valid_mask=ped_valid_mask_np, return_ped_mask=True,
             )
             optimiser.zero_grad()
             pred_ped, pred_park = model(X)
 
-            ped_loss  = criterion(pred_ped, y_ped)
+            # D-013: masked ped MAE — outage bins (m_ped=0) excluded
+            ped_loss  = (torch.abs(pred_ped - y_ped) * m_ped).sum() / m_ped.sum().clamp(min=1.0)
             # Parking loss only on streets with real sensor data
             park_loss = criterion(
                 pred_park[:, parking_mask, :],
@@ -437,7 +464,7 @@ def run() -> dict[str, Path]:
         val_ped_mae, val_ped_rmse, val_ped_r2, val_park_mae, val_park_rmse, val_park_r2 = _evaluate(
             model, cube_norm, T_train_end, T_val_end, WINDOW,
             target_fi, park_fi, norm_stats, feat_names, device,
-            val_fixed_starts, parking_mask,
+            val_fixed_starts, parking_mask, ped_valid_mask=ped_valid_mask_np,
         )
         val_mae = val_ped_mae  # early stopping criterion is ped MAE
 
@@ -478,13 +505,13 @@ def run() -> dict[str, Path]:
      val_park_mae_f, val_park_rmse_f, val_park_r2_f) = _evaluate(
         model, cube_norm, T_train_end, T_val_end, WINDOW,
         target_fi, park_fi, norm_stats, feat_names, device,
-        val_fixed_starts, parking_mask,
+        val_fixed_starts, parking_mask, ped_valid_mask=ped_valid_mask_np,
     )
     (test_ped_mae, test_ped_rmse, test_ped_r2,
      test_park_mae, test_park_rmse, test_park_r2) = _evaluate(
         model, cube_norm, T_val_end, T, WINDOW,
         target_fi, park_fi, norm_stats, feat_names, device,
-        test_fixed_starts, parking_mask,
+        test_fixed_starts, parking_mask, ped_valid_mask=ped_valid_mask_np,
     )
 
     log.info(

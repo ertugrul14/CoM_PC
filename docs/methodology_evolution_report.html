@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Methodology Evolution — Ablation to Foundation-Fixed Model</title>
+<style>
+  :root { --ink:#1a1a1a; --mut:#555; --line:#ccc; --bg:#f6f7f9; --acc:#0b5; --warn:#b26b00; }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.55 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+         color: var(--ink); max-width: 880px; margin: 30px auto; padding: 0 22px; }
+  h1 { font-size: 23px; margin: 0 0 2px; }
+  h2 { font-size: 17px; margin: 26px 0 6px; padding-bottom: 4px; border-bottom: 2px solid var(--ink); }
+  h3 { font-size: 14.5px; margin: 16px 0 4px; }
+  .sub { color: var(--mut); font-size: 12.5px; margin-bottom: 14px; }
+  p { margin: 6px 0; }
+  code { background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12.6px; }
+  th, td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  .win { color: var(--acc); font-weight: 700; }
+  .box { border: 1px solid var(--line); border-left: 4px solid var(--acc); border-radius: 5px;
+         padding: 10px 14px; margin: 12px 0; background: #fcfdfc; }
+  .warnbox { border:1px solid #e6c789; border-left: 4px solid var(--warn); background: #fffaf0;
+             border-radius: 5px; padding: 10px 14px; margin: 14px 0; }
+  .warnbox h3 { color: var(--warn); margin-top: 2px; }
+  ul { margin: 5px 0; padding-left: 20px; } li { margin: 3px 0; }
+  .small { font-size: 12.3px; color: var(--mut); }
+  @media print {
+    body { margin: 0; max-width: none; font-size: 11.5px; }
+    h2 { page-break-after: avoid; } .box, .warnbox, table { page-break-inside: avoid; }
+    a { color: var(--ink); text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>From Ablation to a Foundation-Fixed Model</h1>
+<p class="sub">Methodology evolution of the Curbside Intensification spatio-temporal GNN ·
+Dual-head MultiGCN, 1,397 streets × 14,400 bins · documented 4 June 2026.</p>
+
+<p>This note records two distinct pieces of work and how they relate: (1) an <b>ablation study</b>
+(Experiments A and B) that probed <em>how</em> the model should be trained and evaluated, and (2) a later
+round of <b>data-foundation fixes</b> whose retrained model improved on the previous production model.
+It also states plainly which numbers are comparable and which are not, so the record cannot be misread.</p>
+
+<h2>1. Background — the two prediction targets and what is "real"</h2>
+<p>The graph has 1,397 streets. Only a minority carry sensors; the rest are estimated:</p>
+<table>
+<tr><th>Signal</th><th class="num">Real (measured)</th><th class="num">Estimated / filled</th></tr>
+<tr><td>Pedestrian flow</td><td class="num">74 streets</td><td class="num">1,323 (XGBoost-imputed)</td></tr>
+<tr><td>Parking occupancy</td><td class="num">143 streets</td><td class="num">1,254 (filled = "unknown")</td></tr>
+</table>
+<p class="small">This split is the reason evaluation must be reported carefully: an average over all 1,397
+streets is dominated by the easy, model-generated ones, whereas an average over only the sensored streets
+reflects genuine predictive skill. The two numbers differ by roughly 5×.</p>
+
+<h2>2. Phase 1 — The ablation study (Experiments A &amp; B)</h2>
+<p>Question asked: <em>does keeping the full imputed network, and masking the loss, actually help accuracy
+on the streets we can verify?</em> All three conditions below were scored on the <b>74 sensor streets only</b>
+— the honest test set.</p>
+<table>
+<tr><th>Condition</th><th>What it did</th><th class="num">Test MAE<br>(74 sensor streets)</th><th class="num">Test R²</th></tr>
+<tr><td><b>Baseline</b></td><td>The then-current model (pedestrian loss trained over <em>all</em> 1,397
+streets), simply re-scored on the sensor subset</td><td class="num">30.72</td><td class="num">0.815</td></tr>
+<tr><td><b>Exp A</b><br>sensor-only subgraph</td><td>Physically <em>deleted</em> the 1,323 unsensored
+streets, trained on the 74-node subgraph</td><td class="num">22.34</td><td class="num">0.929</td></tr>
+<tr><td><b>Exp B</b><br>full graph, masked loss</td><td>Kept all 1,397 streets as network context, but
+computed the pedestrian <em>loss only on the 74</em> sensor streets</td><td class="num">22.84</td><td class="num">0.917</td></tr>
+</table>
+
+<div class="box">
+<h3>What Phase 1 established</h3>
+<ul>
+<li><b>The headline all-street accuracy is misleading.</b> The same baseline model that reports ~5.5 MAE
+across all streets scores <b>30.7</b> on the streets with ground truth — a 5.5× gap. Accuracy must be
+reported <em>disaggregated</em> (sensored vs imputed).</li>
+<li><b>Restricting evaluation/loss to the real streets matters.</b> Both A and B (~22) beat the all-street
+baseline (~30.7) on the sensor streets — i.e. honest, masked treatment of the target gives a truer and
+better sensor-street number.</li>
+<li><b>Deleting the in-between streets fragments the network.</b> In Exp A's subgraph, <b>35 of the 74</b>
+sensor nodes lost all neighbours, because their neighbours were the unsensored streets that had been removed.
+This is direct evidence that the unsensored streets are needed as <em>connective tissue</em>, even if not as
+prediction targets.</li>
+</ul>
+</div>
+
+<div class="warnbox">
+<h3>Honest limits of the ablation</h3>
+<p>The Phase-1 numbers are <b>directional, not definitive</b>: a single random seed; Exp A and Exp B used
+<em>different</em> normalisation statistics (a confound); and Exp B was under-trained (it peaked far earlier
+than the others). So A (22.34) versus B (22.84) is well within noise and should not be read as
+"subgraph beats full graph." The robust takeaways are only the three bullets above.</p>
+</div>
+
+<h2>3. Phase 2 — What we changed (data-foundation fixes)</h2>
+<p>A separate stress-test of the pipeline found five foundation-level issues in how the raw data was prepared.
+These were corrected (full detail in the companion change report and <code>docs/notes/decisions.md</code>,
+entries D-011 to D-015):</p>
+<table>
+<tr><th>Fix</th><th>Before → After</th></tr>
+<tr><td>Weather timezone</td><td>Weather merged 11 h out of sync → fetched in Melbourne local time (peak
+temperature moved from a 4 am label to 2 pm)</td></tr>
+<tr><td>Foot-traffic scaling</td><td>One global scale (busy streets at 4–10 std-devs) → <code>log1p</code>
+compression before scaling (range now −1.7 to 3.4)</td></tr>
+<tr><td>Sensor outages</td><td>Filled with zero (looked like quiet streets) → short gaps interpolated,
+long outages flagged and excluded from training/scoring (6.3% of sensor bins)</td></tr>
+<tr><td>Imputed-street confidence</td><td>One blanket value → borrowed from the most similar measured streets</td></tr>
+<tr><td>Non-sensor parking</td><td>Set to 0% ("empty") → set to the sensor mean ("unknown")</td></tr>
+</table>
+
+<h2>4. Phase 3 — Retrained model results</h2>
+<p>The model was retrained on the corrected data. The figures below are the <b>all-street</b> metrics
+(pedestrian errors measured over observed bins only, after the outage mask):</p>
+<table>
+<tr><th>Metric (all 1,397 streets)</th><th class="num">Previous model</th><th class="num">Retrained model</th><th class="num">Change</th></tr>
+<tr><td>Test pedestrian MAE</td><td class="num">5.535</td><td class="num win">4.454</td><td class="num">−19.5%</td></tr>
+<tr><td>Test pedestrian R²</td><td class="num">0.890</td><td class="num win">0.911</td><td class="num">+0.021</td></tr>
+<tr><td>Val pedestrian MAE</td><td class="num">5.646</td><td class="num win">4.689</td><td class="num">−17%</td></tr>
+<tr><td>Val pedestrian R²</td><td class="num">0.892</td><td class="num win">0.908</td><td class="num">+0.016</td></tr>
+<tr><td>Test parking MAE</td><td class="num">0.048</td><td class="num">0.050</td><td class="num">~flat</td></tr>
+<tr><td>Test parking R²</td><td class="num">0.887</td><td class="num">0.883</td><td class="num">~flat</td></tr>
+<tr><td>Best epoch</td><td class="num">215</td><td class="num">179</td><td class="num">faster</td></tr>
+</table>
+
+<div class="box">
+<h3>Why the improvement is genuine — and conservative</h3>
+<ul>
+<li><b>Two fixes pull opposite ways on the score, and the good one won.</b> Excluding the fake-zero outage
+bins <em>removes</em> easy correct answers (a headwind that should raise error), yet error still fell ~20%.
+The <code>log1p</code> fix improved numerical conditioning so busy streets are no longer in an unstable range
+— that gain outweighed the headwind. So the true modelling improvement is <em>larger</em> than 19.5%.</li>
+<li><b>R² rose as well as MAE.</b> R² is scale-relative and far less sensitive to the changed evaluation
+denominator, so its rise (0.890 → 0.911) corroborates a real gain rather than a metric artefact.</li>
+<li><b>Parking unchanged</b>, confirming the parking pathway was not disturbed by the changes; training
+converged cleanly with no instability.</li>
+</ul>
+</div>
+
+<div class="warnbox">
+<h3>Do not cross-compare Phase 1 and Phase 3 numbers</h3>
+<p>Phase 3's <b>4.45</b> is an average over <b>all 1,397 streets</b> (mostly easy imputed ones); Phase 1's
+<b>22–30</b> are averages over the <b>74 sensor streets only</b>. They measure different populations and are
+<b>not comparable</b> — "22.8 → 4.45" would be a false claim. The legitimate comparison is Phase 3 against the
+<em>previous all-street model</em> (5.54 → 4.45), shown above. The retrained model's <em>sensor-only</em>
+accuracy (the figure directly comparable to Exp A/B) <b>has not yet been measured</b> and remains to be
+re-run on the disaggregated test set.</p>
+</div>
+
+<h2>5. What this means, and what is still open</h2>
+<ul>
+<li><b>Established:</b> evaluation must be disaggregated; the unsensored streets are required for network
+connectivity (removing them isolates 35 of 74 sensor nodes); the foundation fixes improved the all-street
+model materially (−19.5% MAE, +0.02 R²) over the previous version.</li>
+<li><b>Not yet established:</b> whether the full imputed network <em>improves accuracy</em> on the sensored
+streets. The current ablation is too weak (single seed, normalisation confound, under-trained Exp B) to
+decide this in either direction.</li>
+<li><b>Next steps to make a rigorous comparative claim:</b> (a) re-measure the retrained model's sensor-only
+MAE so it is comparable to Exp A/B; (b) run a hardened ablation — three conditions (sensor-only subgraph;
+full graph + masked loss; full graph + all-street loss), identical normalisation, identical epoch budget,
+≥5 seeds, reported as mean ± std.</li>
+</ul>
+
+<p class="small">Sources: ablation results (D-010, 2026-06-02); foundation fixes (D-011 to D-015,
+2026-06-03); retrained model <code>model_eval.json</code> (best epoch 179). Pedestrian metrics in Phase 3
+are over observed (non-outage) bins.</p>
+
+</body>
+</html>

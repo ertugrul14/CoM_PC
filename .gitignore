@@ -94,3 +94,15 @@ package-lock.json
 .cache/
 dist/
 build/
+
+# Lightning upload bundles + archives (regenerable via bundle_*.py — never push)
+fix5_bundle/
+ablation_bundle/
+ablation_v2_bundle/
+training_bundle/
+*.zip
+*.tar.gz
+*.tar
+*.gz
+# Any .npy anywhere (cube copies inside bundles, etc.) exceed GitHub limits
+*.npy

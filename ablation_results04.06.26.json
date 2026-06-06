@@ -1,0 +1,326 @@
+{
+  "config": {
+    "seeds": [
+      42,
+      1,
+      2
+    ],
+    "ped_denorm": "log1p (expm1 inverse) \u2014 D-012 contract",
+    "note": "ExpA recomputes norm_stats on the 74-street subcube; ExpB uses the global cube stats. Each model is normalised to its own training distribution, so the comparison is fair, but the stats differ by design."
+  },
+  "original_full_model": {
+    "description": "Original model metrics from model_eval.json",
+    "val_ped_mae": 4.6894,
+    "val_ped_r2": 0.9079,
+    "test_ped_mae": 4.4542,
+    "test_ped_r2": 0.9107,
+    "best_epoch": 179,
+    "n_params": 68076
+  },
+  "baseline_full_model_sensor_eval": {
+    "description": "Existing model, ped metrics on 74 sensor streets only",
+    "all_streets": {
+      "val": {
+        "ped_mae": 4.6981,
+        "ped_rmse": 19.4826,
+        "ped_r2": 0.9077,
+        "park_mae": 0.0566,
+        "park_rmse": 0.0909,
+        "park_r2": 0.8867
+      },
+      "test": {
+        "ped_mae": 4.442,
+        "ped_rmse": 19.5,
+        "ped_r2": 0.9106,
+        "park_mae": 0.05,
+        "park_rmse": 0.0841,
+        "park_r2": 0.8833
+      }
+    },
+    "sensor_only": {
+      "val": {
+        "ped_mae": 30.6247,
+        "ped_rmse": 73.4977,
+        "ped_r2": 0.844,
+        "park_mae": 0.0566,
+        "park_rmse": 0.0909,
+        "park_r2": 0.8867
+      },
+      "test": {
+        "ped_mae": 28.0225,
+        "ped_rmse": 73.3817,
+        "ped_r2": 0.848,
+        "park_mae": 0.05,
+        "park_rmse": 0.0841,
+        "park_r2": 0.8833
+      }
+    }
+  },
+  "experiment_a_sensor_subgraph": {
+    "seeds": [
+      42,
+      1,
+      2
+    ],
+    "test_ped_mae": {
+      "mean": 54.7112,
+      "std": 1.3196,
+      "per_seed": {
+        "42": 53.0785,
+        "1": 56.3103,
+        "2": 54.7449
+      }
+    },
+    "test_ped_r2": {
+      "mean": 0.5661,
+      "std": 0.0304,
+      "per_seed": {
+        "42": 0.6003,
+        "1": 0.5716,
+        "2": 0.5264
+      }
+    },
+    "val_ped_mae": {
+      "mean": 53.5031,
+      "std": 0.7237,
+      "per_seed": {
+        "42": 52.4804,
+        "1": 53.9815,
+        "2": 54.0475
+      }
+    },
+    "runs": [
+      {
+        "n_params": 65430,
+        "best_epoch": 100,
+        "training_time_s": 135.0,
+        "val": {
+          "ped_mae": 52.4804,
+          "ped_rmse": 115.1324,
+          "ped_r2": 0.6172,
+          "park_mae": 0.0432,
+          "park_rmse": 0.0764,
+          "park_r2": 0.92
+        },
+        "test": {
+          "ped_mae": 53.0785,
+          "ped_rmse": 119.0174,
+          "ped_r2": 0.6003,
+          "park_mae": 0.0331,
+          "park_rmse": 0.0642,
+          "park_r2": 0.9395
+        },
+        "n_nodes": 74,
+        "spatial_edges": 58,
+        "semantic_edges": 84,
+        "isolated_nodes": 35,
+        "parking_streets": 28,
+        "description": "74-node subgraph, real sensor data only, 35 isolated nodes"
+      },
+      {
+        "n_params": 65430,
+        "best_epoch": 101,
+        "training_time_s": 138.8,
+        "val": {
+          "ped_mae": 53.9815,
+          "ped_rmse": 118.4882,
+          "ped_r2": 0.5945,
+          "park_mae": 0.0448,
+          "park_rmse": 0.0778,
+          "park_r2": 0.917
+        },
+        "test": {
+          "ped_mae": 56.3103,
+          "ped_rmse": 123.2148,
+          "ped_r2": 0.5716,
+          "park_mae": 0.0345,
+          "park_rmse": 0.0647,
+          "park_r2": 0.9386
+        },
+        "n_nodes": 74,
+        "spatial_edges": 58,
+        "semantic_edges": 84,
+        "isolated_nodes": 35,
+        "parking_streets": 28,
+        "description": "74-node subgraph, real sensor data only, 35 isolated nodes"
+      },
+      {
+        "n_params": 65430,
+        "best_epoch": 111,
+        "training_time_s": 150.0,
+        "val": {
+          "ped_mae": 54.0475,
+          "ped_rmse": 179.8061,
+          "ped_r2": 0.0663,
+          "park_mae": 0.0409,
+          "park_rmse": 0.0752,
+          "park_r2": 0.9224
+        },
+        "test": {
+          "ped_mae": 54.7449,
+          "ped_rmse": 129.5519,
+          "ped_r2": 0.5264,
+          "park_mae": 0.0312,
+          "park_rmse": 0.0627,
+          "park_r2": 0.9423
+        },
+        "n_nodes": 74,
+        "spatial_edges": 58,
+        "semantic_edges": 84,
+        "isolated_nodes": 35,
+        "parking_streets": 28,
+        "description": "74-node subgraph, real sensor data only, 35 isolated nodes"
+      }
+    ]
+  },
+  "experiment_b_full_graph_sensor_loss": {
+    "seeds": [
+      42,
+      1,
+      2
+    ],
+    "test_ped_mae": {
+      "mean": 24.968,
+      "std": 0.2793,
+      "per_seed": {
+        "42": 25.2165,
+        "1": 24.5779,
+        "2": 25.1097
+      }
+    },
+    "test_ped_r2": {
+      "mean": 0.8842,
+      "std": 0.0035,
+      "per_seed": {
+        "42": 0.8795,
+        "1": 0.8877,
+        "2": 0.8855
+      }
+    },
+    "val_ped_mae": {
+      "mean": 27.2179,
+      "std": 0.5209,
+      "per_seed": {
+        "42": 27.4393,
+        "1": 26.4988,
+        "2": 27.7157
+      }
+    },
+    "runs": [
+      {
+        "n_params": 68076,
+        "best_epoch": 149,
+        "training_time_s": 4256.4,
+        "val": {
+          "ped_mae": 27.4393,
+          "ped_rmse": 64.071,
+          "ped_r2": 0.8814,
+          "park_mae": 0.0591,
+          "park_rmse": 0.0932,
+          "park_r2": 0.8808
+        },
+        "test": {
+          "ped_mae": 25.2165,
+          "ped_rmse": 65.356,
+          "ped_r2": 0.8795,
+          "park_mae": 0.0521,
+          "park_rmse": 0.0859,
+          "park_r2": 0.8781
+        },
+        "val_all_streets": {
+          "ped_mae": 8.2634,
+          "ped_rmse": 24.4029,
+          "ped_r2": 0.8553,
+          "park_mae": 0.0591,
+          "park_rmse": 0.0932,
+          "park_r2": 0.8808
+        },
+        "test_all_streets": {
+          "ped_mae": 7.7757,
+          "ped_rmse": 24.539,
+          "ped_r2": 0.8584,
+          "park_mae": 0.0521,
+          "park_rmse": 0.0859,
+          "park_r2": 0.8781
+        },
+        "description": "Full 1397-node graph, ped loss masked to 74 sensor streets"
+      },
+      {
+        "n_params": 68076,
+        "best_epoch": 173,
+        "training_time_s": 4847.4,
+        "val": {
+          "ped_mae": 26.4988,
+          "ped_rmse": 61.5685,
+          "ped_r2": 0.8905,
+          "park_mae": 0.0562,
+          "park_rmse": 0.0907,
+          "park_r2": 0.8872
+        },
+        "test": {
+          "ped_mae": 24.5779,
+          "ped_rmse": 63.0822,
+          "ped_r2": 0.8877,
+          "park_mae": 0.0498,
+          "park_rmse": 0.0845,
+          "park_r2": 0.8821
+        },
+        "val_all_streets": {
+          "ped_mae": 7.8556,
+          "ped_rmse": 23.3082,
+          "ped_r2": 0.868,
+          "park_mae": 0.0562,
+          "park_rmse": 0.0907,
+          "park_r2": 0.8872
+        },
+        "test_all_streets": {
+          "ped_mae": 7.3915,
+          "ped_rmse": 23.7313,
+          "ped_r2": 0.8676,
+          "park_mae": 0.0498,
+          "park_rmse": 0.0845,
+          "park_r2": 0.8821
+        },
+        "description": "Full 1397-node graph, ped loss masked to 74 sensor streets"
+      },
+      {
+        "n_params": 68076,
+        "best_epoch": 78,
+        "training_time_s": 2520.9,
+        "val": {
+          "ped_mae": 27.7157,
+          "ped_rmse": 64.4284,
+          "ped_r2": 0.8801,
+          "park_mae": 0.0599,
+          "park_rmse": 0.0939,
+          "park_r2": 0.879
+        },
+        "test": {
+          "ped_mae": 25.1097,
+          "ped_rmse": 63.7093,
+          "ped_r2": 0.8855,
+          "park_mae": 0.0518,
+          "park_rmse": 0.0852,
+          "park_r2": 0.8801
+        },
+        "val_all_streets": {
+          "ped_mae": 7.9506,
+          "ped_rmse": 23.6129,
+          "ped_r2": 0.8645,
+          "park_mae": 0.0599,
+          "park_rmse": 0.0939,
+          "park_r2": 0.879
+        },
+        "test_all_streets": {
+          "ped_mae": 7.4631,
+          "ped_rmse": 23.6127,
+          "ped_r2": 0.8689,
+          "park_mae": 0.0518,
+          "park_rmse": 0.0852,
+          "park_r2": 0.8801
+        },
+        "description": "Full 1397-node graph, ped loss masked to 74 sensor streets"
+      }
+    ]
+  }
+}

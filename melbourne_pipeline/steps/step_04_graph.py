@@ -5,30 +5,40 @@ Street eligibility (both graphs):
   - str_type in {Arterial, Council Major} only
   - Segments named "Intersection of …" are excluded
 
-Spatial graph:  k-NN on centroid distance.  Weight = exp(−d / σ).
+Spatial graph:  Intersection-topology edges.  Streets whose polygon
+  boundaries physically touch (share at least a point) are connected —
+  i.e. they meet at a real intersection.  Edge weight = exp(−d / σ) where
+  d = centroid distance and σ = median centroid distance across all
+  intersection edges (Gaussian kernel, topology-constrained).
 
-Semantic graph: per-feature ratio matching on activity features.
+  Fallback: 25 streets in the eligible set are geometrically isolated
+  (no touching eligible neighbour).  Each isolate is connected to its
+  single nearest centroid neighbour (k=1 NN) with weight 0.0 so the
+  GCN receives a valid adjacency for every node.  These edges carry zero
+  weight and are flagged with dist_m > 0 so downstream code can filter
+  them if needed.
+
+Semantic graph: cosine similarity on z-scored log1p features + mutual k-NN.
 
   Logic:
-  1. A street needs ≥ MIN_ACTIVE_FEATURES (3) non-zero activity features.
-  2. A pair qualifies only if:
-       a. They share ≥ MIN_SHARED_FEATURES (2) non-zero features
-       b. Shared features cover ≥ MIN_SHARED_RATIO (60%) of the smaller
-          street's active profile
-       c. For EVERY shared feature d:
-            ratio_d = min(log1p(Xi_d), log1p(Xj_d))
-                    / max(log1p(Xi_d), log1p(Xj_d))
-            ratio_d ≥ FEATURE_SIM_THRESHOLD (0.70)
-          — this is a hard per-feature gate; one mismatched feature
-            blocks the connection entirely
-  3. Edge weight = mean ratio across shared features.
+  1. Apply log1p to each feature, then z-score across streets (zero mean,
+     unit variance). This normalises scale differences (jobs vs floorspace)
+     so cosine similarity is not dominated by high-magnitude features.
+  2. Compute pairwise cosine similarity between all 1,397 street vectors.
+  3. For each street, keep the top-K (K_SEMANTIC) most similar neighbours
+     by cosine score above COS_THRESHOLD.
+  4. Mutual k-NN: only retain edges where BOTH streets are in each other's
+     top-K list. This symmetry constraint prevents hub nodes from pulling
+     in many dissimilar neighbours.
+  5. Edge weight = cosine similarity value.
 
-  Rationale for log1p ratios:
-  • log1p(10)/log1p(5)  = 0.83 → close enough (2:1 raw)
-  • log1p(20)/log1p(5)  = 0.73 → borderline (4:1 raw)
-  • log1p(50)/log1p(5)  = 0.60 → rejected   (10:1 raw)
-  • All-or-nothing per feature: streets with 1 café and 10 cafés are
-    different places, even if everything else matches.
+  Rationale vs. old log1p-ratio approach:
+  • Old approach used a hard per-feature gate (ALL shared dims must pass
+    ratio ≥ 0.70), which blocked any edge if one feature differed — causing
+    77% isolates. Cosine is a holistic comparison; one noisy feature cannot
+    veto the whole connection.
+  • Mutual k-NN avoids the hub-and-spoke degeneration common in one-sided
+    k-NN graphs, while keeping the graph sparse and interpretable.
 
 Outputs (all in data/processed/):
   node_index.parquet     — street_id → node_idx (0-based)
@@ -43,6 +53,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+from shapely.strtree import STRtree
 from sklearn.neighbors import NearestNeighbors
 
 from config import PROCESSED_DIR, RAW_DIR, STREETS_GEOJSON
@@ -53,18 +64,26 @@ log = logging.getLogger(__name__)
 KEEP_STR_TYPES = {"Arterial", "Council Major"}
 
 # ── Spatial graph ────────────────────────────────────────────────────────────
-K_SPATIAL = 8
+# Intersection-topology: streets whose polygons touch get an edge.
+# Isolates (no touching neighbour) fall back to k=1 nearest centroid.
+K_SPATIAL_FALLBACK = 1
 
 # ── Semantic graph ───────────────────────────────────────────────────────────
+# Tier-A features: CV > 1, zero_pct < 60%, meaningful urban-activity signal.
+# Excludes: centroid_lat/lon (spatial, not semantic), poi_total (derived sum),
+#           cafe_*/bar_*/dining_capacity (sparse, low CV relative to zero_pct).
 SEMANTIC_FEATURE_COLS = [
-    "total_jobs", "cafe_count", "cafe_total_seats",
-    "bar_count", "bar_patron_capacity",
-    "business_count", "poi_total",
+    "total_jobs", "jobs_office", "jobs_retail",
+    "retail_floorspace", "office_floorspace",
+    "dwelling_count", "dwellings_apartment",
+    "business_count",
+    "floorspace_residential_apt", "floorspace_entertainment",
+    "offstreet_spaces",
+    "floors_mean", "area_m2", "building_count",
+    "tram_stops_300m", "cbd_distance_m",
 ]
-MIN_ACTIVE_FEATURES   = 3    # street must have ≥ 3 non-zero features to be eligible
-MIN_SHARED_FEATURES   = 2    # pair must share ≥ 2 non-zero features
-MIN_SHARED_RATIO      = 0.60 # shared must cover ≥ 60% of smaller street's active profile
-FEATURE_SIM_THRESHOLD = 0.70 # per-feature log1p ratio — hard gate, ALL features must pass
+K_SEMANTIC    = 10    # mutual k-NN neighbourhood size
+COS_THRESHOLD = 0.85  # minimum cosine similarity to form an edge
 
 # ── Viz cap ──────────────────────────────────────────────────────────────────
 VIZ_SEMANTIC_TOP_N = 4_000
@@ -118,39 +137,97 @@ def _build_node_index(static: pd.DataFrame) -> pd.DataFrame:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _build_spatial_graph(static: pd.DataFrame, node_idx: pd.DataFrame) -> pd.DataFrame:
-    log.info(f"Part A: Spatial graph (k={K_SPATIAL})")
+    """
+    Build intersection-topology spatial graph.
 
+    Primary edges: street polygon pairs whose boundaries touch (share ≥ 1 point).
+    Edge weight = exp(−d / σ) where d = centroid distance and σ = median distance
+    across all intersection edges (Gaussian kernel, topology-constrained).
+
+    Fallback edges: isolates (no touching neighbour) receive one k=1 NN edge
+    with weight=0.0 so every node has at least one outgoing edge.
+
+    Inputs:  static with centroid_lat/lon; node_idx mapping street_id → node_idx.
+    Outputs: DataFrame [node_i, node_j, dist_m, weight] — bidirectional.
+    Assumes: STREETS_GEOJSON contains MultiPolygon street surfaces in EPSG:4326.
+    """
+    log.info("Part A: Spatial graph (intersection-topology)")
+
+    # ── Load street polygons for the eligible subset ──────────────────────────
+    gdf = gpd.read_file(STREETS_GEOJSON)[["street_id", "str_type", "name", "geometry"]]
+    gdf["street_id"] = gdf["street_id"].astype(str)
+    keep_sids = set(node_idx["street_id"])
+    gdf = gdf[gdf["street_id"].isin(keep_sids)].reset_index(drop=True)
+
+    # Align gdf row order to node_idx order so position i == node_idx i
+    sid_to_node = dict(zip(node_idx["street_id"], node_idx["node_idx"]))
+    node_to_sid = dict(zip(node_idx["node_idx"], node_idx["street_id"]))
+    gdf = gdf.set_index("street_id").reindex(node_idx["street_id"]).reset_index()
+    N = len(gdf)
+
+    # ── STRtree touch query ───────────────────────────────────────────────────
+    tree = STRtree(gdf.geometry)
+    geoms = gdf.geometry.values
+
+    touch_pairs: set[tuple[int, int]] = set()
+
+    for i in range(N):
+        candidates = tree.query(geoms[i], predicate="touches")
+        for j in candidates:
+            if i == j:
+                continue
+            touch_pairs.add((min(i, j), max(i, j)))
+
+    log.info(f"  Intersection edges (undirected): {len(touch_pairs):,}")
+
+    # ── Centroid coords for dist_m + fallback ─────────────────────────────────
     coords = static[["street_id", "centroid_lat", "centroid_lon"]].copy()
+    coords = coords.set_index("street_id").reindex(node_idx["street_id"]).reset_index()
     coords["x_m"] = (coords["centroid_lon"] - _REF_LON) * _LON_M
     coords["y_m"] = (coords["centroid_lat"] - _REF_LAT) * _LAT_M
     xy = coords[["x_m", "y_m"]].values
 
-    nbrs = NearestNeighbors(n_neighbors=K_SPATIAL + 1, algorithm="ball_tree", metric="euclidean")
-    nbrs.fit(xy)
-    distances, indices = nbrs.kneighbors(xy)
-    distances = distances[:, 1:]
-    indices   = indices[:, 1:]
+    # Centroid distance lookup (for dist_m column)
+    def _cdist(i: int, j: int) -> float:
+        dx = xy[i, 0] - xy[j, 0]
+        dy = xy[i, 1] - xy[j, 1]
+        return float(np.sqrt(dx * dx + dy * dy))
 
-    sigma = float(np.median(distances))
-    log.info(f"  σ={sigma:.1f} m  max={distances.max():.1f} m")
+    # Gaussian kernel weights: σ = median centroid distance across intersection edges
+    if touch_pairs:
+        pair_dists = np.array([_cdist(i, j) for i, j in touch_pairs])
+        sigma = float(np.median(pair_dists))
+    else:
+        sigma = 1.0
+    log.info(f"  σ={sigma:.1f} m  (median intersection centroid distance)")
 
-    sid_to_node = dict(zip(node_idx["street_id"], node_idx["node_idx"]))
-    street_ids  = coords["street_id"].values
+    rows: list[tuple] = []
+    connected: set[int] = set()
 
-    rows = []
-    for i in range(len(street_ids)):
-        ni = sid_to_node[street_ids[i]]
-        for k in range(K_SPATIAL):
-            j  = int(indices[i, k])
-            nj = sid_to_node[street_ids[j]]
-            d  = float(distances[i, k])
-            w  = float(np.exp(-d / sigma))
-            rows.append((ni, nj, d, w))
-            rows.append((nj, ni, d, w))
+    for (i, j) in touch_pairs:
+        d = _cdist(i, j)
+        w = float(np.exp(-d / sigma))
+        rows.append((i, j, d, w))
+        rows.append((j, i, d, w))
+        connected.add(i)
+        connected.add(j)
+
+    # ── Fallback: nearest-centroid edge for isolates ──────────────────────────
+    isolates = [i for i in range(N) if i not in connected]
+    if isolates:
+        log.info(f"  Isolates needing fallback: {len(isolates)} — adding k=1 NN edges")
+        nbrs = NearestNeighbors(n_neighbors=2, algorithm="ball_tree", metric="euclidean")
+        nbrs.fit(xy)
+        for i in isolates:
+            distances_i, indices_i = nbrs.kneighbors(xy[i:i+1])
+            j = int(indices_i[0, 1])   # index 0 is self
+            d = float(distances_i[0, 1])
+            rows.append((i, j, d, 0.0))
+            rows.append((j, i, d, 0.0))
 
     edges = pd.DataFrame(rows, columns=["node_i", "node_j", "dist_m", "weight"])
     edges = edges.drop_duplicates(subset=["node_i", "node_j"])
-    log.info(f"  Spatial edges: {len(edges):,}")
+    log.info(f"  Spatial edges total (bidirectional): {len(edges):,}")
     return edges
 
 
@@ -159,105 +236,79 @@ def _build_spatial_graph(static: pd.DataFrame, node_idx: pd.DataFrame) -> pd.Dat
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _build_semantic_graph(static: pd.DataFrame, node_idx: pd.DataFrame) -> pd.DataFrame:
-    log.info("Part B: Semantic graph (per-feature ratio matching)")
-    log.info(f"  Features: {SEMANTIC_FEATURE_COLS}")
-    log.info(
-        f"  Rules: ≥{MIN_ACTIVE_FEATURES} active features, "
-        f"≥{MIN_SHARED_FEATURES} shared (≥{MIN_SHARED_RATIO:.0%} of smaller profile), "
-        f"ALL shared features must have log1p ratio ≥ {FEATURE_SIM_THRESHOLD}"
-    )
+    """
+    Build semantic graph via cosine similarity on z-scored log1p features + mutual k-NN.
+
+    Inputs:  static DataFrame aligned to node_idx row order.
+    Outputs: DataFrame with columns [node_i, node_j, similarity, weight] (bidirectional).
+    Assumes: SEMANTIC_FEATURE_COLS are all present in static; NaNs filled to 0.
+    """
+    log.info("Part B: Semantic graph (cosine + mutual k-NN)")
+    log.info(f"  Features ({len(SEMANTIC_FEATURE_COLS)}): {SEMANTIC_FEATURE_COLS}")
+    log.info(f"  K_SEMANTIC={K_SEMANTIC}  COS_THRESHOLD={COS_THRESHOLD}")
 
     df = (
         static.set_index("street_id")
         .reindex(node_idx["street_id"])[SEMANTIC_FEATURE_COLS]
         .fillna(0.0)
     )
+    N = len(node_idx)
     X_raw = df.values.astype(np.float64)   # (N, F)
-    X_log = np.log1p(X_raw)                # log1p-transformed values
 
-    # ── Eligibility ───────────────────────────────────────────────────────────
-    active_mask  = X_raw > 0
-    active_count = active_mask.sum(axis=1)
-    elig_idx     = np.where(active_count >= MIN_ACTIVE_FEATURES)[0]
-    log.info(f"  Eligible: {len(elig_idx)} / {len(node_idx)} streets")
+    # ── 1. log1p transform then z-score per feature ───────────────────────────
+    X_log = np.log1p(X_raw)
+    col_mean = X_log.mean(axis=0)
+    col_std  = X_log.std(axis=0)
+    col_std  = np.where(col_std < 1e-9, 1.0, col_std)  # avoid divide-by-zero on constant cols
+    X_z = (X_log - col_mean) / col_std                  # (N, F) z-scored
 
-    if len(elig_idx) == 0:
-        return pd.DataFrame(columns=["node_i", "node_j", "similarity", "weight"])
+    # ── 2. L2-normalise rows for cosine via dot product ───────────────────────
+    norms = np.linalg.norm(X_z, axis=1, keepdims=True)
+    norms = np.where(norms < 1e-9, 1.0, norms)
+    X_norm = X_z / norms                                 # (N, F)
 
-    X_elig      = X_log[elig_idx]         # (E, F) log1p values
-    act_elig    = active_mask[elig_idx]   # (E, F) boolean
-    act_cnt_el  = active_count[elig_idx]  # (E,)
+    # ── 3. Full cosine similarity matrix (float32 to save memory) ────────────
+    # N=1,397 → 1,397² ≈ 1.95 M entries; float32 ≈ 7.8 MB — fine in memory.
+    sim = (X_norm @ X_norm.T).astype(np.float32)
+    np.fill_diagonal(sim, -2.0)                          # exclude self
 
-    # Approximate cosine for candidate pre-filtering (avoid full O(E²) detail pass)
-    norms      = np.linalg.norm(X_elig, axis=1, keepdims=True)
-    norms      = np.where(norms == 0, 1e-8, norms)
-    X_norm     = X_elig / norms
-    sim_approx = (X_norm @ X_norm.T).astype(np.float32)
-    np.fill_diagonal(sim_approx, -1.0)
+    # ── 4. Build per-street top-K neighbour sets (one-sided k-NN) ────────────
+    # argsort ascending → last K entries are highest similarity
+    top_k = np.argsort(sim, axis=1)[:, -K_SEMANTIC:]    # (N, K)
 
-    sid_to_node = dict(zip(node_idx["street_id"], node_idx["node_idx"]))
-    all_sids    = node_idx["street_id"].values
+    # ── 5. Mutual k-NN: edge exists iff i in top_k[j] AND j in top_k[i] ─────
+    # Build adjacency as set for O(1) lookup
+    neighbour_sets: list[set] = [set(top_k[i].tolist()) for i in range(N)]
 
-    rows  = []
-    added = set()
-    stats = {"cand": 0, "pass_shared": 0, "pass_ratio": 0}
+    rows: list[tuple] = []
+    added: set        = set()
 
-    for i in range(len(elig_idx)):
-        ni       = sid_to_node[all_sids[elig_idx[i]]]
-        top_cand = np.argsort(sim_approx[i])[-20:][::-1]
-
-        for j in top_cand:
-            if i == j:
+    for i in range(N):
+        for j in neighbour_sets[i]:
+            if i not in neighbour_sets[j]:
+                continue                                  # not mutual — skip
+            cos = float(sim[i, j])
+            if cos < COS_THRESHOLD:
                 continue
-            stats["cand"] += 1
-
-            # ── Gate 1: shared non-zero features ─────────────────────────────
-            shared    = act_elig[i] & act_elig[j]        # features non-zero in BOTH
-            n_shared  = int(shared.sum())
-            if n_shared < MIN_SHARED_FEATURES:
+            pair = (min(i, j), max(i, j))
+            if pair in added:
                 continue
-            min_act = int(min(act_cnt_el[i], act_cnt_el[j]))
-            if n_shared < MIN_SHARED_RATIO * min_act:
-                continue
-            stats["pass_shared"] += 1
-
-            # ── Gate 2: per-feature log1p ratio — ALL shared dims must pass ──
-            # For each shared feature d:
-            #   ratio = min(log1p(a), log1p(b)) / max(log1p(a), log1p(b))
-            # Both values are already log1p-transformed in X_elig.
-            xi_sh = X_elig[i][shared]
-            xj_sh = X_elig[j][shared]
-
-            lo = np.minimum(xi_sh, xj_sh)
-            hi = np.maximum(xi_sh, xj_sh)
-            hi = np.where(hi < 1e-9, 1e-9, hi)
-            ratios = lo / hi                  # per-feature similarity in [0, 1]
-
-            if (ratios < FEATURE_SIM_THRESHOLD).any():
-                continue                      # one bad feature → reject pair
-            stats["pass_ratio"] += 1
-
-            # Edge weight = mean ratio across shared features
-            weight = float(ratios.mean())
-
-            nj   = sid_to_node[all_sids[elig_idx[j]]]
-            pair = (min(ni, nj), max(ni, nj))
-            if pair not in added:
-                added.add(pair)
-                rows.append((ni, nj, weight, weight))
-                rows.append((nj, ni, weight, weight))
-
-    log.info(
-        f"  Candidates: {stats['cand']:,} → "
-        f"passed shared: {stats['pass_shared']:,} → "
-        f"passed per-feature ratio: {stats['pass_ratio']:,}"
-    )
+            added.add(pair)
+            rows.append((i, j, cos, cos))
+            rows.append((j, i, cos, cos))
 
     edges = pd.DataFrame(rows, columns=["node_i", "node_j", "similarity", "weight"])
-    edges = edges.drop_duplicates(subset=["node_i", "node_j"])
+
+    # ── 6. Diagnostics ────────────────────────────────────────────────────────
+    n_connected = len(set(edges["node_i"].unique()))
+    n_isolated  = N - n_connected
     log.info(f"  Semantic edges: {len(edges):,} (bidirectional)")
+    log.info(f"  Connected nodes: {n_connected} / {N} ({n_isolated} isolates)")
     if len(edges):
-        log.info(f"  Weight range: [{edges['weight'].min():.3f}, {edges['weight'].max():.3f}]")
+        log.info(
+            f"  Cosine range: [{edges['similarity'].min():.3f}, "
+            f"{edges['similarity'].max():.3f}]  mean={edges['similarity'].mean():.3f}"
+        )
     return edges
 
 
@@ -301,8 +352,11 @@ def _export_graph_viz(static, node_idx, spatial_edges, semantic_edges) -> Path:
             "properties": props,
         })
 
-    # ── Spatial edges ─────────────────────────────────────────────────────────
-    sp_uniq = spatial_edges[spatial_edges["node_i"] < spatial_edges["node_j"]]
+    # ── Spatial edges (exclude weight=0.0 fallback edges — viz only) ──────────
+    sp_uniq = spatial_edges[
+        (spatial_edges["node_i"] < spatial_edges["node_j"]) &
+        (spatial_edges["weight"] > 0)
+    ]
     for _, row in sp_uniq.iterrows():
         a = coords_lookup.get(int(row["node_i"]))
         b = coords_lookup.get(int(row["node_j"]))
@@ -360,7 +414,11 @@ def _validate(node_idx, spatial_edges, semantic_edges):
     if sem_isolated:
         log.info(f"  {sem_isolated} nodes have no semantic edges "
                  "(low-activity or ineligible streets — expected)")
-    assert (spatial_edges["weight"]  > 0).all(), "Zero/negative spatial weights"
+    # Fallback isolate edges carry weight=0.0 — check only for negative weights
+    assert (spatial_edges["weight"]  >= 0).all(), "Negative spatial weights"
+    n_fallback = (spatial_edges["weight"] == 0.0).sum() // 2
+    if n_fallback:
+        log.info(f"  {n_fallback} isolate fallback edge(s) with weight=0.0")
     if len(semantic_edges):
         assert (semantic_edges["weight"] > 0).all(), "Zero/negative semantic weights"
     assert (spatial_edges["node_i"]  != spatial_edges["node_j"]).all(), "Spatial self-loops"
@@ -429,12 +487,8 @@ def _enrich_static_features(
         node_idx["node_idx"].astype(int),
         node_idx["street_id"].astype(str),
     ))
-    bc_df = pd.DataFrame([
-        {"street_id": idx_to_sid[ni], "betweenness_centrality": val}
-        for ni, val in bc.items() if ni in idx_to_sid
-    ])
-    static = static.merge(bc_df, on="street_id", how="left")
-    static["betweenness_centrality"] = static["betweenness_centrality"].fillna(0.0)
+    bc_map = {idx_to_sid[ni]: val for ni, val in bc.items() if ni in idx_to_sid}
+    static["betweenness_centrality"] = static["street_id"].map(bc_map).fillna(0.0)
     log.info(f"  Betweenness centrality: max={static['betweenness_centrality'].max():.4f}")
 
     # Street centroid arrays for vectorised distance computation

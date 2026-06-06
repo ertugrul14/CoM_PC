@@ -1,0 +1,106 @@
+{
+  "experiment": "v2_sensor_union_fresh_graph",
+  "n_nodes": 189,
+  "ped_sensor_nodes": 74,
+  "parking_nodes": 143,
+  "seeds": [
+    42,
+    1,
+    2
+  ],
+  "test_ped_mae_sensor": {
+    "mean": 27.1605,
+    "std": 0.3697,
+    "per_seed": {
+      "42": 26.9713,
+      "1": 27.6773,
+      "2": 26.833
+    }
+  },
+  "test_ped_r2_sensor": {
+    "mean": 0.8916,
+    "std": 0.003,
+    "per_seed": {
+      "42": 0.8932,
+      "1": 0.8873,
+      "2": 0.8942
+    }
+  },
+  "test_ped_mae_all": {
+    "mean": 20.9894,
+    "std": 0.361,
+    "per_seed": {
+      "42": 21.4023,
+      "1": 21.043,
+      "2": 20.523
+    }
+  },
+  "test_park_mae": {
+    "mean": 0.0631,
+    "std": 0.0004,
+    "per_seed": {
+      "42": 0.0627,
+      "1": 0.0637,
+      "2": 0.0628
+    }
+  },
+  "runs": [
+    {
+      "seed": 42,
+      "best_epoch": 134,
+      "train_time_s": 470.1,
+      "val": {
+        "ped_mae_sensor": 26.9361,
+        "ped_r2_sensor": 0.9014,
+        "ped_mae_all": 21.8755,
+        "park_mae": 0.0711,
+        "park_r2": 0.8415
+      },
+      "test": {
+        "ped_mae_sensor": 26.9713,
+        "ped_r2_sensor": 0.8932,
+        "ped_mae_all": 21.4023,
+        "park_mae": 0.0627,
+        "park_r2": 0.8388
+      }
+    },
+    {
+      "seed": 1,
+      "best_epoch": 119,
+      "train_time_s": 427.0,
+      "val": {
+        "ped_mae_sensor": 27.9503,
+        "ped_r2_sensor": 0.8897,
+        "ped_mae_all": 21.511,
+        "park_mae": 0.0729,
+        "park_r2": 0.8367
+      },
+      "test": {
+        "ped_mae_sensor": 27.6773,
+        "ped_r2_sensor": 0.8873,
+        "ped_mae_all": 21.043,
+        "park_mae": 0.0637,
+        "park_r2": 0.8349
+      }
+    },
+    {
+      "seed": 2,
+      "best_epoch": 166,
+      "train_time_s": 566.6,
+      "val": {
+        "ped_mae_sensor": 27.6062,
+        "ped_r2_sensor": 0.8931,
+        "ped_mae_all": 21.2662,
+        "park_mae": 0.0721,
+        "park_r2": 0.8373
+      },
+      "test": {
+        "ped_mae_sensor": 26.833,
+        "ped_r2_sensor": 0.8942,
+        "ped_mae_all": 20.523,
+        "park_mae": 0.0628,
+        "park_r2": 0.8359
+      }
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Category-A Foundation Fixes — Change Report</title>
+<style>
+  :root { --ink:#1a1a1a; --mut:#555; --line:#ccc; --bg:#f6f7f9; --acc:#0b5; }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.55 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+         color: var(--ink); max-width: 860px; margin: 30px auto; padding: 0 22px; }
+  h1 { font-size: 23px; margin: 0 0 2px; }
+  h2 { font-size: 17px; margin: 26px 0 6px; padding-bottom: 4px; border-bottom: 2px solid var(--ink); }
+  h3 { font-size: 14.5px; margin: 16px 0 4px; }
+  .sub { color: var(--mut); font-size: 12.5px; margin-bottom: 14px; }
+  p { margin: 6px 0; }
+  code { background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12.8px; }
+  th, td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); }
+  .fix { border: 1px solid var(--line); border-left: 4px solid var(--acc); border-radius: 5px;
+         padding: 10px 14px; margin: 12px 0; background: #fcfdfc; }
+  .fix h3 { margin-top: 2px; }
+  .lbl { display: inline-block; font-size: 11px; font-weight: 700; color: #fff; background: var(--acc);
+         border-radius: 3px; padding: 1px 6px; margin-right: 6px; vertical-align: middle; }
+  .row { display: grid; grid-template-columns: 92px 1fr; gap: 2px 10px; margin: 6px 0; }
+  .row b { color: var(--mut); font-weight: 600; font-size: 12.5px; }
+  .ba { font-size: 12.5px; }
+  .ba td:first-child { width: 70px; font-weight: 600; color: var(--mut); }
+  .note { background: var(--bg); border-radius: 5px; padding: 8px 12px; font-size: 12.8px; }
+  ul { margin: 5px 0; padding-left: 20px; } li { margin: 3px 0; }
+  @media print {
+    body { margin: 0; max-width: none; font-size: 11.5px; }
+    h2 { page-break-after: avoid; } .fix { page-break-inside: avoid; }
+    a { color: var(--ink); text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Curbside Intensification — Foundation Fixes (Version 2 → 3)</h1>
+<p class="sub">Methodology stress-test, Category-A corrections · Decisions D-011 to D-015 · 3 June 2026 ·
+Steps 01–08 changed under OVERRIDE; cube rebuilt; model retrain pending.</p>
+
+<h2>1. Why this round of changes</h2>
+<p>An internal stress-test of the pipeline found five foundation-level issues in how the raw data was
+prepared and fed to the model. None of them were visible in the headline accuracy number, but each one
+quietly distorted what the model was learning or what the results <em>meant</em>. The goal of this round
+was not to chase a better score — it was to make the numbers <strong>honest and defensible</strong>, so
+the thesis can stand up to examination. Three of the fixes deliberately make the model look slightly
+<em>harder-working</em> rather than better, because they remove a free pass it was previously getting.</p>
+
+<h2>2. The five changes at a glance</h2>
+<table>
+<tr><th>ID</th><th>What was wrong before</th><th>What it is now</th><th>Real-world consequence of the bug</th></tr>
+<tr><td><b>D-011</b></td><td>Weather pulled in UTC, joined to Melbourne-local activity data</td>
+   <td>Weather pulled in Melbourne local time</td>
+   <td>Every weather reading was attached to the wrong time of day (off by 11 h)</td></tr>
+<tr><td><b>D-012</b></td><td>One average/scale applied to every street's foot-traffic</td>
+   <td>Foot-traffic compressed with <code>log1p</code> before scaling</td>
+   <td>Busy streets sat in an extreme range the model handled poorly</td></tr>
+<tr><td><b>D-013</b></td><td>Sensor outages filled with zero</td>
+   <td>Short gaps interpolated; long outages flagged and excluded</td>
+   <td>Broken sensors looked like genuinely empty streets</td></tr>
+<tr><td><b>D-014</b></td><td>All imputed streets given one blanket confidence</td>
+   <td>Confidence borrowed from similar measured streets</td>
+   <td>A guessed street looked as trustworthy as any other guess</td></tr>
+<tr><td><b>D-015</b></td><td>Streets with no parking sensor set to 0% occupancy</td>
+   <td>Set to the average measured occupancy ("unknown")</td>
+   <td>"No sensor here" was treated as "definitely empty kerb"</td></tr>
+</table>
+
+<h2>3. Each change in detail</h2>
+
+<div class="fix">
+<h3><span class="lbl">D-011</span>Weather aligned to Melbourne local time</h3>
+<div class="row"><b>Problem</b><span>The pedestrian and parking data are stamped in Melbourne local time, but
+weather was downloaded in UTC and merged on the clock label. Melbourne runs 11 hours ahead, so 5&nbsp;pm
+foot-traffic was paired with roughly 6&nbsp;am weather.</span></div>
+<div class="row"><b>Why it matters</b><span>The model was effectively told "it was cool and dark when the
+evening crowds appeared." That scrambles any real link between weather and behaviour — and indeed the audit
+found weather was <em>hurting</em> predictions, a classic symptom of misaligned signals.</span></div>
+<div class="row"><b>Fix</b><span>Fetch weather with the region's timezone so its clock matches the activity data.</span></div>
+<table class="ba"><tr><td>Before</td><td>Warmest hour of the day landed at the <b>4&nbsp;am</b> label (physically impossible)</td></tr>
+<tr><td>After</td><td>Warmest hour lands at <b>2&nbsp;pm</b>, coldest at dawn — a correct daily cycle</td></tr></table>
+</div>
+
+<div class="fix">
+<h3><span class="lbl">D-012</span>Foot-traffic put on a log scale before normalisation</h3>
+<div class="row"><b>Problem</b><span>Pedestrian counts are extremely lopsided: most streets are quiet, a few are
+very busy. A single average-and-scale pushed the busy streets into an extreme numeric range (4–10 standard
+deviations out), which neural networks handle badly.</span></div>
+<div class="row"><b>Why it matters</b><span>The model spent its effort wrestling with a handful of giant
+numbers instead of learning patterns evenly across the city. We chose a <code>log1p</code> transform (which
+gently compresses large counts) rather than scaling each street separately, because it fixes the range
+problem <em>without</em> erasing the real difference between a quiet lane and a major mall.</span></div>
+<table class="ba"><tr><td>Before</td><td>Scaled foot-traffic spanned an unstable <b>0 to ~10</b></td></tr>
+<tr><td>After</td><td>Now a well-behaved <b>−1.7 to 3.4</b> — the problematic tail is gone</td></tr></table>
+<div class="row"><b>Note</b><span>Reported errors stay in real pedestrian units, so they remain comparable to the
+previous model. Parking occupancy was left untouched — it is already on a tidy 0–100% scale.</span></div>
+</div>
+
+<div class="fix">
+<h3><span class="lbl">D-013</span>Sensor outages no longer faked as zero</h3>
+<div class="row"><b>Problem</b><span>When a pedestrian sensor reported nothing, the gap was filled with zero —
+indistinguishable from a genuinely empty street. About one in ten sensor readings were these fake zeros.</span></div>
+<div class="row"><b>Why it matters</b><span>This is the most important fix for the thesis's core idea. The project
+looks for "flexibility windows" — times when a street is quiet enough to repurpose the kerb. A broken sensor
+filled with zeros <em>manufactures</em> a fake flexibility window, which could lead to a wrong policy
+recommendation. Now: brief dropouts (up to 1 hour) are smoothly interpolated, while longer outages are
+flagged and <strong>excluded from training and scoring</strong> rather than counted as "quiet."</span></div>
+<table class="ba"><tr><td>Result</td><td>6.3% of sensor readings identified as real outages and set aside;
+brief gaps repaired</td></tr></table>
+<div class="row"><b>Honesty note</b><span>The model's reported error is now measured only on bins where the sensor
+was actually working. It may differ slightly from the old figure — not because the model changed, but
+because we stopped grading it on made-up data.</span></div>
+</div>
+
+<div class="fix">
+<h3><span class="lbl">D-014</span>Per-street confidence for guessed streets</h3>
+<div class="row"><b>Problem</b><span>Only ~5% of streets have real sensors; the rest have their foot-traffic
+<em>estimated</em>. Previously every estimated street was stamped with the same confidence, regardless of
+how reliable that estimate actually was.</span></div>
+<div class="row"><b>Why it matters</b><span>A reader (or the map) should be able to tell a well-grounded estimate
+from a shaky one. Each estimated street now borrows its confidence from the most similar <em>measured</em>
+streets (similar land use, size, activity).</span></div>
+<div class="row"><b>Outcome</b><span>Only 2 streets earned the high-confidence tier — and that is the honest
+answer. The underlying estimation quality is genuinely weak (it explains only ~18% of street-to-street
+variation), so the system now <em>says so</em> instead of implying false certainty. This reinforces the
+thesis framing: imputation buys city-wide <em>coverage</em>, not city-wide <em>accuracy</em>.</span></div>
+</div>
+
+<div class="fix">
+<h3><span class="lbl">D-015</span>Streets without parking sensors marked "unknown", not "empty"</h3>
+<div class="row"><b>Problem</b><span>1,254 streets have no parking sensor. Their occupancy was set to 0%,
+which the model reads as "this kerb is reliably empty."</span></div>
+<div class="row"><b>Why it matters</b><span>"We didn't measure it" and "it's empty" are completely different claims.
+Treating the first as the second biases any scenario that weighs the cost of removing parking. These streets
+are now set to the <em>average</em> measured occupancy, which reads as a neutral "unknown" rather than a
+confident "empty." Parking predictions are still only reported for the 143 streets that actually have
+sensors.</span></div>
+</div>
+
+<h2>4. What this means for the results</h2>
+<ul>
+<li><b>Accuracy:</b> roughly unchanged in headline terms — these are correctness fixes, not score-chasing.
+Foot-traffic error should stay near its previous level (~5.5 pedestrians per 15&nbsp;min), now measured on
+real data only.</li>
+<li><b>Weather:</b> should flip from harmful to genuinely useful in the model's feature ranking — the clearest
+testable sign the alignment fix worked.</li>
+<li><b>Trust &amp; honesty:</b> the model now distinguishes measured from estimated, working sensors from broken
+ones, and "empty" from "unknown." Every limitation that was previously hidden in the data is now visible and
+labelled — which is exactly what an examiner looks for.</li>
+<li><b>Scenarios:</b> evening pedestrianisation costs are no longer understated, and intervention impacts are
+computed without the earlier hidden distortions.</li>
+</ul>
+
+<h2>5. What changed in the code, and what happens next</h2>
+<p class="note"><b>Files touched (Steps 01–08, under OVERRIDE):</b> the weather fetch and timezone constant; the
+normalisation contract (shared helpers); the pedestrian/parking processing step; the data-cube assembly; and
+both training scripts (to honour the new outage mask). The data cube was rebuilt and verified locally.</p>
+<p><b>Remaining steps:</b></p>
+<ul>
+<li><b>Retrain</b> the model on the corrected cube (runs on GPU; bundle prepared, now including the new
+outage-mask file).</li>
+<li><b>Re-cluster</b> the streets on the corrected foot-traffic (archetypes may shift slightly).</li>
+<li><b>Re-run interpretation, scenarios, and the map export</b> with the new model.</li>
+<li><b>Verify the two predictions above</b> (weather usefulness rises; error stays comparable).</li>
+</ul>
+<p class="sub">Full technical detail for each change is recorded in <code>docs/notes/decisions.md</code>
+(entries D-011 to D-015).</p>
+
+</body>
+</html>

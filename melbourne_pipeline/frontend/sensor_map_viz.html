@@ -7,6 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <style>
   :root {
     --bg:          #111009;
@@ -25,27 +26,50 @@
   }
 
   * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 0;
+  html, body {
+    margin: 0; padding: 0; overflow: hidden;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: var(--bg);
+    background: var(--bg); height: 100%;
   }
-  #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  #app-layout {
+    display: flex; height: calc(100% - 56px); width: 100%;
+  }
+  #map-frame {
+    flex: 1; min-width: 0; position: relative; overflow: hidden;
+    border-left: 1px solid var(--border);
+  }
+  #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
 
   /* ── Controls panel ─────────────────────────────────────────────── */
   #controls {
-    position: absolute; top: 12px; left: 12px; z-index: 1;
+    position: relative; z-index: 1;
     background: var(--surface); color: var(--text);
-    border: 1px solid var(--border);
-    padding: 0; width: 248px;
-    font-size: 12px; max-height: calc(100vh - 40px); overflow-y: auto;
+    border-right: 1px solid var(--border);
+    padding: 0; width: 260px; flex-shrink: 0;
+    font-size: 12px; overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-dim) transparent;
   }
+  #controls::-webkit-scrollbar { width: 3px; }
+  #controls::-webkit-scrollbar-track { background: transparent; }
+  #controls::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, var(--accent-dim), var(--border-hi));
+    border-radius: 1px;
+  }
+  #controls::-webkit-scrollbar-thumb:hover { background: var(--accent); }
   #controls-title {
     padding: 12px 14px 10px;
     font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
     color: var(--accent); text-transform: uppercase;
     border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none;
   }
+  #controls-title::after {
+    content: '▾'; font-size: 16px; color: var(--accent-dim);
+    transition: transform 0.15s; flex-shrink: 0;
+  }
+  #controls.all-collapsed #controls-title::after { transform: rotate(-90deg); }
 
   .section {
     padding: 8px 0 4px;
@@ -56,7 +80,15 @@
     padding: 0 14px 5px;
     font-size: 10px; font-weight: 600; color: var(--text-muted);
     text-transform: uppercase; letter-spacing: 0.7px;
+    cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 4px;
   }
+  .section-title::after {
+    content: '▾'; font-size: 14px; color: var(--text-muted);
+    transition: transform 0.15s; margin-left: auto; flex-shrink: 0;
+  }
+  .section.collapsed .section-title::after { transform: rotate(-90deg); }
+  .section.collapsed > *:not(.section-title) { display: none; }
 
   .toggle-row {
     display: flex; align-items: center; gap: 8px;
@@ -101,12 +133,69 @@
   /* ── Street detail panel ────────────────────────────────────────── */
   #street-panel {
     position: absolute; top: 0; right: 0; bottom: 0; z-index: 2;
-    width: 340px; background: var(--bg);
+    width: 380px; background: var(--bg);
     border-left: 1px solid var(--border);
     transform: translateX(100%); transition: transform 0.2s ease;
-    display: flex; flex-direction: column; overflow: hidden;
+    display: flex; flex-direction: column; overflow: hidden; overflow-y: auto;
   }
   #street-panel.open { transform: translateX(0); }
+
+  /* Panel-scoped lighter text palette (overrides the global dim/muted vars) */
+  #street-panel {
+    --sp-text:       #f1f5f9;   /* near white — primary */
+    --sp-text-dim:   #cbd5e1;   /* light grey — secondary */
+    --sp-text-muted: #94a3b8;   /* medium grey — tertiary / labels */
+    --sp-border:     #334155;   /* lighter border for contrast */
+    color: var(--sp-text);
+  }
+  #street-panel #sp-street-name    { color: var(--sp-text); }
+  #street-panel #sp-street-meta    { color: var(--sp-text-dim); }
+  #street-panel #sp-close          { color: var(--sp-text-muted); }
+  #street-panel #sp-close:hover    { color: var(--sp-text); }
+
+  #street-panel .sp-sec            { border-bottom-color: var(--sp-border); }
+  #street-panel .sp-sec-title      { color: var(--sp-text-muted); }
+  #street-panel .sp-sec-title .meta { color: var(--sp-text-dim); }
+
+  #street-panel .sp-metric         { border-color: var(--sp-border); background: rgba(255,255,255,0.04); }
+  #street-panel .sp-metric .lbl    { color: var(--sp-text-muted); }
+  #street-panel .sp-metric .val    { color: var(--sp-text); }
+  #street-panel .sp-metric .unit   { color: var(--sp-text-dim); }
+  #street-panel .sp-metric .sub    { color: var(--sp-text-dim); }
+  #street-panel .sp-metric.na .val { color: var(--sp-text-muted); }
+  #street-panel .sp-metric-bar     { background: rgba(255,255,255,0.08); }
+
+  #street-panel .sp-arch-card      { border-color: var(--sp-border); background: rgba(255,255,255,0.04); }
+  #street-panel .sp-arch-card .name { color: var(--sp-text); }
+  #street-panel .sp-arch-card .win  { color: var(--sp-text-dim); }
+  #street-panel .sp-arch-card .desc { color: var(--sp-text-dim); }
+
+  #street-panel .sp-chip           { color: var(--sp-text-dim); border-color: var(--sp-border); background: rgba(255,255,255,0.04); }
+  #street-panel .sp-chip b         { color: var(--sp-text); }
+
+  #street-panel .sp-helper         { color: var(--sp-text-dim); }
+  #street-panel .sp-empty          { color: var(--sp-text-muted); }
+
+  #street-panel .sp-reason         { background: rgba(255,255,255,0.05); color: var(--sp-text-dim); }
+  #street-panel .sp-reason b       { color: var(--sp-text); }
+  #street-panel .sp-reason .tag    { color: var(--sp-text); }
+  #street-panel .sp-reason.none    { color: var(--sp-text-muted); }
+
+  #street-panel .sp-conf-line      { color: var(--sp-text-muted); }
+  #street-panel .sp-conf-line .chip { border-color: var(--sp-border); background: rgba(255,255,255,0.04); color: var(--sp-text-dim); }
+
+  #street-panel .sp-caveat         { color: #fde68a; }
+
+  /* Old classes still used by older code paths — light them up too */
+  #street-panel .sp-block          { border-bottom-color: var(--sp-border); }
+  #street-panel .sp-block-label    { color: var(--sp-text-muted); }
+  #street-panel .sp-stat-val       { color: var(--sp-text); }
+  #street-panel .sp-stat-unit      { color: var(--sp-text-dim); }
+  #street-panel .sp-stat-sub       { color: var(--sp-text-dim); }
+  #street-panel .sp-lu-table td    { color: var(--sp-text-dim); }
+  #street-panel .sp-lu-table td b  { color: var(--sp-text); }
+  #street-panel details summary    { color: var(--sp-text-dim); }
+  #street-panel .sp-more-body      { color: var(--sp-text-dim); }
 
   #sp-header {
     padding: 16px 18px 14px;
@@ -138,6 +227,148 @@
     font-size: 10px; font-weight: 700; letter-spacing: 1px;
     text-transform: uppercase; color: var(--text-muted);
     margin-bottom: 10px;
+  }
+
+  /* Scenario explanation block — shown when clicking a street during a scenario */
+  .sp-block.sp-explain {
+    background: linear-gradient(180deg, rgba(96,165,250,0.06) 0%, transparent 100%);
+    border-left: 3px solid #60a5fa;
+  }
+  .sp-explain-delta {
+    display: flex; gap: 10px; align-items: baseline;
+    font-variant-numeric: tabular-nums; margin-bottom: 10px;
+  }
+  .sp-explain-delta .d-ped  { font-size: 22px; font-weight: 700; }
+  .sp-explain-delta .d-park { font-size: 13px; color: var(--text-dim); }
+  .sp-explain-delta .pos    { color: #4ade80; }
+  .sp-explain-delta .neg    { color: #f87171; }
+
+  .sp-reason {
+    margin: 8px 0; padding: 8px 10px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px; font-size: 12px; line-height: 1.5;
+    border-left: 2px solid transparent;
+  }
+  .sp-reason.primary   { border-left-color: #a855f7; }
+  .sp-reason.secondary { border-left-color: #60a5fa; }
+  .sp-reason.indirect  { border-left-color: #64748b; }
+  .sp-reason.none      { border-left-color: #475569; color: var(--text-muted); }
+  .sp-reason .tag {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.8px; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 3px; margin-right: 6px;
+    background: rgba(255,255,255,0.08); color: var(--text);
+  }
+  .sp-reason.primary   .tag { background: rgba(168,85,247,0.18); color: #d8b4fe; }
+  .sp-reason.secondary .tag { background: rgba(96,165,250,0.18); color: #93c5fd; }
+  .sp-reason.indirect  .tag { background: rgba(100,116,139,0.18); color: #cbd5e1; }
+
+  .sp-caveat {
+    margin-top: 10px; padding: 8px 10px;
+    background: rgba(245,158,11,0.08);
+    border-left: 2px solid #f59e0b;
+    font-size: 11px; color: #fcd34d; line-height: 1.5; border-radius: 3px;
+  }
+  .sp-conf-line {
+    margin-top: 8px; font-size: 11px; color: var(--text-muted);
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+  .sp-conf-line .chip {
+    padding: 2px 7px; border-radius: 999px;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  }
+
+  /* ── Redesigned panel components ───────────────────────────────── */
+
+  /* Section header row: small uppercase title + optional trailing meta */
+  .sp-sec {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sp-sec-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px;
+  }
+  .sp-sec-title .meta {
+    margin-left: auto; font-size: 10px; letter-spacing: 0.4px;
+    text-transform: none; color: var(--text-dim); font-weight: 500;
+  }
+
+  /* Hero: two metric cards side-by-side */
+  .sp-hero {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .sp-metric {
+    background: rgba(255,255,255,0.025); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px;
+  }
+  .sp-metric .lbl {
+    font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 4px;
+  }
+  .sp-metric .val {
+    font-size: 22px; font-weight: 700; color: var(--text);
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .sp-metric .unit {
+    font-size: 10px; color: var(--text-dim); margin-left: 2px;
+  }
+  .sp-metric .sub {
+    font-size: 10px; color: var(--text-muted); margin-top: 4px;
+  }
+  .sp-metric.na .val { color: var(--text-muted); font-size: 16px; }
+  .sp-metric-bar {
+    height: 3px; border-radius: 999px; background: var(--border);
+    margin-top: 8px; overflow: hidden;
+  }
+  .sp-metric-bar .fill { height: 100%; border-radius: 999px; transition: width 0.25s; }
+
+  /* Source badge (sensor vs model estimate) */
+  .sp-src {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.6px; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 3px; margin-top: 6px;
+  }
+  .sp-src.sensor { background: rgba(74,222,128,0.15); color: #86efac; }
+  .sp-src.model  { background: rgba(251,191,36,0.15); color: #fcd34d; }
+  .sp-src.none   { background: rgba(148,163,184,0.15); color: #cbd5e1; }
+
+  /* Archetype card */
+  .sp-arch-card {
+    display: flex; gap: 10px; align-items: stretch;
+    background: rgba(255,255,255,0.025); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px;
+  }
+  .sp-arch-card .stripe { width: 3px; border-radius: 2px; flex-shrink: 0; }
+  .sp-arch-card .body { flex: 1; }
+  .sp-arch-card .name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .sp-arch-card .win  { font-size: 11px; color: var(--text-dim); }
+  .sp-arch-card .desc {
+    font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.5;
+  }
+
+  /* Chip rows (inline wrapping pills) */
+  .sp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sp-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 9px; border-radius: 999px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    font-size: 11px; color: var(--text-dim);
+  }
+  .sp-chip b { color: var(--text); font-weight: 600; }
+  .sp-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Empty state */
+  .sp-empty {
+    font-size: 12px; color: var(--text-muted); font-style: italic;
+  }
+
+  /* Inline helper (replaces <details> clutter) */
+  .sp-helper {
+    font-size: 11px; color: var(--text-muted); line-height: 1.5;
+    margin-top: 8px;
   }
 
   /* Big stat */
@@ -232,6 +463,18 @@
   }
   #token-prompt h3 { margin: 0 0 8px; color: var(--accent); font-size: 13px; letter-spacing: 0.5px; }
   #token-prompt p  { font-size: 11px; color: var(--text-dim); margin: 0 0 12px; }
+  #token-error {
+    display: none;
+    margin: 10px auto 0;
+    max-width: 320px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #fca5a5;
+    border: 1px solid #7f1d1d;
+    background: rgba(127, 29, 29, 0.2);
+    padding: 8px 10px;
+    text-align: left;
+  }
   #token-prompt input {
     width: 300px; padding: 8px 10px; font-size: 12px;
     background: var(--bg); color: var(--text);
@@ -243,12 +486,117 @@
     border: 1px solid var(--accent); background: transparent;
     color: var(--accent);
   }
+  #token-prompt button:disabled { opacity: 0.45; cursor: not-allowed; }
   #token-prompt button:hover { background: var(--accent); color: var(--bg); }
 
   .mapboxgl-popup-content { background: var(--surface) !important; color: var(--text) !important; font-size: 11px; padding: 8px 12px !important; border-radius: 0 !important; border: 1px solid var(--border) !important; }
   .mapboxgl-ctrl-group { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 0 !important; }
   .mapboxgl-ctrl-group button { background: var(--surface) !important; color: var(--text-dim) !important; border-radius: 0 !important; }
   .mapboxgl-ctrl-group button:hover { background: var(--surface-hi) !important; }
+
+  /* ── Layer info popup system ────────────────────────────────── */
+  @keyframes layer-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(141,180,200,0.55); }
+    50%  { box-shadow: 0 0 0 5px rgba(141,180,200,0.18); }
+    100% { box-shadow: 0 0 0 0   rgba(141,180,200,0.55); }
+  }
+
+  .section-title .lp-info-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid var(--border-hi); color: var(--text-muted);
+    font-size: 9px; font-style: italic; font-weight: 700;
+    background: var(--bg); cursor: pointer; flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    line-height: 1; user-select: none;
+  }
+
+  .section:hover > .section-title .lp-info-btn {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    animation: layer-pulse 1.4s ease-in-out infinite;
+  }
+
+  .lp-info-btn.active {
+    background: var(--accent-dim); color: var(--bg) !important;
+    border-color: var(--accent) !important;
+    animation: none !important;
+  }
+
+  /* The popup panel itself */
+  #layer-popup {
+    position: absolute; top: 12px; left: 12px; z-index: 4;
+    width: 272px;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border-hi);
+    font-size: 11px; line-height: 1.65;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.75);
+    transform-origin: top left;
+    opacity: 0; pointer-events: none;
+    transform: scale(0.97) translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    max-height: calc(100vh - 40px); overflow-y: auto;
+  }
+  #layer-popup.open {
+    opacity: 1; pointer-events: auto;
+    transform: scale(1) translateY(0);
+  }
+  #layer-popup::-webkit-scrollbar { width: 3px; }
+  #layer-popup::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+  #lp-header {
+    padding: 11px 14px 9px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface-hi);
+  }
+  #lp-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--accent);
+  }
+  #lp-close {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 14px; cursor: pointer; padding: 0; line-height: 1;
+  }
+  #lp-close:hover { color: var(--text); }
+
+  #lp-body { padding: 13px 14px; }
+  #lp-body p {
+    margin: 0 0 9px; color: var(--text-dim); font-size: 11px; line-height: 1.7;
+  }
+  #lp-body p:last-child { margin-bottom: 0; }
+
+  .lp-stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;
+  }
+  .lp-stat {
+    padding: 6px 8px; background: var(--bg); border: 1px solid var(--border);
+  }
+  .lp-stat-key {
+    font-size: 9px; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .lp-stat-val {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    margin-top: 2px; font-variant-numeric: tabular-nums;
+  }
+  .lp-note {
+    margin-top: 10px; padding: 7px 9px;
+    background: rgba(184,92,92,0.1); border: 1px solid rgba(184,92,92,0.3);
+    font-size: 10px; color: #d4918d; line-height: 1.55;
+  }
+  .lp-note.good {
+    background: rgba(106,158,114,0.1); border-color: rgba(106,158,114,0.35);
+    color: var(--green);
+  }
+  .lp-swatch-row {
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 0; border-bottom: 1px solid var(--border);
+    font-size: 11px; color: var(--text-dim);
+  }
+  .lp-swatch-row:last-child { border-bottom: none; }
+  .lp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .lp-sq  { width: 8px; height: 8px; flex-shrink: 0; }
 
   /* ── Cluster info popup ──────────────────────────────────────── */
   #cluster-popup {
@@ -271,21 +619,22 @@
   #cluster-popup .cp-stat-key { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
   #cluster-popup .cp-stat-val { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 1px; }
 
-  /* ── Scenario floating trigger button ───────────────────────── */
+  /* ── Scenario trigger button (taskbar, matches chatbot-toggle style) ── */
   #scenario-btn {
-    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-    z-index: 10; display: none;
-    padding: 11px 28px;
-    background: var(--accent-dim); color: var(--bg);
-    border: none; font-size: 11px; font-weight: 700;
-    letter-spacing: 1.2px; text-transform: uppercase;
-    cursor: pointer; transition: background 0.15s;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    display: none;
+    width: auto; height: 38px; border-radius: 19px;
+    padding: 0 20px;
+    background: var(--surface-hi); color: var(--text);
+    border: 1px solid var(--border-hi); cursor: pointer; font-size: 13px;
+    font-weight: 700; font-family: inherit;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    transition: background 0.15s;
+    align-items: center; gap: 8px;
     white-space: nowrap;
   }
-  #scenario-btn.visible { display: block; }
-  #scenario-btn:hover { background: var(--accent); }
-  #scenario-btn.ending { background: #5a1818; color: #ffaaaa; }
+  #scenario-btn.visible { display: flex; }
+  #scenario-btn:hover { background: var(--border-hi); }
+  #scenario-btn.ending { background: #5a1818; color: #ffaaaa; border-color: #5a1818; }
   #scenario-btn.ending:hover { background: var(--red); color: #fff; }
 
   /* ── Scenario vertical side panel ───────────────────────────── */
@@ -372,6 +721,34 @@
   .iv-res-pos { color: var(--green); font-weight: 700; }
   .iv-res-neg { color: var(--red);   font-weight: 700; }
 
+  .iv-result-card {
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    border-radius: 4px; padding: 10px 12px;
+  }
+  .iv-result-card-title {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--accent); margin-bottom: 8px;
+  }
+  .iv-result-metrics { display: flex; gap: 6px; }
+  .iv-result-metric {
+    flex: 1; text-align: center; padding: 6px 4px;
+    background: var(--bg); border-radius: 3px;
+  }
+  .iv-result-metric-val { font-size: 15px; font-weight: 700; color: var(--text); }
+  .iv-result-metric-lbl { font-size: 8px; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+
+  .iv-affected-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 11px; line-height: 1.4;
+  }
+  .iv-affected-row:last-child { border-bottom: none; }
+  .iv-affected-name { color: var(--text-dim); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .iv-affected-tag { font-size: 9px; padding: 1px 5px; border-radius: 2px; margin-left: 6px; flex-shrink: 0; }
+  .iv-affected-tag.spatial { color: var(--text-muted); background: rgba(255,255,255,0.06); }
+  .iv-affected-tag.semantic { color: var(--teal); background: rgba(6,182,212,0.1); }
+  .iv-affected-delta { font-weight: 700; margin-left: 8px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
   /* Save */
   #sp2-save { display: none; padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
   #sp2-save.visible { display: block; }
@@ -400,6 +777,221 @@
     pointer-events: none; white-space: nowrap; letter-spacing: 0.3px;
   }
   #iv-net-legend.visible { display: block; }
+
+  /* ── Pipeline Tour ────────────────────────────────────────────── */
+  #tour-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.25);
+    display: none; align-items: flex-end; justify-content: flex-end;
+    padding-bottom: 72px; padding-right: 16px;
+    transition: opacity 0.4s ease;
+    opacity: 0;
+  }
+  #tour-overlay.active { display: flex; opacity: 1; }
+  #tour-overlay.fading { opacity: 0; }
+
+  #tour-card {
+    width: 520px; max-width: 92vw;
+    background: linear-gradient(165deg, rgba(26,24,20,0.97), rgba(17,16,9,0.98));
+    border: 1px solid var(--border-hi);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(141,180,200,0.08);
+    color: var(--text);
+    overflow: hidden;
+    transform: translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), opacity 0.4s ease;
+  }
+  #tour-overlay.active #tour-card { transform: translateY(0); }
+
+  #tour-progress {
+    height: 3px; background: var(--border);
+    position: relative; overflow: hidden;
+  }
+  #tour-progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+    transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 0 8px rgba(141,180,200,0.4);
+  }
+
+  #tour-body {
+    padding: 28px 32px 20px;
+    min-height: 180px;
+    transition: opacity 0.35s ease;
+  }
+  #tour-body.fade-out { opacity: 0; }
+  #tour-body.fade-in  { opacity: 1; }
+
+  #tour-step-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--accent-dim);
+    margin-bottom: 8px;
+  }
+  #tour-title {
+    font-size: 22px; font-weight: 700; color: var(--text);
+    line-height: 1.25; margin-bottom: 12px;
+    letter-spacing: -0.3px;
+  }
+  #tour-text {
+    font-size: 13px; line-height: 1.7; color: var(--text-dim);
+  }
+  #tour-text strong { color: var(--accent); font-weight: 600; }
+  #tour-text .num {
+    font-variant-numeric: tabular-nums; font-weight: 700;
+    color: var(--text); font-size: 15px;
+  }
+
+  #tour-stats {
+    display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;
+  }
+  .tour-stat {
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    border-radius: 4px; padding: 8px 14px; min-width: 80px; text-align: center;
+  }
+  .tour-stat-val {
+    font-size: 18px; font-weight: 700; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .tour-stat-lbl {
+    font-size: 9px; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-top: 2px;
+  }
+
+  #tour-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 32px 20px; gap: 10px;
+  }
+  #tour-dots {
+    display: flex; gap: 6px; align-items: center;
+  }
+  .tour-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border-hi);
+    transition: background 0.3s, transform 0.3s;
+  }
+  .tour-dot.active {
+    background: var(--accent);
+    transform: scale(1.4);
+  }
+  .tour-dot.done { background: var(--accent-dim); }
+
+  .tour-btn {
+    padding: 8px 20px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.8px; text-transform: uppercase;
+    border: 1px solid var(--border-hi); background: transparent;
+    color: var(--text-dim); cursor: pointer;
+    border-radius: 4px; transition: all 0.15s;
+    font-family: inherit;
+  }
+  .tour-btn:hover { border-color: var(--accent-dim); color: var(--text); background: rgba(255,255,255,0.04); }
+  .tour-btn.primary {
+    background: var(--accent-dim); color: var(--bg);
+    border-color: var(--accent);
+  }
+  .tour-btn.primary:hover { background: var(--accent); }
+  .tour-btn-group { display: flex; gap: 8px; }
+
+  #tour-skip {
+    font-size: 10px; color: var(--text-muted); background: none;
+    border: none; cursor: pointer; letter-spacing: 0.5px;
+    text-transform: uppercase; font-weight: 600; font-family: inherit;
+    padding: 8px 12px;
+  }
+  #tour-skip:hover { color: var(--text-dim); }
+
+  /* Tour button in taskbar */
+  #tour-btn-taskbar {
+    width: auto; height: 38px; border-radius: 19px;
+    padding: 0 20px;
+    background: transparent; color: var(--accent);
+    border: 1px solid var(--accent-dim); cursor: pointer; font-size: 12px;
+    font-weight: 700; font-family: inherit;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    transition: background 0.15s, color 0.15s;
+    display: flex; align-items: center; gap: 8px;
+    white-space: nowrap;
+  }
+  #tour-btn-taskbar:hover { background: var(--accent-dim); color: var(--bg); }
+
+  /* Animated counter */
+  @keyframes tour-glow-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(141,180,200,0); }
+    50%      { box-shadow: 0 0 20px 4px rgba(141,180,200,0.15); }
+  }
+  .tour-glow { animation: tour-glow-pulse 2s ease-in-out infinite; }
+
+  /* Cube diagram */
+  .tour-cube-diagram {
+    display: flex; align-items: center; justify-content: center;
+    gap: 24px; margin-top: 16px; padding: 16px;
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .tour-cube-dim {
+    text-align: center;
+  }
+  .tour-cube-dim .val {
+    font-size: 20px; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .tour-cube-dim .lbl {
+    font-size: 9px; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-top: 2px;
+  }
+  .tour-cube-x {
+    font-size: 16px; color: var(--text-muted); font-weight: 300;
+  }
+
+  /* GNN diagram */
+  .tour-gnn-diagram {
+    margin-top: 16px; padding: 16px;
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+    border-radius: 4px; font-size: 11px; color: var(--text-dim);
+    line-height: 2.2; font-family: 'Courier New', monospace;
+    text-align: center;
+  }
+  .tour-gnn-diagram .br-spatial { color: #3b82f6; font-weight: 700; }
+  .tour-gnn-diagram .br-semantic { color: #a855f7; font-weight: 700; }
+  .tour-gnn-diagram .br-merge { color: var(--accent); font-weight: 700; }
+  .tour-gnn-diagram .br-out { color: #22c55e; font-weight: 700; }
+
+  /* Cube feature loading rows */
+  .tour-cube-features {
+    margin-top: 12px; padding: 8px 12px;
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .tcf-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 0; font-size: 10px; color: var(--text-muted);
+    opacity: 0.3; transition: opacity 0.4s ease, color 0.3s ease;
+  }
+  .tcf-row.active { opacity: 1; color: var(--accent); }
+  .tcf-row.done { opacity: 0.7; color: var(--text-dim); }
+  .tcf-bar {
+    width: 0; height: 3px; border-radius: 2px;
+    background: var(--accent); transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+    flex-shrink: 0;
+  }
+  .tcf-row.active .tcf-bar { width: 40px; }
+  .tcf-row.done .tcf-bar { width: 40px; background: var(--accent-dim); }
+
+  /* GNN training phase indicators */
+  .tour-gnn-phase {
+    display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap;
+  }
+  .tour-gnn-phase-step {
+    padding: 4px 10px; border-radius: 3px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+    text-transform: uppercase; border: 1px solid var(--border);
+    color: var(--text-muted); background: transparent;
+    transition: all 0.4s ease;
+  }
+  .tour-gnn-phase-step.active {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(141,180,200,0.1);
+  }
+  .tour-gnn-phase-step.done {
+    border-color: var(--accent-dim); color: var(--accent-dim);
+  }
 </style>
 </head>
 <body>
@@ -410,17 +1002,18 @@
   <input id="token-input" type="text" placeholder="pk.eyJ1Ijo..."
     onkeydown="if(event.key==='Enter'){event.preventDefault();initMap();}">
   <br>
-  <button type="button" onclick="initMap()">Load Map</button>
+  <button type="button" id="token-load-btn" onclick="initMap()">Load Map</button>
+  <div id="token-error"></div>
 </div>
 
-<div id="map"></div>
+<div id="app-layout">
 
 <div id="controls">
   <div id="controls-title">Melbourne CBD — Pipeline</div>
 
   <!-- Sensors -->
   <div class="section">
-    <div class="section-title">Sensors</div>
+    <div class="section-title">Sensors<span class="lp-info-btn" data-popup="sensors" title="Layer info">i</span></div>
     <div class="toggle-row">
       <input type="checkbox" id="tog-parking">
       <div class="dot" style="background:#6b9db3;"></div>
@@ -437,7 +1030,7 @@
 
   <!-- CLUE Features -->
   <div class="section">
-    <div class="section-title">CLUE Land Use</div>
+    <div class="section-title">CLUE Land Use<span class="lp-info-btn" data-popup="clue" title="Layer info">i</span></div>
     <div class="toggle-row" style="border-bottom:1px solid var(--border);margin-bottom:3px;padding-bottom:5px;">
       <input type="checkbox" id="tog-clue-all">
       <div class="sq" style="background:transparent;border:1px solid var(--border-hi);"></div>
@@ -487,9 +1080,32 @@
     </div>
   </div>
 
+  <!-- Transit -->
+  <div class="section">
+    <div class="section-title">Transit Stops<span class="lp-info-btn" data-popup="transit" title="Layer info">i</span></div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-bus_stop">
+      <div class="dot" style="background:#38bdf8;"></div>
+      <label for="tog-bus_stop">Bus stops</label>
+      <span class="count" id="cnt-bus_stop"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-tram_stop">
+      <div class="dot" style="background:#4ade80;"></div>
+      <label for="tog-tram_stop">Tram stops</label>
+      <span class="count" id="cnt-tram_stop"></span>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="tog-train_station">
+      <div class="dot" style="background:#fb923c;"></div>
+      <label for="tog-train_station">Train stations</label>
+      <span class="count" id="cnt-train_station"></span>
+    </div>
+  </div>
+
   <!-- Street Polygons -->
   <div class="section">
-    <div class="section-title">Street Polygons</div>
+    <div class="section-title">Street Polygons<span class="lp-info-btn" data-popup="streets" title="Layer info">i</span></div>
     <div class="toggle-row">
       <input type="checkbox" id="tog-streets">
       <div class="sq" style="background:transparent; border:1px solid #45403a;"></div>
@@ -515,22 +1131,23 @@
 
   <!-- Graph -->
   <div class="section">
-    <div class="section-title">Graph — Step 04</div>
+    <div class="section-title">Graph — Step 04<span class="lp-info-btn" data-popup="graph" title="Layer info">i</span></div>
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;" id="graph-stats-line">—</div>
     <div class="toggle-row">
       <input type="checkbox" id="tog-graph-nodes">
-      <div class="dot" style="background:#6a9e72;"></div>
-      <label for="tog-graph-nodes">Nodes</label>
+      <div class="dot" style="background:#22c55e;"></div>
+      <label for="tog-graph-nodes">Nodes <span style="color:var(--text-muted);font-size:10px">(green=semantic)</span></label>
       <span class="count" id="cnt-graph-nodes"></span>
     </div>
     <div class="toggle-row">
       <input type="checkbox" id="tog-spatial-graph">
-      <div class="ln" style="background:#5b9aaa;"></div>
+      <div class="ln" style="background:#3b82f6;"></div>
       <label for="tog-spatial-graph">Spatial edges</label>
       <span class="count" id="cnt-spatial-graph"></span>
     </div>
     <div class="toggle-row">
       <input type="checkbox" id="tog-semantic-graph">
-      <div class="ln" style="background:#8a7aaa;"></div>
+      <div class="ln" style="background:#a855f7;"></div>
       <label for="tog-semantic-graph">Semantic edges</label>
       <span class="count" id="cnt-semantic-graph"></span>
     </div>
@@ -538,7 +1155,7 @@
 
   <!-- Impute Pedestrian Data -->
   <div class="section">
-    <div class="section-title">Impute Pedestrian Data</div>
+    <div class="section-title">Impute Pedestrian Data<span class="lp-info-btn" data-popup="impute" title="Layer info">i</span></div>
     <div class="toggle-row">
       <input type="checkbox" id="tog-ped-sensored">
       <div class="sq" style="background:#b85c5c;"></div>
@@ -557,7 +1174,7 @@
 
   <!-- Clustering -->
   <div class="section">
-    <div class="section-title">Clustering — GMM <span id="cluster-k-label"></span></div>
+    <div class="section-title">Clustering — GMM <span id="cluster-k-label"></span><span class="lp-info-btn" data-popup="clustering" title="Layer info">i</span></div>
     <!-- Show all / hide all -->
     <div class="toggle-row" style="border-bottom:1px solid var(--border);margin-bottom:3px;padding-bottom:5px;">
       <input type="checkbox" id="tog-cluster-all">
@@ -568,26 +1185,71 @@
     <div id="cluster-rows"></div>
   </div>
 
-  <!-- Validation -->
+  <!-- 3D View -->
   <div class="section">
-    <div class="section-title">Validation</div>
+    <div class="section-title">View</div>
     <div class="toggle-row">
-      <input type="checkbox" id="tog-snaplines">
-      <div class="ln" style="background:#8db4c8;"></div>
-      <label for="tog-snaplines">Dwelling snap lines</label>
+      <input type="checkbox" id="tog-3d">
+      <div class="sq" style="background:var(--accent-dim);"></div>
+      <label for="tog-3d">3D buildings</label>
     </div>
   </div>
 </div>
+
+<div id="map-frame">
+<div id="map"></div>
+<canvas id="cube-3d-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:2;pointer-events:none;display:none;"></canvas>
 
 <div id="sensor-tooltip"></div>
 <div id="street-label"></div>
 <div id="cluster-popup"></div>
 
-<!-- Scenario trigger button (appears when a street is selected) -->
-<button type="button" id="scenario-btn" onclick="onScenarioBtn()">Start Scenario</button>
+<!-- Layer info popup -->
+<div id="layer-popup">
+  <div id="lp-header">
+    <span id="lp-title">Layer Info</span>
+    <button type="button" id="lp-close" onclick="closeLayerPopup()">&#x2715;</button>
+  </div>
+  <div id="lp-body"></div>
+</div>
 
-<!-- Delta legend (appears after results) -->
+<!-- Delta legend (network overlay) -->
 <div id="iv-net-legend"></div>
+
+<!-- ── Pipeline Tour Overlay ─────────────────────────────────────── -->
+<div id="tour-overlay">
+  <div id="tour-card">
+    <div id="tour-progress"><div id="tour-progress-fill" style="width:0%"></div></div>
+    <div id="tour-body">
+      <div id="tour-step-label">Step 1 of 9</div>
+      <div id="tour-title">—</div>
+      <div id="tour-text"></div>
+      <div id="tour-stats"></div>
+    </div>
+    <div id="tour-nav">
+      <button id="tour-skip" onclick="tourEnd()">Skip tour</button>
+      <div id="tour-dots"></div>
+      <div class="tour-btn-group">
+        <button class="tour-btn" id="tour-prev" onclick="tourPrev()">Back</button>
+        <button class="tour-btn primary" id="tour-next" onclick="tourNext()">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ped/Park toggle (top-right of map, appears after scenario results) -->
+<div id="iv-delta-toggle" style="display:none;position:fixed;top:12px;right:16px;z-index:40;
+  background:var(--surface);border:1px solid var(--border-hi);padding:4px;border-radius:19px;font-size:11px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.4);">
+  <button type="button" class="dt-btn dt-active" data-mode="ped" onclick="switchDeltaMode('ped')">Ped flow</button>
+  <button type="button" class="dt-btn" data-mode="park" onclick="switchDeltaMode('park')">Parking occ</button>
+</div>
+<style>
+  .dt-btn { background:none;border:1px solid var(--border-hi);color:var(--text-dim);padding:5px 14px;cursor:pointer;
+    font-size:11px;font-weight:600;border-radius:14px;transition:all 0.15s;letter-spacing:0.3px;text-transform:uppercase; }
+  .dt-btn:hover { border-color:var(--accent-dim);color:var(--text);background:var(--surface-hi); }
+  .dt-btn.dt-active { background:var(--accent-dim);color:var(--bg);border-color:var(--accent); }
+</style>
 
 <!-- Scenario vertical panel -->
 <div id="scenario-panel">
@@ -641,6 +1303,25 @@
           <option value="64">16 hours</option>
         </select>
       </div>
+      <div class="iv-ctrl-row">
+        <span class="iv-ctrl-label">Day</span>
+        <select id="iv-dow-select" class="iv-ctrl-select">
+          <option value="0">Monday</option>
+          <option value="1">Tuesday</option>
+          <option value="2">Wednesday</option>
+          <option value="3">Thursday</option>
+          <option value="4">Friday</option>
+          <option value="5">Saturday</option>
+          <option value="6">Sunday</option>
+        </select>
+      </div>
+      <div class="iv-ctrl-row">
+        <span class="iv-ctrl-label">Time</span>
+        <input id="iv-hour-input" type="number" class="iv-ctrl-input"
+          min="0" max="23" value="9" style="width:54px;flex:none;">
+        <span style="color:var(--text-muted);font-size:11px;padding:0 4px;">:00</span>
+        <span style="color:var(--text-muted);font-size:10px;">(24h)</span>
+      </div>
       <button type="button" class="iv-apply" id="iv-apply-btn" onclick="ivApply()">Run Scenario</button>
       <div class="iv-spinner" id="iv-spinner">
         <div class="iv-spin-icon"></div> Running model…
@@ -649,21 +1330,47 @@
 
     <!-- Results (hidden until scenario runs) -->
     <div class="sp2-section" id="sp2-results">
-      <div class="sp2-section-title">Results — Network Effect</div>
-      <div class="sp2-row">
-        <span class="sp2-row-key">Treated street Δped</span>
-        <span class="sp2-row-val" id="iv-res-mean-delta">—</span>
+      <div class="sp2-section-title">Intervention Result</div>
+
+      <!-- Treated street summary card -->
+      <div class="iv-result-card">
+        <div class="iv-result-card-title">Treated Street</div>
+        <div class="iv-result-metrics">
+          <div class="iv-result-metric">
+            <div class="iv-result-metric-val" id="iv-res-mean-delta">—</div>
+            <div class="iv-result-metric-lbl">avg Δ ped / 15 min</div>
+          </div>
+          <div class="iv-result-metric">
+            <div class="iv-result-metric-val" id="iv-res-cum-delta">—</div>
+            <div class="iv-result-metric-lbl">total extra peds</div>
+          </div>
+          <div class="iv-result-metric">
+            <div class="iv-result-metric-val" id="iv-res-park-delta">—</div>
+            <div class="iv-result-metric-lbl">avg Δ parking occ</div>
+          </div>
+        </div>
+        <div id="iv-res-rebound" style="font-size:10px;color:var(--text-dim);margin-top:6px;"></div>
       </div>
-      <div class="sp2-row">
-        <span class="sp2-row-key">Cumulative Δped</span>
-        <span class="sp2-row-val" id="iv-res-cum-delta">—</span>
+
+      <!-- Network impact summary -->
+      <div class="iv-result-card" style="margin-top:8px;">
+        <div class="iv-result-card-title">Network Impact</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">
+          <span id="iv-res-neighbours">—</span> nearby streets affected (Δ &gt; 0.5 ppl/15min)
+        </div>
+        <div id="sp2-top-affected"></div>
       </div>
-      <div class="sp2-row">
-        <span class="sp2-row-key">Neighbours affected</span>
-        <span class="sp2-row-val" id="iv-res-neighbours">—</span>
+
+      <!-- Charts -->
+      <div id="iv-chart-wrap" style="display:none;margin-top:12px;">
+        <div style="font-size:9px;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px;">Pedestrian flow — baseline vs treated</div>
+        <div style="position:relative;height:130px;"><canvas id="iv-chart-ped"></canvas></div>
+        <div style="font-size:9px;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase;margin-top:10px;margin-bottom:3px;">Pedestrian Δ (treated − baseline)</div>
+        <div style="position:relative;height:80px;"><canvas id="iv-chart-delta"></canvas></div>
+        <div style="font-size:9px;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase;margin-top:10px;margin-bottom:3px;">Parking occupancy — baseline vs treated</div>
+        <div style="position:relative;height:100px;"><canvas id="iv-chart-park"></canvas></div>
       </div>
-      <div id="sp2-top-affected" style="margin-top:8px;font-size:10px;color:var(--text-dim);line-height:1.8;"></div>
-      <div id="iv-res-note" style="margin-top:6px;font-size:9px;color:var(--text-muted);line-height:1.5;"></div>
+      <div id="iv-res-note" style="margin-top:8px;font-size:9px;color:var(--text-muted);line-height:1.5;"></div>
     </div>
 
   </div><!-- /sp2-body -->
@@ -679,7 +1386,7 @@
 <!-- Street detail panel -->
 <div id="street-panel">
   <div id="sp-header">
-    <button class="sp-close" onclick="closeStreetPanel()">&#x2715;</button>
+    <button id="sp-close" onclick="closeStreetPanel()">&#x2715;</button>
     <div id="sp-street-name">—</div>
     <div id="sp-street-meta">—</div>
   </div>
@@ -687,6 +1394,164 @@
 </div>
 
 <script>
+// Section collapse/expand — click any section-title to toggle (but not the info button)
+document.querySelectorAll('.section-title').forEach(t =>
+  t.addEventListener('click', e => {
+    if (e.target.closest('.lp-info-btn')) return;
+    t.closest('.section').classList.toggle('collapsed');
+  })
+);
+
+/* ── Layer popup ──────────────────────────────────────────────── */
+const LAYER_POPUP_CONTENT = {
+  sensors: {
+    title: 'Sensors',
+    html: `<p>Live sensor feeds ingested from two Melbourne City Council data sources.</p>
+<div class="lp-stat-grid">
+  <div class="lp-stat"><div class="lp-stat-key">Parking streets</div><div class="lp-stat-val">171</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">In model graph</div><div class="lp-stat-val">138</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">Ped counters</div><div class="lp-stat-val">18</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">Time bins / street</div><div class="lp-stat-val">14,400</div></div>
+</div>
+<div class="lp-stat-grid" style="margin-top:8px;">
+  <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text-dim)"><span class="lp-dot" style="background:#6b9db3;"></span>Parking bay occupancy</div>
+  <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text-dim)"><span class="lp-dot" style="background:#f472b6;"></span>Pedestrian counts</div>
+</div>
+<p style="margin-top:10px;">Parking data fetched via Supabase. Confidence tier: <strong style="color:var(--accent)">1.0</strong> (direct measurement) for 67 sensored streets.</p>`,
+  },
+  clue: {
+    title: 'CLUE Land Use',
+    html: `<p>Melbourne's Census of Land Use and Employment (CLUE) — point features snapped to the nearest street centroid during Step 02.</p>
+<div style="margin-top:4px;">
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#f97316;"></span>Cafes &amp; restaurants — food &amp; beverage activity driver</div>
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#a855f7;"></span>Bars &amp; pubs — night-time economy signal</div>
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#06b6d4;"></span>Businesses — employment density proxy</div>
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#84cc16;"></span>Buildings — built-form intensity</div>
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#ef4444;"></span>Dwellings — residential presence</div>
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#eab308;"></span>Off-street parking — competing supply signal</div>
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#ec4899;"></span>Landmarks — major attractor</div>
+</div>
+<p style="margin-top:10px;">CLUE counts feed the <em>static feature matrix</em> used by the GNN as node features (Step 05).</p>`,
+  },
+  transit: {
+    title: 'Transit Stops',
+    html: `<p>Public transit infrastructure points within the Melbourne CBD boundary. Used as static node features indicating multimodal access.</p>
+<div style="margin-top:4px;">
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#38bdf8;"></span>Bus stops</div>
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#4ade80;"></span>Tram stops — most dense transit mode in CBD</div>
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#fb923c;"></span>Train stations — major interchange anchors</div>
+</div>
+<p style="margin-top:10px;">Transit proximity is a strong predictor of pedestrian demand in the XGBoost imputation model (Step 03).</p>`,
+  },
+  streets: {
+    title: 'Street Polygons',
+    html: `<p>The full Melbourne CBD street universe — <strong style="color:var(--accent)">3,975</strong> segments sourced from Melbourne Open Data.</p>
+<div class="lp-stat-grid">
+  <div class="lp-stat"><div class="lp-stat-key">Total universe</div><div class="lp-stat-val">3,975</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">Modelled (filtered)</div><div class="lp-stat-val">1,397</div></div>
+</div>
+<div style="margin-top:8px;">
+  <div class="lp-swatch-row"><span class="lp-sq" style="border:2px solid #60a5fa;"></span>Arterial — high-activity corridors retained in model</div>
+  <div class="lp-swatch-row"><span class="lp-sq" style="border:2px solid #86efac;"></span>Minor — included if activity threshold met</div>
+  <div class="lp-swatch-row"><span class="lp-sq" style="border:2px solid #fbbf24;"></span>Private — mostly excluded; retained if sensored</div>
+</div>
+<p style="margin-top:10px;">CRS: EPSG:3111 for spatial ops; WGS84 for storage and display.</p>`,
+  },
+  graph: {
+    title: 'Graph — Step 04',
+    html: `<p>Dual-branch graph topology powering the MultiGCN. Two edge types encode different notions of street similarity.</p>
+<div class="lp-stat-grid">
+  <div class="lp-stat"><div class="lp-stat-key">Spatial edges</div><div class="lp-stat-val">6,580</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">Semantic edges</div><div class="lp-stat-val">1,115</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">Spatial k-NN k</div><div class="lp-stat-val">8</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">Spatial components</div><div class="lp-stat-val">1</div></div>
+</div>
+<div style="margin-top:8px;">
+  <div class="lp-swatch-row"><span class="lp-sq" style="background:#3b82f6;height:3px;width:16px;border-radius:0;"></span>Spatial — k=8 k-NN, Gaussian kernel weight</div>
+  <div class="lp-swatch-row"><span class="lp-sq" style="background:#a855f7;height:3px;width:16px;border-radius:0;"></span>Semantic — per-feature log1p-ratio ≥ 0.70 gate</div>
+  <div class="lp-swatch-row"><span class="lp-dot" style="background:#22c55e;"></span>Nodes — green if in semantic graph</div>
+</div>
+<div class="lp-note">Semantic graph currently degenerate: 77% isolates (1,075 / 1,397). Flagged for rebuild with a looser similarity rule.</div>`,
+  },
+  impute: {
+    title: 'Impute Pedestrian Data',
+    html: `<p>XGBoost-imputed pedestrian volumes for streets lacking direct sensor coverage — Step 03.</p>
+<div class="lp-stat-grid">
+  <div class="lp-stat"><div class="lp-stat-key">Measured streets</div><div class="lp-stat-val">67</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">Estimated streets</div><div class="lp-stat-val">1,330</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">Confidence (sensor)</div><div class="lp-stat-val">1.0</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">Confidence (imputed)</div><div class="lp-stat-val">0.5</div></div>
+</div>
+<p style="margin-top:10px;">Colour encodes pedestrian volume on a <strong style="color:#1d4ed8;">cold</strong> → <strong style="color:#10b981;">mid</strong> → <strong style="color:#ef4444;">hot</strong> gradient. The three-tier confidence spec (1.0 / 0.8 / 0.5) was partially materialised — the 0.8 tier was not generated.</p>`,
+  },
+  clustering: {
+    title: 'Clustering — GMM',
+    html: `<p>Gaussian Mixture Model clustering of street archetypes based on the normalised static feature matrix (Step 06).</p>
+<p>Each cluster represents a street <em>behavioural archetype</em> — a combination of land-use profile, pedestrian demand, and parking characteristics. The <strong style="color:var(--accent)">intervention_type</strong> field in <code>clustered.parquet</code> drives scenario defaults.</p>
+<div class="lp-stat-grid">
+  <div class="lp-stat"><div class="lp-stat-key">Modelled streets</div><div class="lp-stat-val">1,397</div></div>
+  <div class="lp-stat"><div class="lp-stat-key">Confidence tiers</div><div class="lp-stat-val">2 / 3</div></div>
+</div>
+<div class="lp-note good">Click any cluster row to toggle its streets. Hover a street on the map to see its archetype in the detail panel.</div>`,
+  },
+};
+
+let activePopupKey = null;
+
+function openLayerPopup(key, btn) {
+  const popup = document.getElementById('layer-popup');
+  const content = LAYER_POPUP_CONTENT[key];
+  if (!content) return;
+
+  // Deactivate previous button
+  document.querySelectorAll('.lp-info-btn.active').forEach(b => b.classList.remove('active'));
+
+  if (activePopupKey === key) {
+    closeLayerPopup();
+    return;
+  }
+
+  activePopupKey = key;
+  btn.classList.add('active');
+  document.getElementById('lp-title').textContent = content.title;
+  document.getElementById('lp-body').innerHTML = content.html;
+
+  // Position vertically aligned with the clicked button
+  const btnRect = btn.getBoundingClientRect();
+  const topOffset = btnRect.top + window.scrollY;
+  popup.style.top = Math.max(12, topOffset - 8) + 'px';
+
+  popup.classList.add('open');
+}
+
+function closeLayerPopup() {
+  document.getElementById('layer-popup').classList.remove('open');
+  document.querySelectorAll('.lp-info-btn.active').forEach(b => b.classList.remove('active'));
+  activePopupKey = null;
+}
+
+document.querySelectorAll('.lp-info-btn').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    openLayerPopup(btn.dataset.popup, btn);
+  });
+});
+
+// Close popup when clicking outside controls or popup
+document.addEventListener('click', e => {
+  if (!e.target.closest('#controls') && !e.target.closest('#layer-popup')) {
+    closeLayerPopup();
+  }
+});
+
+// Master toggle — collapse/expand all sections at once
+document.getElementById('controls-title').addEventListener('click', () => {
+  const allCollapsed = document.getElementById('controls').classList.toggle('all-collapsed');
+  document.querySelectorAll('#controls .section').forEach(s =>
+    s.classList.toggle('collapsed', allCollapsed)
+  );
+});
+
 const DATA_FILES = {
   sensors: 'sensors_viz.geojson',
   streets: 'streets_viz.geojson',
@@ -727,13 +1592,16 @@ async function fetchJsonWithFallback(fileName) {
 }
 
 const LAYER_COLORS = {
-  cafe:     '#f97316',
-  bar:      '#a855f7',
-  business: '#06b6d4',
-  building: '#84cc16',
-  dwelling: '#ef4444',
-  offstreet:'#eab308',
-  landmark: '#ec4899',
+  cafe:          '#f97316',
+  bar:           '#a855f7',
+  business:      '#06b6d4',
+  building:      '#84cc16',
+  dwelling:      '#ef4444',
+  offstreet:     '#eab308',
+  landmark:      '#ec4899',
+  bus_stop:      '#38bdf8',
+  tram_stop:     '#4ade80',
+  train_station: '#fb923c',
 };
 
 const CLUSTER_COLORS = ['#3b82f6','#ef4444','#f59e0b','#22c55e','#a855f7','#06b6d4','#f97316','#84cc16','#ec4899'];
@@ -748,13 +1616,45 @@ let streetCentroidMap = {};   // sid -> [lng, lat]
 let clusterProfiles   = {};   // cluster_id -> aggregated stats
 let selectedStreetId  = null;
 
+function setTokenError(message) {
+  const errorBox = document.getElementById('token-error');
+  if (!errorBox) return;
+  if (!message) {
+    errorBox.textContent = '';
+    errorBox.style.display = 'none';
+    return;
+  }
+  errorBox.textContent = message;
+  errorBox.style.display = 'block';
+}
+
+function showMapInitFailure(message) {
+  const prompt = document.getElementById('token-prompt');
+  const input = document.getElementById('token-input');
+  const loadBtn = document.getElementById('token-load-btn');
+  if (prompt) prompt.style.display = 'block';
+  setTokenError(message);
+  if (input) {
+    input.disabled = false;
+    input.focus();
+  }
+  if (loadBtn) loadBtn.disabled = false;
+}
+
 function initMap() {
   const token = document.getElementById('token-input').value.trim();
-  if (!token.startsWith('pk.')) { alert('Invalid token'); return; }
+  if (!token.startsWith('pk.')) {
+    setTokenError('Enter a valid public Mapbox token starting with pk.');
+    alert('Invalid token');
+    return;
+  }
+  setTokenError('');
   document.getElementById('token-prompt').style.display = 'none';
   // Disable the input so it can never be re-triggered by focus + Enter
   const inp = document.getElementById('token-input');
+  const loadBtn = document.getElementById('token-load-btn');
   inp.disabled = true;
+  if (loadBtn) loadBtn.disabled = true;
   inp.blur();
   localStorage.setItem('mapbox_token', token);
   buildMap(token);
@@ -764,6 +1664,7 @@ window.onload = () => {
   const saved = localStorage.getItem('mapbox_token');
   if (saved) {
     document.getElementById('token-prompt').style.display = 'none';
+    setTokenError('');
     buildMap(saved);
   }
 };
@@ -794,17 +1695,36 @@ const IV_OPTIONS = [
 ];
 
 function buildMap(token) {
+  if (!window.mapboxgl || typeof mapboxgl.Map !== 'function') {
+    showMapInitFailure('Mapbox GL failed to load. Check network access to api.mapbox.com and reload.');
+    return;
+  }
+  if (typeof mapboxgl.supported === 'function' && !mapboxgl.supported()) {
+    showMapInitFailure('WebGL is unavailable in this browser session. Open this page in Chrome or Edge with hardware acceleration enabled.');
+    return;
+  }
+
   mapboxgl.accessToken = token;
-  const map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/mapbox/dark-v11',
-    center: [144.960, -37.814],
-    zoom: 14,
-  });
+  let map;
+  try {
+    map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [144.960, -37.814],
+      zoom: 14,
+    });
+  } catch (err) {
+    console.error('Map initialization failed:', err);
+    const detail = err && err.message ? ` Details: ${err.message}` : '';
+    showMapInitFailure(`Failed to initialize WebGL.${detail} Try a desktop browser with GPU acceleration or run outside remote desktop.`);
+    return;
+  }
   MAP = map;
-  map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+  window.addEventListener('resize', () => map.resize());
 
   map.on('load', async () => {
+    setTimeout(() => map.resize(), 100);
     let sensorsRes, streetsRes, clueRes, graphRes, pedSumm, clusterSumm;
     try {
       [sensorsRes, streetsRes, clueRes, graphRes, pedSumm, clusterSumm] = await Promise.all([
@@ -826,6 +1746,12 @@ function buildMap(token) {
     // Enrich every street polygon feature with ped + cluster data
     streetsRes.features.forEach(f => {
       const sid = String(f.properties.street_id);
+      const co = f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates[0][0] : f.geometry.coordinates[0];
+      let cx = 0, cy = 0;
+      co.forEach(c => { cx += c[0]; cy += c[1]; });
+      cx /= co.length; cy /= co.length;
+      f.properties.centroid_lng = cx;
+      f.properties.centroid_lat = cy;
       const p = pedSumm[sid];
       if (p) {
         f.properties.mean_ped_flow  = p.mean_ped_flow;
@@ -891,15 +1817,19 @@ function buildMap(token) {
       'Private',    '#fbbf24',
       /* default */ '#94a3b8',
     ];
+    const streetFillOpacity = ['match', ['get', 'str_type'],
+      'Arterial', 0.30, 'Council Major', 0.30, 0.10];
+    const streetLineOpacity = ['match', ['get', 'str_type'],
+      'Arterial', 0.75, 'Council Major', 0.75, 0.30];
     map.addLayer({
       id: 'streets-fill', type: 'fill', source: 'streets',
       layout: { visibility: 'none' },
-      paint: { 'fill-color': streetTypeColor, 'fill-opacity': 0.15 },
+      paint: { 'fill-color': streetTypeColor, 'fill-opacity': streetFillOpacity },
     });
     map.addLayer({
       id: 'streets-outline', type: 'line', source: 'streets',
       layout: { visibility: 'none' },
-      paint: { 'line-color': streetTypeColor, 'line-width': 0.8, 'line-opacity': 0.5 },
+      paint: { 'line-color': streetTypeColor, 'line-width': 0.8, 'line-opacity': streetLineOpacity },
     });
 
     // ── Pedestrian activity layers ────────────────────────────────
@@ -1076,6 +2006,7 @@ function buildMap(token) {
 
     map.addLayer({
       id: 'cluster-intervention-fill', type: 'fill', source: 'streets',
+      filter: ['has', 'cluster'],
       layout: { visibility: 'none' },
       paint: {
         'fill-color': interventionColor,
@@ -1084,44 +2015,77 @@ function buildMap(token) {
     });
     map.addLayer({
       id: 'cluster-intervention-outline', type: 'line', source: 'streets',
+      filter: ['has', 'cluster'],
       layout: { visibility: 'none' },
       paint: { 'line-color': interventionColor, 'line-width': 0.8, 'line-opacity': 0.7 },
     });
 
     map.addLayer({
       id: 'cluster-id-fill', type: 'fill', source: 'streets',
+      filter: ['has', 'cluster'],
       layout: { visibility: 'none' },
       paint: { 'fill-color': clusterIdColor, 'fill-opacity': 0.6 },
     });
     map.addLayer({
       id: 'cluster-id-outline', type: 'line', source: 'streets',
+      filter: ['has', 'cluster'],
       layout: { visibility: 'none' },
       paint: { 'line-color': clusterIdColor, 'line-width': 0.8, 'line-opacity': 0.7 },
     });
 
-    // ── Snap lines (dwelling -> street centroid) ──────────────────
-    const dwellFeats = clueRes.features.filter(f => f.properties.layer === 'dwelling');
-    const streetCentroids = {};
-    labelFeatures.forEach(f => { streetCentroids[f.properties.label] = f.geometry.coordinates; });
-    const snapLineFeats = dwellFeats.filter(f => f.properties.street_id && streetCentroids[f.properties.street_id]).map(f => ({
-      type: 'Feature',
-      properties: { street_id: f.properties.street_id, value: f.properties.value || 0 },
-      geometry: {
-        type: 'LineString',
-        coordinates: [f.geometry.coordinates, streetCentroids[f.properties.street_id]],
-      },
-    }));
-    map.addSource('snap-lines', { type: 'geojson', data: { type: 'FeatureCollection', features: snapLineFeats } });
-    map.addLayer({
-      id: 'snap-lines', type: 'line', source: 'snap-lines',
-      layout: { visibility: 'none' },
-      paint: { 'line-color': '#f59e0b', 'line-width': 1, 'line-opacity': 0.5, 'line-dasharray': [2, 2] },
+    // ── Snap lines: one per CLUE layer, color-matched ──────────────
+    // Verifies that each CLUE point is joined to a sensible nearby street.
+    // Uses streetCentroidMap (built at line ~968) which covers every street.
+    layerNames.forEach(layerName => {
+      const feats = clueRes.features.filter(f => f.properties.layer === layerName);
+      const lineFeats = feats
+        .filter(f => f.properties.street_id && streetCentroidMap[String(f.properties.street_id)])
+        .map(f => ({
+          type: 'Feature',
+          properties: {
+            layer: layerName,
+            street_id: f.properties.street_id,
+            dist_m: f.properties.dist_m ?? null,
+            name: f.properties.name ?? null,
+          },
+          geometry: {
+            type: 'LineString',
+            coordinates: [f.geometry.coordinates, streetCentroidMap[String(f.properties.street_id)]],
+          },
+        }));
+      map.addSource('snap-' + layerName, { type: 'geojson', data: { type: 'FeatureCollection', features: lineFeats } });
+      map.addLayer({
+        id: 'snap-' + layerName, type: 'line', source: 'snap-' + layerName,
+        layout: { visibility: 'none' },
+        paint: {
+          'line-color': LAYER_COLORS[layerName],
+          'line-width': 1,
+          'line-opacity': 0.55,
+          'line-dasharray': [2, 2],
+        },
+      });
     });
+
+    // Legacy "snap-lines" alias (for the existing tog-snaplines master toggle)
+    // — points to dwelling lines so the existing checkbox still does something
+    // sensible if a user clicks it directly. Per-layer toggles are the real UX.
+    map.addSource('snap-lines', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addLayer({ id: 'snap-lines', type: 'line', source: 'snap-lines', layout: { visibility: 'none' }, paint: { 'line-color': '#f59e0b', 'line-width': 1 } });
 
     // ── Graph layers ──────────────────────────────────────────────
     const nodeFeats     = { type: 'FeatureCollection', features: graphRes.features.filter(f => f.properties.feature_type === 'node') };
     const spatialFeats  = { type: 'FeatureCollection', features: graphRes.features.filter(f => f.properties.edge_type === 'spatial') };
     const semanticFeats = { type: 'FeatureCollection', features: graphRes.features.filter(f => f.properties.edge_type === 'semantic') };
+
+    [spatialFeats, semanticFeats].forEach(fc => {
+      fc.features.forEach(f => {
+        if (f.geometry && f.geometry.coordinates && f.geometry.coordinates.length >= 2) {
+          const c = f.geometry.coordinates, m = c[Math.floor(c.length / 2)];
+          f.properties.mid_lng = m[0];
+          f.properties.mid_lat = m[1];
+        }
+      });
+    });
 
     // Node circles — green if semantic-eligible, dark slate if spatial-only
     map.addSource('graph-nodes', { type: 'geojson', data: nodeFeats });
@@ -1155,15 +2119,18 @@ function buildMap(token) {
       layout: { visibility: 'none' },
       paint: {
         'line-color': '#a855f7',
-        'line-width': ['interpolate', ['linear'], ['get', 'weight'], 0.85, 0.2, 1, 0.8],
-        'line-opacity': ['interpolate', ['linear'], ['get', 'weight'], 0.85, 0.15, 1, 0.45],
+        'line-width': ['interpolate', ['linear'], ['get', 'weight'], 0.85, 0.3, 1, 0.9],
+        'line-opacity': ['interpolate', ['linear'], ['get', 'weight'], 0.85, 0.10, 1, 0.30],
       },
     });
 
     const semEligCount = nodeFeats.features.filter(f => f.properties.semantic_eligible).length;
+    const isolateCount = nodeFeats.features.length - semEligCount;
     document.getElementById('cnt-graph-nodes').textContent    = `${nodeFeats.features.length} (${semEligCount} sem)`;
     document.getElementById('cnt-spatial-graph').textContent  = spatialFeats.features.length.toLocaleString();
     document.getElementById('cnt-semantic-graph').textContent = semanticFeats.features.length.toLocaleString();
+    document.getElementById('graph-stats-line').textContent   =
+      `${isolateCount} sem isolates · spatial: topo-touch · semantic: cosine ≥ 0.85 / mNN k=10`;
 
     // ── Stats ─────────────────────────────────────────────────────
     document.getElementById('cnt-parking').textContent = parkingFeats.length;
@@ -1204,16 +2171,17 @@ function buildMap(token) {
     const toggleMap = {
       'tog-parking':       'sensors-parking',
       'tog-ped':           'sensors-ped',
-      'tog-streets':       ['streets-fill', 'streets-outline'],
+      // tog-streets is handled separately below to respect the arterial-only override.
       'tog-labels':        'street-labels',
-      'tog-snaplines':     'snap-lines',
       'tog-ped-sensored':   ['ped-sensored-fill', 'ped-sensored-outline'],
       'tog-ped-imputed':    ['ped-imputed-fill',  'ped-imputed-outline'],
       'tog-graph-nodes':    'graph-nodes-circles',
       'tog-spatial-graph':  'spatial-graph-lines',
       'tog-semantic-graph': 'semantic-graph-lines',
     };
-    layerNames.forEach(n => { toggleMap['tog-' + n] = 'clue-' + n; });
+    // Each CLUE layer toggle now controls BOTH its points AND its snap-lines,
+    // so users can immediately see where a dataset's points were joined to.
+    layerNames.forEach(n => { toggleMap['tog-' + n] = ['clue-' + n, 'snap-' + n]; });
 
     Object.entries(toggleMap).forEach(([togId, layers]) => {
       document.getElementById(togId).addEventListener('change', (e) => {
@@ -1224,12 +2192,25 @@ function buildMap(token) {
       });
     });
 
-    // CLUE select-all
+    // tog-streets must keep layers visible when arterial-only is also on.
+    document.getElementById('tog-streets').addEventListener('change', (e) => {
+      const arterialOn = document.getElementById('tog-arterial-only').checked;
+      const vis = (e.target.checked || arterialOn) ? 'visible' : 'none';
+      map.setLayoutProperty('streets-fill',    'visibility', vis);
+      map.setLayoutProperty('streets-outline', 'visibility', vis);
+    });
+
+    // CLUE select-all — also flips snap-lines per layer for consistency
     document.getElementById('tog-clue-all').addEventListener('change', (e) => {
       const checked = e.target.checked;
+      const vis = checked ? 'visible' : 'none';
       layerNames.forEach(n => {
         const cb = document.getElementById('tog-' + n);
-        if (cb) { cb.checked = checked; map.setLayoutProperty('clue-' + n, 'visibility', checked ? 'visible' : 'none'); }
+        if (cb) {
+          cb.checked = checked;
+          map.setLayoutProperty('clue-' + n, 'visibility', vis);
+          map.setLayoutProperty('snap-' + n, 'visibility', vis);
+        }
       });
     });
 
@@ -1242,11 +2223,12 @@ function buildMap(token) {
     function applyClusterFilter() {
       const ids  = Array.from(visibleClusters);
       const vis  = ids.length > 0 ? 'visible' : 'none';
+      const hasCluster = ['has', 'cluster'];
       const filter = ids.length === 0
         ? ['==', ['get', 'cluster'], -1]
         : ids.length === actualK
-        ? null
-        : ['in', ['get', 'cluster'], ['literal', ids]];
+        ? hasCluster
+        : ['all', hasCluster, ['in', ['get', 'cluster'], ['literal', ids]]];
       CLUSTER_LAYERS.forEach(l => {
         try {
           map.setLayoutProperty(l, 'visibility', vis);
@@ -1281,16 +2263,53 @@ function buildMap(token) {
     // Show clusters by default on load
     applyClusterFilter();
 
-    // Arterial-only filter (applies to all street-polygon and ped layers)
-    const ARTERIAL_FILTER = ['in', ['get', 'str_type'], ['literal', ARTERIAL_TYPES]];
-    const allStreetLayers = ['streets-fill','streets-outline','ped-sensored-fill','ped-sensored-outline',
-                             'ped-imputed-fill','ped-imputed-outline','cluster-intervention-fill',
-                             'cluster-intervention-outline','cluster-id-fill','cluster-id-outline',
-                             'streets-highlight','streets-highlight-outline','street-labels'];
+    // Arterial-only filter — only applied to the base streets fill/outline layers.
+    // Cluster, ped, and highlight layers must NOT be touched here: cluster layers
+    // have their own applyClusterFilter() state (setFilter null would wipe it), and
+    // streets-highlight has a hover filter that must remain as-is.
+    const ARTERIAL_FILTER = ['match', ['get', 'str_type'], ['Arterial', 'Council Major'], true, false];
     document.getElementById('tog-arterial-only').addEventListener('change', (e) => {
-      allStreetLayers.forEach(l => {
-        try { map.setFilter(l, e.target.checked ? ARTERIAL_FILTER : null); } catch(_) {}
-      });
+      const on = e.target.checked;
+      // Force layers visible when arterial-only is on; restore to whatever
+      // tog-streets says when it's turned off.
+      const allStreetsOn = document.getElementById('tog-streets').checked;
+      const vis = (on || allStreetsOn) ? 'visible' : 'none';
+      map.setLayoutProperty('streets-fill',    'visibility', on ? 'visible' : (allStreetsOn ? 'visible' : 'none'));
+      map.setLayoutProperty('streets-outline', 'visibility', on ? 'visible' : (allStreetsOn ? 'visible' : 'none'));
+      map.setFilter('streets-fill',    on ? ARTERIAL_FILTER : null);
+      map.setFilter('streets-outline', on ? ARTERIAL_FILTER : null);
+      // Uniform low-opacity blue when showing arterial-only; type-coloured when showing all.
+      map.setPaintProperty('streets-fill',    'fill-color',   on ? '#3b82f6' : streetTypeColor);
+      map.setPaintProperty('streets-fill',    'fill-opacity', on ? 0.10 : streetFillOpacity);
+      map.setPaintProperty('streets-outline', 'line-color',   on ? '#3b82f6' : streetTypeColor);
+      map.setPaintProperty('streets-outline', 'line-opacity', on ? 0.35 : streetLineOpacity);
+    });
+
+    // ── 3D buildings toggle ──────────────────────────────────────
+    document.getElementById('tog-3d').addEventListener('change', (e) => {
+      const on = e.target.checked;
+      if (on) {
+        if (!map.getLayer('3d-buildings')) {
+          map.addLayer({
+            id: '3d-buildings', source: 'composite', 'source-layer': 'building',
+            type: 'fill-extrusion', minzoom: 13,
+            paint: {
+              'fill-extrusion-color': '#6b7280',
+              'fill-extrusion-height': ['get', 'height'],
+              'fill-extrusion-base': ['get', 'min_height'],
+              'fill-extrusion-opacity': 0.85,
+            },
+          }, 'streets-fill');
+        } else {
+          map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+        }
+        map.easeTo({ pitch: 55, bearing: -15, duration: 800 });
+      } else {
+        if (map.getLayer('3d-buildings')) {
+          map.setLayoutProperty('3d-buildings', 'visibility', 'none');
+        }
+        map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+      }
     });
 
     // ── Highlight street on hover ─────────────────────────────────
@@ -1358,6 +2377,42 @@ function buildMap(token) {
     });
 
 
+    // ── Graph node hover/click ────────────────────────────────────
+    map.on('mouseenter', 'graph-nodes-circles', (e) => {
+      map.getCanvas().style.cursor = 'pointer';
+      const p = e.features[0].properties;
+      const semLabel = p.semantic_eligible ? '<span style="color:#22c55e">● semantic</span>' : '<span style="color:#475569">● spatial-only</span>';
+      sensorTip.innerHTML = `<b style="color:#22c55e">Node ${p.node_idx}</b><br>${p.name || p.street_id || '—'}<br>${semLabel}`;
+      sensorTip.style.display = 'block';
+    });
+    map.on('mouseleave', 'graph-nodes-circles', () => {
+      map.getCanvas().style.cursor = '';
+      sensorTip.style.display = 'none';
+    });
+
+    // ── Graph edge hover ──────────────────────────────────────────
+    map.on('mouseenter', 'spatial-graph-lines', (e) => {
+      map.getCanvas().style.cursor = 'crosshair';
+      const p = e.features[0].properties;
+      const _isFallback = Number(p.weight) === 0;
+      sensorTip.innerHTML = `<b style="color:#3b82f6">Spatial edge${_isFallback ? ' <span style="color:#f59e0b">(fallback NN)</span>' : ' (topo-touch)'}</b><br>dist: ${Math.round(p.dist_m)} m · weight: ${Number(p.weight).toFixed(3)}`;
+      sensorTip.style.display = 'block';
+    });
+    map.on('mouseleave', 'spatial-graph-lines', () => {
+      map.getCanvas().style.cursor = '';
+      sensorTip.style.display = 'none';
+    });
+    map.on('mouseenter', 'semantic-graph-lines', (e) => {
+      map.getCanvas().style.cursor = 'crosshair';
+      const p = e.features[0].properties;
+      sensorTip.innerHTML = `<b style="color:#a855f7">Semantic edge</b><br>cosine sim: ${p.similarity} · weight: ${p.weight}`;
+      sensorTip.style.display = 'block';
+    });
+    map.on('mouseleave', 'semantic-graph-lines', () => {
+      map.getCanvas().style.cursor = '';
+      sensorTip.style.display = 'none';
+    });
+
     // ── Cluster popup ─────────────────────────────────────────────
     const clusterPopupEl = document.getElementById('cluster-popup');
     const clusterIdLegendContainer = document.getElementById('cluster-rows');
@@ -1417,6 +2472,119 @@ function buildMap(token) {
     let scenarioActive  = false;
     let scenarioResult  = null;   // last API response, for saving
     let _scenarioProps  = null;   // street properties for current scenario
+    let _pedChart       = null;   // Chart.js instance — ped flow
+    let _deltaChart     = null;   // Chart.js instance — ped delta
+    let _parkChart      = null;   // Chart.js instance — parking occ
+
+    // ── Chart rendering ───────────────────────────────────────────────────────
+    function _renderCharts(data, durationBins) {
+      const n      = data.baseline.ped_flow_treated_street.length;
+      const labels = Array.from({length: n}, (_, i) => i % 4 === 0 ? `${i * 15}m` : '');
+
+      const ivLinePlugin = {
+        id: 'ivLine',
+        afterDraw(chart) {
+          if (durationBins <= 0 || durationBins >= n) return;
+          const xScale = chart.scales.x;
+          if (!xScale) return;
+          const x = xScale.getPixelForTick(durationBins);
+          chart.ctx.save();
+          chart.ctx.strokeStyle = 'rgba(141,180,200,0.45)';
+          chart.ctx.lineWidth = 1;
+          chart.ctx.setLineDash([3, 3]);
+          chart.ctx.beginPath();
+          chart.ctx.moveTo(x, chart.chartArea.top);
+          chart.ctx.lineTo(x, chart.chartArea.bottom);
+          chart.ctx.stroke();
+          chart.ctx.restore();
+        }
+      };
+
+      const sharedOptions = {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, labels: { color: '#cbd5e1', font: { size: 9 }, boxWidth: 8, padding: 5 } },
+          tooltip: { mode: 'index', intersect: false,
+            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}` },
+            backgroundColor: '#1a1814', borderColor: '#334155', borderWidth: 1,
+            titleColor: '#cbd5e1', bodyColor: '#f1f5f9', titleFont: { size: 9 }, bodyFont: { size: 9 }
+          },
+        },
+        scales: {
+          x: { ticks: { color: '#94a3b8', font: { size: 8 }, maxRotation: 0 },
+               grid: { color: 'rgba(148,163,184,0.15)' } },
+          y: { ticks: { color: '#94a3b8', font: { size: 8 } },
+               grid: { color: 'rgba(148,163,184,0.15)' } },
+        },
+      };
+
+      if (_pedChart) { _pedChart.destroy(); _pedChart = null; }
+      _pedChart = new Chart(document.getElementById('iv-chart-ped').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'baseline', data: data.baseline.ped_flow_treated_street,
+              borderColor: '#4a7488', borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+            { label: 'treated',  data: data.treated.ped_flow_treated_street,
+              borderColor: '#8db4c8', borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+          ],
+        },
+        options: sharedOptions,
+        plugins: [ivLinePlugin],
+      });
+
+      // Delta chart — treated minus baseline (auto-scaled so tiny effects are visible)
+      const deltaVals = data.baseline.ped_flow_treated_street.map(
+        (b, i) => (data.treated.ped_flow_treated_street[i] ?? b) - b
+      );
+      if (_deltaChart) { _deltaChart.destroy(); _deltaChart = null; }
+      _deltaChart = new Chart(document.getElementById('iv-chart-delta').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Δped/15min',
+            data: deltaVals,
+            backgroundColor: deltaVals.map(v => v >= 0 ? 'rgba(34,197,94,0.65)' : 'rgba(239,68,68,0.65)'),
+            borderWidth: 0,
+          }],
+        },
+        options: { ...sharedOptions,
+          plugins: { ...sharedOptions.plugins, legend: { display: false } },
+        },
+        plugins: [ivLinePlugin],
+      });
+
+      if (_parkChart) { _parkChart.destroy(); _parkChart = null; }
+      _parkChart = new Chart(document.getElementById('iv-chart-park').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'baseline', data: data.baseline.occ_rate_predicted,
+              borderColor: '#4a7488', borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+            { label: 'treated',  data: data.treated.occ_rate_predicted,
+              borderColor: '#b85c5c', borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+          ],
+        },
+        options: { ...sharedOptions, scales: { ...sharedOptions.scales,
+          y: { ...sharedOptions.scales.y, min: 0, max: 1 } } },
+        plugins: [ivLinePlugin],
+      });
+
+      document.getElementById('iv-chart-wrap').style.display = 'block';
+    }
+
+    function _destroyCharts() {
+      if (_pedChart)   { _pedChart.destroy();   _pedChart   = null; }
+      if (_deltaChart) { _deltaChart.destroy(); _deltaChart = null; }
+      if (_parkChart)  { _parkChart.destroy();  _parkChart  = null; }
+      const wrap = document.getElementById('iv-chart-wrap');
+      if (wrap) wrap.style.display = 'none';
+    }
 
     // ── Scenario highlight layer on main map ──────────────────────────────────
     // Added once after map load; data updated per scenario
@@ -1481,6 +2649,7 @@ function buildMap(token) {
       ivTypeChanged();
       document.getElementById('sp2-results').classList.remove('visible');
       document.getElementById('sp2-save').classList.remove('visible');
+      _destroyCharts();
       scenarioResult = null;
       const applyBtn = document.getElementById('iv-apply-btn');
       if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = 'Run Scenario'; }
@@ -1506,6 +2675,7 @@ function buildMap(token) {
 
     window.closeScenarioPanel = function() {
       document.getElementById('scenario-panel').classList.remove('open');
+      _destroyCharts();
     };
 
     function _populateScenarioPanel(p) {
@@ -1552,15 +2722,17 @@ function buildMap(token) {
       }
     };
 
-    // ── Delta paint on main map ───────────────────────────────────────────────
-    function _paintNetworkDelta(allDeltas) {
+    // ── Delta paint on main map (ped + parking modes) ─────────────────────────
+    let _cachedPedDeltas  = {};
+    let _cachedParkDeltas = {};
+    let _activeDeltaMode  = 'ped';
+
+    function _paintDeltaLayer(deltas, mode) {
       if (!streetsData) return;
 
-      // allDeltas is { street_id: mean_ped_delta, ... } for all non-trivial streets
-      const vals = Object.values(allDeltas);
+      const vals = Object.values(deltas).filter(v => v !== null && v !== undefined);
       if (vals.length === 0) return;
 
-      // Adaptive scale: use max absolute value so colors are meaningful
       const maxAbs = Math.max(Math.abs(Math.min(...vals)), Math.abs(Math.max(...vals)), 0.1);
 
       const enriched = {
@@ -1569,13 +2741,16 @@ function buildMap(token) {
           ...f,
           properties: {
             ...f.properties,
-            scenario_delta: allDeltas[String(f.properties.street_id)] ?? 0,
+            scenario_delta: deltas[String(f.properties.street_id)] ?? 0,
           },
         })),
       };
 
-      const colorExpr = ['interpolate', ['linear'], ['get','scenario_delta'],
+      const pedColors = ['interpolate', ['linear'], ['get','scenario_delta'],
         -maxAbs, '#ef4444', -maxAbs*0.15, '#7f1d1d', 0, '#1a1814', maxAbs*0.15, '#14532d', maxAbs, '#22c55e'];
+      const parkColors = ['interpolate', ['linear'], ['get','scenario_delta'],
+        -maxAbs, '#3b82f6', -maxAbs*0.15, '#1e3a5f', 0, '#1a1814', maxAbs*0.15, '#7f4d1d', maxAbs, '#f59e0b'];
+      const colorExpr = mode === 'park' ? parkColors : pedColors;
 
       if (map.getSource('scenario-delta')) {
         map.getSource('scenario-delta').setData(enriched);
@@ -1597,19 +2772,48 @@ function buildMap(token) {
       }
 
       const legend = document.getElementById('iv-net-legend');
-      legend.innerHTML =
-        `<span style="color:#ef4444">▮</span> −${maxAbs.toFixed(1)} &nbsp;` +
-        `<span style="color:#1a1814">▮</span> 0 &nbsp;` +
-        `<span style="color:#22c55e">▮</span> +${maxAbs.toFixed(1)} ppl/15min`;
+      if (mode === 'park') {
+        legend.innerHTML =
+          `<span style="color:#3b82f6">▮</span> −${(maxAbs*100).toFixed(1)}% &nbsp;` +
+          `<span style="color:#1a1814">▮</span> 0 &nbsp;` +
+          `<span style="color:#f59e0b">▮</span> +${(maxAbs*100).toFixed(1)}% occ`;
+      } else {
+        legend.innerHTML =
+          `<span style="color:#ef4444">▮</span> −${maxAbs.toFixed(1)} &nbsp;` +
+          `<span style="color:#1a1814">▮</span> 0 &nbsp;` +
+          `<span style="color:#22c55e">▮</span> +${maxAbs.toFixed(1)} ppl/15min`;
+      }
       legend.classList.add('visible');
     }
+
+    function _paintNetworkDelta(pedDeltas, parkDeltas) {
+      _cachedPedDeltas  = pedDeltas  || {};
+      _cachedParkDeltas = parkDeltas || {};
+      _activeDeltaMode  = 'ped';
+      _paintDeltaLayer(_cachedPedDeltas, 'ped');
+      document.getElementById('iv-delta-toggle').style.display =
+        Object.keys(_cachedParkDeltas).length > 0 ? 'block' : 'none';
+      document.querySelectorAll('.dt-btn').forEach(b => {
+        b.classList.toggle('dt-active', b.dataset.mode === 'ped');
+      });
+    }
+
+    window.switchDeltaMode = function(mode) {
+      _activeDeltaMode = mode;
+      _paintDeltaLayer(mode === 'park' ? _cachedParkDeltas : _cachedPedDeltas, mode);
+      document.querySelectorAll('.dt-btn').forEach(b => {
+        b.classList.toggle('dt-active', b.dataset.mode === mode);
+      });
+    };
 
     function _clearDeltaPaint() {
       if (map.getSource('scenario-delta')) {
         map.getSource('scenario-delta').setData({type:'FeatureCollection',features:[]});
       }
-      const legend = document.getElementById('iv-net-legend');
-      legend.classList.remove('visible');
+      document.getElementById('iv-net-legend').classList.remove('visible');
+      document.getElementById('iv-delta-toggle').style.display = 'none';
+      _cachedPedDeltas  = {};
+      _cachedParkDeltas = {};
     }
 
     // ── Run scenario ─────────────────────────────────────────────────────────
@@ -1631,12 +2835,15 @@ function buildMap(token) {
       document.getElementById('sp2-save').classList.remove('visible');
 
       try {
+        const dow  = parseInt(document.getElementById('iv-dow-select')?.value  ?? '0');
+        const hour = parseInt(document.getElementById('iv-hour-input')?.value  ?? '9');
         const resp = await fetch(SCENARIO_API, {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({
             street_id: selectedStreetId, intervention_type: ivType,
             duration, rollout_steps: effectiveRollout, magnitude,
+            dow, hour, minute: 0,
           }),
         });
         if (!resp.ok) {
@@ -1650,51 +2857,79 @@ function buildMap(token) {
         const ts  = ns.treated_street;
         const nbrs = ns.spatial_neighbours;
 
-        // Paint main map with all non-trivial deltas
-        // all_deltas values are now objects {mean_ped_delta, confidence_weighted_delta, ped_confidence}
-        const flatDeltas = {};
-        Object.entries(ns.all_deltas || {}).forEach(([sid, v]) => {
-          flatDeltas[sid] = typeof v === 'object' ? v.mean_ped_delta : v;
+        // Paint main map — seed ped + parking deltas from treated street + neighbours + top_affected
+        const flatPedDeltas  = {};
+        const flatParkDeltas = {};
+        flatPedDeltas[String(ts.street_id)] = ts.mean_ped_delta;
+        if (ts.mean_park_delta != null) flatParkDeltas[String(ts.street_id)] = ts.mean_park_delta;
+        (nbrs || []).forEach(n => {
+          flatPedDeltas[String(n.street_id)] = n.mean_ped_delta;
+          if (n.mean_park_delta != null) flatParkDeltas[String(n.street_id)] = n.mean_park_delta;
         });
-        _paintNetworkDelta(flatDeltas);
+        (ns.top_affected || []).forEach(e => {
+          flatPedDeltas[String(e.street_id)] = e.mean_ped_delta;
+          if (e.mean_park_delta != null) flatParkDeltas[String(e.street_id)] = e.mean_park_delta;
+        });
+        Object.entries(ns.all_deltas || {}).forEach(([sid, v]) => {
+          if (typeof v === 'object') {
+            flatPedDeltas[sid]  = v.mean_ped_delta;
+            if (v.mean_park_delta != null) flatParkDeltas[sid] = v.mean_park_delta;
+          } else {
+            flatPedDeltas[sid] = v;
+          }
+        });
+        _paintNetworkDelta(flatPedDeltas, flatParkDeltas);
+
+        // Street name lookup helper
+        const _streetName = (sid) => {
+          if (!streetsData) return 'Street ' + sid;
+          const f = streetsData.features.find(f => String(f.properties.street_id) === String(sid));
+          return f?.properties?.name || ('Street ' + sid);
+        };
 
         // Fill results section
         const sc = v => v > 0 ? 'iv-res-pos' : v < 0 ? 'iv-res-neg' : '';
         const fmt = v => `<span class="${sc(v)}">${v >= 0 ? '+' : ''}${v.toFixed(2)}</span>`;
+        const fmtInt = v => `<span class="${sc(v)}">${v >= 0 ? '+' : ''}${v.toFixed(0)}</span>`;
         const nbrsAffected = nbrs.filter(n => Math.abs(n.mean_ped_delta) > 0.5).length;
 
         document.getElementById('iv-res-mean-delta').innerHTML = fmt(ts.mean_ped_delta);
-        document.getElementById('iv-res-cum-delta').innerHTML  =
-          `<span class="${sc(ts.cumulative_ped_delta)}">${ts.cumulative_ped_delta >= 0 ? '+' : ''}${ts.cumulative_ped_delta.toFixed(0)}</span>`;
+        document.getElementById('iv-res-cum-delta').innerHTML  = fmtInt(ts.cumulative_ped_delta);
+        document.getElementById('iv-res-park-delta').innerHTML =
+          ts.mean_park_delta != null ? fmt(ts.mean_park_delta) : '<span style="color:var(--text-muted)">n/a</span>';
         document.getElementById('iv-res-neighbours').textContent = `${nbrsAffected} of ${nbrs.length}`;
-
-        // Top 5 affected streets (excluding treated, ranked by confidence-weighted delta)
-        const top5 = ns.top_affected.filter(e => !e.is_treated).slice(0, 5);
-        document.getElementById('sp2-top-affected').innerHTML = top5.length
-          ? top5.map(e => {
-              const cls = e.mean_ped_delta > 0 ? 'iv-res-pos' : 'iv-res-neg';
-              const tag = e.is_semantic_neighbour ? ' <span style="color:var(--teal);font-size:10px">sem</span>'
-                        : e.is_spatial_neighbour  ? ' <span style="color:var(--text-muted);font-size:10px">sp</span>'
-                        : '';
-              const conf = e.ped_confidence != null ? ` <span style="color:var(--text-muted);font-size:10px">conf ${e.ped_confidence.toFixed(1)}</span>` : '';
-              return `<span style="color:var(--text-dim)">${e.street_id}${tag}${conf}</span>
-                <span class="${cls}" style="float:right">${e.mean_ped_delta >= 0 ? '+' : ''}${e.mean_ped_delta.toFixed(2)}</span><br>`;
-            }).join('')
-          : '';
 
         // Rebound info
         const rb = ns.rebound?.treated_street;
         const reboundStr = rb
-          ? (rb.half_life_minutes < 0 ? 'no recovery within rollout'
-              : rb.half_life_minutes === 0 ? 'instant recovery'
-              : `${rb.half_life_minutes} min to 50% recovery`)
+          ? (rb.half_life_minutes < 0 ? 'No recovery within observation window'
+              : rb.half_life_minutes === 0 ? 'Instant recovery after intervention ends'
+              : `Recovery: 50% within ${rb.half_life_minutes} min after intervention ends`)
           : '';
+        document.getElementById('iv-res-rebound').textContent = reboundStr;
+
+        // Top 5 affected streets with names
+        const top5 = ns.top_affected.filter(e => !e.is_treated).slice(0, 5);
+        document.getElementById('sp2-top-affected').innerHTML = top5.length
+          ? '<div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Most affected streets</div>'
+            + top5.map(e => {
+              const cls = e.mean_ped_delta > 0 ? 'iv-res-pos' : 'iv-res-neg';
+              const tagType = e.is_semantic_neighbour ? 'semantic' : e.is_spatial_neighbour ? 'spatial' : '';
+              const tagLabel = e.is_semantic_neighbour ? 'similar' : e.is_spatial_neighbour ? 'adjacent' : '';
+              const tagHtml = tagType ? `<span class="iv-affected-tag ${tagType}">${tagLabel}</span>` : '';
+              return `<div class="iv-affected-row">
+                <span class="iv-affected-name" title="ID ${e.street_id}">${_streetName(e.street_id)}</span>
+                ${tagHtml}
+                <span class="iv-affected-delta ${cls}">${e.mean_ped_delta >= 0 ? '+' : ''}${e.mean_ped_delta.toFixed(1)}</span>
+              </div>`;
+            }).join('')
+          : '<div style="font-size:10px;color:var(--text-muted);">No significant network effects detected.</div>';
 
         document.getElementById('iv-res-note').textContent =
-          `${effectiveRollout * 15} min rollout · ${duration * 15} min treatment · model counterfactual`
-          + (reboundStr ? ` · ${reboundStr}` : '');
+          `${effectiveRollout * 15} min rollout · ${duration * 15} min treatment · model counterfactual`;
 
         document.getElementById('sp2-results').classList.add('visible');
+        _renderCharts(data, duration);
 
         // Pre-fill save name
         const streetName = _scenarioProps?.name || selectedStreetId;
@@ -1813,133 +3048,266 @@ function buildMap(token) {
 
       let html = '';
 
-      // ── 1. Pedestrian activity ────────────────────────────────────
-      html += `<div class="sp-block">
-        <div class="sp-block-label">Foot Traffic</div>
-        <div class="sp-stat">
-          <span class="sp-stat-val">${pedFlow != null ? pedFlow.toFixed(0) : '—'}</span>
-          ${pedFlow != null ? '<span class="sp-stat-unit">people / 15 min</span>' : ''}
-        </div>
-        <div class="sp-bar"><div class="sp-bar-fill" style="width:${pedPct}%;background:${pedColor}"></div></div>
-        <span class="sp-tag ${pedSrc === 'sensor' ? 'measured' : 'estimated'}">
-          ${pedSrc === 'sensor' ? 'live sensor' : 'model estimate'}
-        </span>
-        ${pedSrc === 'xgboost' ? `
-        <details class="sp-more">
-          <summary>how was this estimated?</summary>
-          <div class="sp-more-body">
-            No pedestrian counter on this street. The pipeline trained a model on the
-            ${sensoredFeats.features.length} streets that have real counters, then applied it
-            here using land use, time of day, and nearby parking.
-            Reliability: ${pedConf === 0.8 ? 'moderate' : 'low'}.
+      // ── 1. Hero: Foot traffic + Parking, side-by-side ─────────────
+      const pedSrcLabel = pedSrc === 'sensor' ? 'sensor' : (pedSrc === 'xgboost' ? 'model' : 'none');
+      const pedSrcClass = pedSrc === 'sensor' ? 'sensor' : (pedSrc === 'xgboost' ? 'model' : 'none');
+
+      html += `<div class="sp-sec">
+        <div class="sp-sec-title">Current Activity <span class="meta">typical 15-min window</span></div>
+        <div class="sp-hero">
+          <div class="sp-metric ${pedFlow == null ? 'na' : ''}">
+            <div class="lbl">Foot traffic</div>
+            <div class="val">${pedFlow != null ? pedFlow.toFixed(0) : '—'}<span class="unit">${pedFlow != null ? ' peds' : ''}</span></div>
+            <div class="sp-metric-bar"><div class="fill" style="width:${pedPct}%;background:${pedColor}"></div></div>
+            <span class="sp-src ${pedSrcClass}">${pedSrcLabel === 'sensor' ? 'live sensor' : pedSrcLabel === 'model' ? 'model estimate' : 'no data'}</span>
           </div>
-        </details>` : ''}
+          <div class="sp-metric ${parking == null || parking <= 0 ? 'na' : ''}">
+            <div class="lbl">Parking</div>
+            <div class="val">${parking != null && parking > 0 ? (parking * 100).toFixed(0) : '—'}<span class="unit">${parking != null && parking > 0 ? '% occ' : ''}</span></div>
+            <div class="sp-metric-bar"><div class="fill" style="width:${parking != null && parking > 0 ? parkPct : 0}%;background:${parkColor}"></div></div>
+            <span class="sp-src ${parking != null && parking > 0 ? 'sensor' : 'none'}">${parking != null && parking > 0 ? 'live sensor' : 'no sensor'}</span>
+          </div>
+        </div>
+        ${pedSrc === 'xgboost' ? `<div class="sp-helper">Foot traffic is estimated — no counter on this street. The pipeline fits a model on the ${sensoredFeats.features.length} sensor-observed streets and projects here using land use, time, and nearby parking. Confidence ${pedConf === 0.8 ? '(moderate)' : '(low)'}.</div>` : ''}
       </div>`;
 
-      // ── 2. Parking occupancy ─────────────────────────────────────
-      html += `<div class="sp-block">
-        <div class="sp-block-label">Parking</div>`;
-      if (parking != null && parking > 0) {
-        html += `
-        <div class="sp-stat">
-          <span class="sp-stat-val">${(parking * 100).toFixed(0)}</span>
-          <span class="sp-stat-unit">% bays occupied</span>
-        </div>
-        <div class="sp-bar"><div class="sp-bar-fill" style="width:${parkPct}%;background:${parkColor}"></div></div>
-        <span class="sp-tag measured">live sensor</span>`;
+      // ── 2. Archetype + Cluster (combined card) ───────────────────
+      if (itype || cluster != null) {
+        const stripeColor = typeMeta.color || 'var(--text-dim)';
+        const winLabel = bestWin ? (WINDOW_LABELS[bestWin] || bestWin.replace(/_/g,' ')) : null;
+        const clColor = cluster != null ? (CLUSTER_COLORS[cluster] || '#94a3b8') : null;
+        const clPct = cluster != null && clusterSizes[cluster]
+          ? ((clusterSizes[cluster] / totalClusteredStreets) * 100).toFixed(0) : null;
+
+        html += `<div class="sp-sec">
+          <div class="sp-sec-title">Street Profile${cluster != null ? ` <span class="meta">cluster ${cluster} · ${clPct}% of CBD</span>` : ''}</div>`;
+
+        if (itype) {
+          html += `<div class="sp-arch-card">
+            <div class="stripe" style="background:${stripeColor}"></div>
+            <div class="body">
+              <div class="name">${typeMeta.label || itype.replace(/_/g,' ')}</div>
+              ${winLabel ? `<div class="win">Best window · ${winLabel}</div>` : ''}
+              ${typeMeta.desc ? `<div class="desc">${typeMeta.desc}</div>` : ''}
+              ${!reliable && iconf != null ? `<div class="sp-helper" style="margin-top:6px">Low-confidence assignment (${(iconf*100).toFixed(0)}%)</div>` : ''}
+            </div>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+
+      // ── 3. Land use chips ────────────────────────────────────────
+      const LU_LABELS = {
+        cafe: 'cafes', bar: 'bars/venues', business: 'businesses',
+        building: 'buildings', dwelling: 'dwellings',
+        offstreet: 'off-street parking', landmark: 'landmarks',
+      };
+      const LU_COLORS = {
+        cafe: '#fb923c', bar: '#a855f7', business: '#60a5fa',
+        building: '#64748b', dwelling: '#22c55e',
+        offstreet: '#94a3b8', landmark: '#f59e0b',
+      };
+      html += `<div class="sp-sec">
+        <div class="sp-sec-title">On This Street</div>`;
+      if (Object.keys(counts).length > 0) {
+        html += `<div class="sp-chips">`;
+        for (const [l, c] of Object.entries(counts)) {
+          const valTxt = c.val > 0 ? c.val : c.n;
+          const col = LU_COLORS[l] || 'var(--text-dim)';
+          html += `<span class="sp-chip" style="color:${col}"><span class="dot"></span><b>${valTxt}</b> ${LU_LABELS[l] || l}</span>`;
+        }
+        html += `</div>`;
       } else {
-        html += `
-        <div class="sp-stat"><span class="sp-stat-val" style="color:var(--text-muted)">—</span></div>
-        <div class="sp-stat-sub" style="font-size:13px;color:var(--text-dim);margin-top:4px">No parking sensors on this street</div>
-        <details class="sp-more">
-          <summary>why no data?</summary>
-          <div class="sp-more-body">
-            Only ~171 streets in the CBD have parking bay sensors. This isn't one of them.
-            The "—" means unknown, not empty.
-          </div>
-        </details>`;
+        html += `<div class="sp-empty">No land-use features recorded.</div>`;
       }
       html += `</div>`;
 
-      // ── 3. Intervention type ──────────────────────────────────────
-      if (itype) {
-        const stripeColor = typeMeta.color || 'var(--text-dim)';
-        const winLabel = bestWin ? (WINDOW_LABELS[bestWin] || bestWin.replace(/_/g,' ')) : null;
-        html += `<div class="sp-block">
-          <div class="sp-block-label">Recommended Intervention</div>
-          <div class="sp-archetype">
-            <div class="sp-archetype-stripe" style="background:${stripeColor}"></div>
-            <div class="sp-archetype-body">
-              <div class="sp-archetype-name">${typeMeta.label || itype.replace(/_/g,' ')}</div>
-              ${winLabel ? `<div class="sp-archetype-sub">Best window — ${winLabel}</div>` : ''}
-            </div>
-          </div>
-          ${!reliable ? `<div style="font-size:11px;color:var(--text-muted);margin-top:8px">Low confidence assignment (${(iconf*100).toFixed(0)}%)</div>` : ''}
-          <details class="sp-more">
-            <summary>how was this determined?</summary>
-            <div class="sp-more-body">
-              ${typeMeta.desc || ''}<br><br>
-              All ${totalClusteredStreets.toLocaleString()} arterial streets were grouped by their weekly rhythm into ${actualK} clusters.
-              The intervention type is based on when that cluster peaks — morning, midday, or evening.
-              The best window is when parking is low <em>and</em> foot traffic is above the cluster average.
-            </div>
-          </details>
-        </div>`;
-      }
-
-      // ── 4. Cluster breakdown ─────────────────────────────────────
-      if (cluster != null) {
-        const clColor = CLUSTER_COLORS[cluster] || '#94a3b8';
-        const clPct = clusterSizes[cluster] ? ((clusterSizes[cluster] / totalClusteredStreets) * 100).toFixed(0) : '?';
-        let clusterRowsHtml = '';
-        for (let i = 0; i < actualK; i++) {
-          const sz = clusterSizes[i] || 0;
-          const pct = ((sz / totalClusteredStreets) * 100).toFixed(0);
-          const isCurrent = i === cluster;
-          clusterRowsHtml += `<tr style="${isCurrent ? 'opacity:1' : 'opacity:0.45'}">
-            <td><span style="color:${CLUSTER_COLORS[i]}">&#9632;</span> Cluster ${i}${isCurrent ? ' ← this street' : ''}</td>
-            <td>${sz} streets (${pct}%)</td>
-          </tr>`;
-        }
-        html += `<div class="sp-block">
-          <div class="sp-block-label">Cluster</div>
-          <div class="sp-stat">
-            <span class="sp-stat-val" style="color:${clColor}">${cluster}</span>
-            <span class="sp-stat-unit">${clPct}% of all streets</span>
-          </div>
-          <details class="sp-more">
-            <summary>all 9 clusters</summary>
-            <div class="sp-more-body">
-              <table class="sp-lu-table" style="margin-top:4px">${clusterRowsHtml}</table>
-            </div>
-          </details>
-        </div>`;
-      }
-
-      // ── 5. Land use ───────────────────────────────────────────────
-      const LU_LABELS = {
-        cafe: 'Cafes', bar: 'Bars / venues', business: 'Businesses',
-        building: 'Buildings', dwelling: 'Dwellings',
-        offstreet: 'Off-street parking', landmark: 'Landmarks',
-      };
-      if (Object.keys(counts).length > 0) {
-        html += `<div class="sp-block">
-          <div class="sp-block-label">On This Street</div>
-          <table class="sp-lu-table">`;
-        for (const [l, c] of Object.entries(counts)) {
-          const valTxt = c.val > 0 ? c.val : c.n;
-          html += `<tr><td>${LU_LABELS[l] || l}</td><td>${valTxt}</td></tr>`;
-        }
-        html += `</table></div>`;
+      // ── 6. Scenario explanation (only if a scenario ran and clicked street has a delta) ─
+      if (scenarioActive && scenarioResult && _scenarioProps) {
+        const explainHtml = _buildScenarioExplanation(p, sid);
+        if (explainHtml) html = explainHtml + html;  // prepend so it's first thing user sees
       }
 
       document.getElementById('sp-body').innerHTML = html;
       document.getElementById('street-panel').classList.add('open');
     }
 
-    function closeStreetPanel() {
-      document.getElementById('street-panel').classList.remove('open');
+    // Explain WHY the clicked street's ped activity changed in this scenario.
+    // Translates graph position + cluster overlap into plain-English reasons,
+    // grounded only in what the model actually used — no fabricated causality.
+    function _buildScenarioExplanation(p, sid) {
+      const ns    = scenarioResult.network_summary;
+      const meta  = scenarioResult.meta || {};
+      const tgt   = ns.treated_street;
+      const tgtSid = String(tgt.street_id);
+      const itype = meta.intervention_type || 'pedestrianise';
+
+      // Resolve this street's delta
+      const isTarget = tgtSid === sid;
+      let pedDelta = null, parkDelta = null, conf = null;
+      if (isTarget) {
+        pedDelta  = tgt.mean_ped_delta;
+        parkDelta = tgt.mean_park_delta;
+        conf      = tgt.ped_confidence;
+      } else if (ns.all_deltas && ns.all_deltas[sid]) {
+        const e = ns.all_deltas[sid];
+        pedDelta  = e.mean_ped_delta;
+        parkDelta = e.mean_park_delta;
+        conf      = e.ped_confidence;
+      }
+      // If below threshold and not target, don't render
+      if (!isTarget && (pedDelta == null || Math.abs(pedDelta) < 0.01)) return '';
+
+      // Neighbour-type lookup (prefer top_affected for flags + hop hint)
+      const top = (ns.top_affected || []).find(e => String(e.street_id) === sid);
+      const isSem = top ? top.is_semantic_neighbour : false;
+      const isSp  = top ? top.is_spatial_neighbour  : false;
+
+      // Find hop distance from graph_diffusion (first hop the street appears in)
+      const findHop = (graphName) => {
+        const hops = (ns.graph_diffusion || {})[graphName] || [];
+        for (const h of hops) {
+          if ((h.top_streets || []).some(t => String(t.street_id) === sid)) return h.hop;
+        }
+        return null;
+      };
+      const hopSp  = findHop('spatial');
+      const hopSem = findHop('semantic');
+
+      // Cluster overlap
+      const tgtCluster = _scenarioProps.intervention_type || null;
+      const clkCluster = p.intervention_type || null;
+      const sharedCluster = tgtCluster && clkCluster && tgtCluster === clkCluster;
+
+      // Static feature comparison from geojson properties (cafes/bars/jobs/etc.)
+      const featCmp = _featureComparison(p, _scenarioProps);
+
+      // ── Build reasons, ranked by strength ───────────────────────────
+      const reasons = [];
+
+      if (isTarget) {
+        reasons.push({
+          cls: 'primary', tag: 'TARGET',
+          text: `This is the street the intervention was applied to. The delta is the <b>direct</b> effect of the "${itype.replace(/_/g,' ')}" action on this segment.`,
+        });
+      } else {
+        if (isSem && sharedCluster) {
+          reasons.push({
+            cls: 'primary', tag: 'Functional twin',
+            text: `Same archetype as the target street: <b>${(clkCluster||'').replace(/_/g,' ')}</b>. The model has learned that streets in this cluster move together — when the target's activity signal shifts, semantic twins shift with it.`,
+          });
+        } else if (isSem) {
+          reasons.push({
+            cls: 'primary', tag: 'Semantic neighbour',
+            text: `Linked to the target in the <b>semantic graph</b> — functionally similar activity profile, even if physically distant. The model routes activity signal along these links.`,
+          });
+        }
+        if (isSp) {
+          reasons.push({
+            cls: reasons.length ? 'secondary' : 'primary', tag: 'Physical neighbour',
+            text: `Directly adjacent to the target in the <b>spatial graph</b> (intersection topology). First-order spillover: pedestrians and parking on this street are physically connected to the target's kerb.`,
+          });
+        }
+        if (!isSem && !isSp) {
+          const hop = hopSp || hopSem;
+          if (hop) {
+            reasons.push({
+              cls: 'indirect', tag: `${hop}-hop`,
+              text: `Not directly adjacent. The effect reached this street through <b>${hop} ${hop === 1 ? 'hop' : 'hops'}</b> of graph diffusion — signal flowed via intermediary streets before arriving here.`,
+            });
+          } else {
+            reasons.push({
+              cls: 'indirect', tag: 'Diffused',
+              text: `This street is affected through multi-hop propagation through the combined spatial and semantic graph.`,
+            });
+          }
+        }
+        if (featCmp) {
+          reasons.push({
+            cls: 'secondary', tag: 'Activity profile',
+            text: featCmp,
+          });
+        }
+      }
+
+      // ── Intervention-specific caveat ────────────────────────────────
+      let caveat = '';
+      if (itype === 'pedestrianise') {
+        caveat = `<b>How to read this:</b> the model was trained on pre-COVID observational data where empty kerbs correlated with low activity. The "pedestrianise" intervention zeros occupancy, which the model reads as an activity-drop signal — not as "added pedestrian space." Negative deltas here reflect learned correlation, not a real-world causal prediction of pedestrianisation.`;
+      } else if (itype === 'restrict_park') {
+        caveat = `<b>How to read this:</b> parking was capped at ${(meta.magnitude*100).toFixed(0)}% occupancy on the target. The model observed similar partial-occupancy periods during training, so this prediction is inside its reliable range.`;
+      } else if (itype === 'boost_ped') {
+        caveat = `<b>How to read this:</b> pedestrian flow on the target was directly uplifted. The delta here shows how that extra activity diffuses through the graphs — the model's native strength, no causal caveat.`;
+      }
+
+      // ── Confidence / reach info chips ───────────────────────────────
+      const confChip  = conf != null ? `<span class="chip">confidence ${conf.toFixed(1)} ${conf >= 1 ? '(sensor)' : '(imputed)'}</span>` : '';
+      const parkChip  = parkDelta != null ? `<span class="chip">parking sensor available</span>` : `<span class="chip">no parking sensor</span>`;
+      const hopChip   = !isTarget && (hopSp || hopSem)
+        ? `<span class="chip">reach: ${hopSp ? 'sp h' + hopSp : ''}${hopSp && hopSem ? ' · ' : ''}${hopSem ? 'sem h' + hopSem : ''}</span>`
+        : '';
+
+      // ── Render ──────────────────────────────────────────────────────
+      const pedCls  = pedDelta  > 0 ? 'pos' : pedDelta  < 0 ? 'neg' : '';
+      const parkCls = parkDelta > 0 ? 'pos' : parkDelta < 0 ? 'neg' : '';
+      const pedTxt  = pedDelta  != null ? `${pedDelta  >= 0 ? '+' : ''}${pedDelta.toFixed(2)}` : '—';
+      const parkTxt = parkDelta != null ? `${parkDelta >= 0 ? '+' : ''}${(parkDelta*100).toFixed(2)}%` : '— (no sensor)';
+
+      const reasonsHtml = reasons.map(r =>
+        `<div class="sp-reason ${r.cls}"><span class="tag">${r.tag}</span>${r.text}</div>`
+      ).join('');
+
+      return `
+        <div class="sp-sec sp-explain" style="padding-top:14px">
+          <div class="sp-sec-title" style="color:#93c5fd">
+            Scenario Impact <span class="meta">${(itype||'').replace(/_/g,' ')}</span>
+          </div>
+          <div class="sp-hero" style="margin-bottom:10px">
+            <div class="sp-metric" style="border-color:${pedDelta != null && Math.abs(pedDelta) > 0.5 ? (pedDelta > 0 ? '#4ade80' : '#f87171') : 'var(--border)'}">
+              <div class="lbl">Δ Foot traffic</div>
+              <div class="val ${pedCls}" style="font-size:20px">${pedTxt}<span class="unit"> /bin</span></div>
+              <div class="sub">vs. baseline rollout</div>
+            </div>
+            <div class="sp-metric ${parkDelta == null ? 'na' : ''}" style="border-color:${parkDelta != null && Math.abs(parkDelta) > 0.005 ? (parkDelta > 0 ? '#4ade80' : '#f87171') : 'var(--border)'}">
+              <div class="lbl">Δ Parking</div>
+              <div class="val ${parkCls}" style="font-size:20px">${parkTxt}</div>
+              <div class="sub">${parkDelta != null ? 'vs. baseline' : 'no sensor on street'}</div>
+            </div>
+          </div>
+          ${reasonsHtml}
+          ${caveat ? `<div class="sp-caveat" style="margin-top:10px">${caveat}</div>` : ''}
+          <div class="sp-conf-line">${confChip}${parkChip}${hopChip}</div>
+        </div>
+      `;
     }
+
+    // Compare static activity features of clicked vs. target; return one short sentence
+    // for the most relevant similarity or difference, or null if nothing stands out.
+    function _featureComparison(clk, tgt) {
+      const fields = [
+        { k: 'cafe_count',       label: 'cafes' },
+        { k: 'bar_count',        label: 'bars/venues' },
+        { k: 'business_count',   label: 'businesses' },
+        { k: 'total_jobs',       label: 'jobs' },
+        { k: 'dining_capacity',  label: 'dining capacity' },
+      ];
+      const lines = [];
+      for (const f of fields) {
+        const a = Number(clk[f.k]);
+        const b = Number(tgt[f.k]);
+        if (!isFinite(a) || !isFinite(b) || b === 0) continue;
+        const ratio = a / b;
+        if (ratio >= 0.7 && ratio <= 1.4) {
+          lines.push(`${f.label} (${a.toFixed(0)} vs ${b.toFixed(0)})`);
+        }
+      }
+      if (!lines.length) return null;
+      return `Shares key activity levels with the target: ${lines.slice(0,3).join(', ')}. Streets with similar static profiles tend to co-move in the model's predictions.`;
+    }
+
+    window.closeStreetPanel = function() {
+      document.getElementById('street-panel').classList.remove('open');
+    };
 
     // All street-polygon layers open the panel
     // streets-fill is always present (even when invisible) so it catches all clicks.
@@ -1991,6 +3359,1363 @@ function buildMap(token) {
     });
   });
 }
+</script>
+
+<!-- ── 3D Data Cube Particle System ──────────────────────────────── -->
+<script>
+const Cube3D = (() => {
+  let canvas, ctx, W, H, dpr;
+  let running = false, frameId = null, angle = 0, lastTime = 0;
+  let particles = [];
+  let glow = [0, 0, 0];
+  let feedLabels = [];
+
+  const S = 68, FOCAL = 420, ROT_SPEED = 0.08, MAX_P = 400;
+  const AXIS_CLR = [[96,165,250],[250,195,21],[34,211,238]];
+  const GROUPS = {
+    streets: { axis: 0, c: [96,165,250] },
+    ped:     { axis: 2, c: [244,114,182] },
+    park:    { axis: 2, c: [107,157,179] },
+    clue:    { axis: 2, c: [249,115,22] },
+    time:    { axis: 1, c: [250,195,21] },
+    weather: { axis: 2, c: [34,211,238] },
+    all:     { axis: -1, c: [141,180,200] },
+  };
+
+  function ccx() { return W - 130; }
+  function ccy() { return 120; }
+
+  function rotY3(x, y, z) {
+    const c = Math.cos(angle), s = Math.sin(angle);
+    return [x*c - z*s, y, x*s + z*c];
+  }
+  function proj(x, y, z) {
+    const r = rotY3(x, y, z), sc = FOCAL / (FOCAL + r[2]);
+    return [ccx() + r[0]*sc, ccy() + r[1]*sc, sc];
+  }
+
+  function tgtOnAxis(axis) {
+    const e = S * 0.85;
+    if (axis === 0) return [(Math.random()-0.5)*e, (Math.random()*2-1)*e, (Math.random()-0.5)*e];
+    if (axis === 1) return [(Math.random()*2-1)*e, (Math.random()-0.5)*e, (Math.random()-0.5)*e];
+    return [(Math.random()-0.5)*e, (Math.random()-0.5)*e, (Math.random()*2-1)*e];
+  }
+
+  /* ── Cube wireframe ──────────────────────────────────────── */
+  function drawCube() {
+    const e = S;
+    const V = [
+      [-e,-e,-e],[e,-e,-e],[e,-e,e],[-e,-e,e],
+      [-e,e,-e],[e,e,-e],[e,e,e],[-e,e,e],
+    ];
+    const eG = [
+      { a:0, p:[[0,4],[1,5],[2,6],[3,7]] },
+      { a:1, p:[[0,1],[3,2],[4,5],[7,6]] },
+      { a:2, p:[[0,3],[1,2],[4,7],[5,6]] },
+    ];
+    eG.forEach(({a, p}) => {
+      const [cr,cg,cb] = AXIS_CLR[a], g = glow[a];
+      p.forEach(([i,j]) => {
+        const pa = proj(...V[i]), pb = proj(...V[j]);
+        if (g > 0.05) {
+          ctx.beginPath(); ctx.moveTo(pa[0],pa[1]); ctx.lineTo(pb[0],pb[1]);
+          ctx.strokeStyle = `rgba(${cr},${cg},${cb},${g*0.18})`;
+          ctx.lineWidth = 6+g*8; ctx.stroke();
+        }
+        ctx.beginPath(); ctx.moveTo(pa[0],pa[1]); ctx.lineTo(pb[0],pb[1]);
+        ctx.strokeStyle = `rgba(${cr},${cg},${cb},${0.2+g*0.4})`;
+        ctx.lineWidth = 1+g*1.5; ctx.stroke();
+      });
+    });
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    [[0,-e-26,0, 0,'N','streets'],
+     [e+40,e+8,0, 1,'T','time bins'],
+     [-e-8,e+8,e+40, 2,'F','features']].forEach(([x,y,z,a,l1,l2]) => {
+      const p = proj(x,y,z), [cr,cg,cb] = AXIS_CLR[a], al = 0.4+glow[a]*0.6;
+      ctx.font = 'bold 10px Inter,system-ui,sans-serif';
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},${al})`;
+      ctx.fillText(l1, p[0], p[1]);
+      ctx.font = '8px Inter,system-ui,sans-serif';
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},${al*0.5})`;
+      ctx.fillText(l2, p[0], p[1]+11);
+    });
+  }
+
+  /* ── Particles (2D screen-space from map to cube) ────────── */
+  function mkP(sx, sy, color, axis) {
+    const tgt = proj(...tgtOnAxis(axis));
+    const arcH = Math.abs(sy - tgt[1]) * 0.4 + 40;
+    return {
+      sx, sy,
+      mx: (sx+tgt[0])/2 + (Math.random()-0.5)*80,
+      my: Math.min(sy, tgt[1]) - arcH - Math.random()*60,
+      tx: tgt[0], ty: tgt[1],
+      color, t: 0,
+      speed: 0.004 + Math.random()*0.005,
+      size: 1.5 + Math.random()*2.5,
+      trail: [],
+    };
+  }
+
+  function spawnFromMap(type, pts, count) {
+    const cfg = GROUPS[type] || GROUPS.all;
+    if (!pts || !pts.length) return;
+    for (let i = 0; i < count && particles.length < MAX_P; i++) {
+      const axis = cfg.axis < 0 ? (i%3) : cfg.axis;
+      const color = cfg.axis < 0 ? AXIS_CLR[axis] : cfg.c;
+      const p = pts[Math.floor(Math.random()*pts.length)];
+      particles.push(mkP(p[0], p[1], color, axis));
+    }
+    if (cfg.axis >= 0) glow[cfg.axis] = 1;
+    else glow[0] = glow[1] = glow[2] = 1;
+  }
+
+  function tickP(dt) {
+    for (let i = particles.length-1; i >= 0; i--) {
+      const p = particles[i];
+      p.t = Math.min(1, p.t + p.speed*dt*60);
+      const u = p.t, m = 1-u;
+      p.px = m*m*p.sx + 2*m*u*p.mx + u*u*p.tx;
+      p.py = m*m*p.sy + 2*m*u*p.my + u*u*p.ty;
+      p.trail.push([p.px, p.py]);
+      if (p.trail.length > 12) p.trail.shift();
+      if (p.t >= 1) particles.splice(i, 1);
+    }
+  }
+
+  function drawP() {
+    particles.forEach(p => {
+      const [r,g,b] = p.color;
+      const fade = Math.min(1, p.t*4) * (1 - p.t*p.t);
+      for (let i = 1; i < p.trail.length; i++) {
+        const ta = (i/p.trail.length)*fade*0.45;
+        ctx.beginPath();
+        ctx.moveTo(p.trail[i-1][0], p.trail[i-1][1]);
+        ctx.lineTo(p.trail[i][0], p.trail[i][1]);
+        ctx.strokeStyle = `rgba(${r},${g},${b},${ta})`;
+        ctx.lineWidth = p.size*0.5*(i/p.trail.length);
+        ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(p.px, p.py, p.size, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${fade})`; ctx.fill();
+      ctx.beginPath(); ctx.arc(p.px, p.py, p.size*3, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${fade*0.1})`; ctx.fill();
+    });
+  }
+
+  /* ── Feed labels below cube ──────────────────────────────── */
+  function drawFeed(dt) {
+    const bx = ccx(), by = ccy() + S + 44;
+    for (let i = 0; i < feedLabels.length; i++) {
+      const l = feedLabels[i];
+      l.age += dt;
+      const isLast = i === feedLabels.length - 1;
+      const t = Math.min(1, l.age / 0.45);
+      const ease = 1 - (1-t)*(1-t)*(1-t);
+      const alpha = ease * (isLast ? 1.0 : 0.35);
+      const sz = isLast ? 14 : 10;
+      const y = by + i * 20;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = (isLast ? '700 ' : '400 ') + sz + 'px Inter,system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = isLast ? '#ddd5c8' : '#7d7268';
+      if (t < 1) {
+        const s = 0.55 + 0.45 * ease;
+        ctx.translate(bx, y + (1-ease)*12);
+        ctx.scale(s, s);
+        ctx.fillText(l.text, 0, 0);
+      } else {
+        ctx.fillText(l.text, bx, y);
+      }
+      if (isLast && l.age < 0.8) {
+        ctx.globalAlpha = (1 - l.age / 0.8) * 0.25;
+        ctx.fillStyle = '#8db4c8';
+        if (t < 1) ctx.fillText(l.text, 0, 0);
+        else ctx.fillText(l.text, bx, y);
+      }
+      ctx.restore();
+    }
+  }
+
+  /* ── Main loop ───────────────────────────────────────────── */
+  function frame(time) {
+    if (!running) return;
+    const dt = Math.min(0.05, (time - lastTime) / 1000);
+    lastTime = time;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dw = Math.round(rect.width*dpr), dh = Math.round(rect.height*dpr);
+    if (canvas.width !== dw || canvas.height !== dh) {
+      canvas.width = dw; canvas.height = dh;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+    }
+    W = rect.width; H = rect.height;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0, 0, W, H);
+    angle += ROT_SPEED * dt;
+    for (let i = 0; i < 3; i++) glow[i] = Math.max(0, glow[i] - dt*0.4);
+    tickP(dt); drawCube(); drawP(); drawFeed(dt);
+    frameId = requestAnimationFrame(frame);
+  }
+
+  return {
+    start() {
+      canvas = document.getElementById('cube-3d-canvas');
+      if (!canvas) return;
+      ctx = canvas.getContext('2d');
+      dpr = window.devicePixelRatio || 1;
+      particles = []; feedLabels = []; glow = [0,0,0]; angle = -0.4;
+      running = true; lastTime = performance.now();
+      canvas.style.display = 'block';
+      frameId = requestAnimationFrame(frame);
+    },
+    stop() {
+      running = false;
+      if (frameId) { cancelAnimationFrame(frameId); frameId = null; }
+      if (canvas) canvas.style.display = 'none';
+      particles = []; feedLabels = [];
+    },
+    burst(type, label, pts, n) {
+      if (!running) return;
+      if (pts && pts.length) spawnFromMap(type, pts, n || 50);
+      if (label) feedLabels.push({ text: label, age: 0 });
+    },
+  };
+})();
+</script>
+
+<!-- ── Pipeline Tour Engine ──────────────────────────────────────── -->
+<script>
+(function() {
+  let tourActive = false;
+  let tourStep = 0;
+  let savedLayerState = {};
+  let animFrameId = null;
+  let edgeAnimTimer = null;
+  let cubeTimers = [];
+  let cubeAnimFrame = null;
+  let gnnTimers = [];
+  let gnnAnimFrame = null;
+
+  const CLUE_LAYER_NAMES = ['cafe','bar','business','building','dwelling','offstreet','landmark'];
+  const TOUR_LAYERS_TO_SAVE = [
+    'streets-fill','streets-outline',
+    'ped-sensored-fill','ped-sensored-outline','ped-imputed-fill','ped-imputed-outline',
+    'sensors-parking','sensors-ped',
+    'graph-nodes-circles','spatial-graph-lines','semantic-graph-lines',
+    'street-labels',
+    'cluster-intervention-fill','cluster-intervention-outline',
+    'cluster-id-fill','cluster-id-outline',
+    ...CLUE_LAYER_NAMES.map(n => 'clue-' + n),
+    ...CLUE_LAYER_NAMES.map(n => 'snap-' + n),
+  ];
+
+  function saveMapState() {
+    if (!MAP) return;
+    savedLayerState = {};
+    TOUR_LAYERS_TO_SAVE.forEach(id => {
+      try {
+        savedLayerState[id] = MAP.getLayoutProperty(id, 'visibility') || 'none';
+      } catch(_) { savedLayerState[id] = 'none'; }
+    });
+    savedLayerState._camera = {
+      center: MAP.getCenter().toArray(),
+      zoom: MAP.getZoom(),
+      pitch: MAP.getPitch(),
+      bearing: MAP.getBearing(),
+    };
+  }
+
+  function restoreMapState() {
+    if (!MAP) return;
+    Object.entries(savedLayerState).forEach(([id, vis]) => {
+      if (id.startsWith('_')) return;
+      try { MAP.setLayoutProperty(id, 'visibility', vis); } catch(_) {}
+    });
+    // Reset graph paint properties modified during tour
+    try {
+      MAP.setPaintProperty('spatial-graph-lines', 'line-color', '#3b82f6');
+      MAP.setPaintProperty('spatial-graph-lines', 'line-width',
+        ['interpolate',['linear'],['get','weight'], 0, 0.4, 1, 2.0]);
+      MAP.setPaintProperty('spatial-graph-lines', 'line-opacity',
+        ['interpolate',['linear'],['get','weight'], 0, 0.08, 1, 0.55]);
+      MAP.setPaintProperty('spatial-graph-lines', 'line-dasharray', null);
+      MAP.setPaintProperty('semantic-graph-lines', 'line-color', '#a855f7');
+      MAP.setPaintProperty('semantic-graph-lines', 'line-width',
+        ['interpolate',['linear'],['get','weight'], 0.85, 0.3, 1, 0.9]);
+      MAP.setPaintProperty('semantic-graph-lines', 'line-opacity',
+        ['interpolate',['linear'],['get','weight'], 0.85, 0.10, 1, 0.30]);
+      MAP.setPaintProperty('semantic-graph-lines', 'line-dasharray', null);
+      MAP.setPaintProperty('graph-nodes-circles', 'circle-color',
+        ['case', ['==', ['get', 'semantic_eligible'], true], '#22c55e', '#475569']);
+      MAP.setPaintProperty('graph-nodes-circles', 'circle-opacity',
+        ['case', ['==', ['get', 'semantic_eligible'], true], 0.9, 0.5]);
+      MAP.setPaintProperty('graph-nodes-circles', 'circle-stroke-color',
+        ['case', ['==', ['get', 'semantic_eligible'], true], '#15803d', '#1e293b']);
+    } catch(_) {}
+    // Reset street paint to type-coloured defaults
+    try {
+      const stc = ['match', ['get', 'str_type'],
+        'Arterial','#60a5fa','Council Major','#60a5fa','Council Minor','#86efac','Private','#fbbf24','#94a3b8'];
+      MAP.setPaintProperty('streets-fill', 'fill-color', stc);
+      MAP.setPaintProperty('streets-fill', 'fill-opacity',
+        ['match', ['get', 'str_type'], 'Arterial', 0.30, 'Council Major', 0.30, 0.10]);
+      MAP.setPaintProperty('streets-outline', 'line-color', stc);
+      MAP.setPaintProperty('streets-outline', 'line-opacity',
+        ['match', ['get', 'str_type'], 'Arterial', 0.75, 'Council Major', 0.75, 0.30]);
+      MAP.setFilter('streets-fill', null);
+      MAP.setFilter('streets-outline', null);
+    } catch(_) {}
+    if (savedLayerState._camera) {
+      MAP.easeTo({ ...savedLayerState._camera, duration: 1200 });
+    }
+  }
+
+  function hideAllTourLayers() {
+    TOUR_LAYERS_TO_SAVE.forEach(id => {
+      try { MAP.setLayoutProperty(id, 'visibility', 'none'); } catch(_) {}
+    });
+  }
+
+  function showLayers(...ids) {
+    ids.forEach(id => {
+      try { MAP.setLayoutProperty(id, 'visibility', 'visible'); } catch(_) {}
+    });
+  }
+
+  function animateCounter(el, target, duration) {
+    const start = performance.now();
+    const from = 0;
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      el.textContent = Math.round(from + (target - from) * ease).toLocaleString();
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  let clueTimers = [];
+
+  const CLUE_TOUR_LAYERS = [
+    { name: 'cafe',     color: '#f97316', label: 'Cafes & restaurants' },
+    { name: 'bar',      color: '#a855f7', label: 'Bars & pubs' },
+    { name: 'business', color: '#06b6d4', label: 'Businesses' },
+    { name: 'building', color: '#84cc16', label: 'Buildings' },
+    { name: 'dwelling', color: '#ef4444', label: 'Dwellings' },
+    { name: 'landmark', color: '#ec4899', label: 'Landmarks' },
+  ];
+
+  function stopAnimations() {
+    if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+    if (edgeAnimTimer) { clearInterval(edgeAnimTimer); edgeAnimTimer = null; }
+    clueTimers.forEach(t => clearTimeout(t));
+    clueTimers = [];
+    stopCubeAnim();
+    try { Cube3D.stop(); } catch(_) {}
+    stopGnnAnim();
+    try { MAP.setPaintProperty('sensors-parking', 'circle-radius',
+      ['interpolate',['linear'],['zoom'], 12, 2, 16, 5]); } catch(_) {}
+    try { MAP.setPaintProperty('sensors-ped', 'circle-radius',
+      ['interpolate',['linear'],['zoom'], 12, 4, 16, 8]); } catch(_) {}
+    CLUE_TOUR_LAYERS.forEach(l => {
+      try { MAP.setLayoutProperty('clue-' + l.name, 'visibility', 'none'); } catch(_) {}
+      try { MAP.setLayoutProperty('snap-' + l.name, 'visibility', 'none'); } catch(_) {}
+    });
+  }
+
+  function animatePulsingSensors() {
+    let t = 0;
+    function pulse() {
+      t += 0.03;
+      const scale = 1 + 0.18 * Math.sin(t * 1.5);
+      try {
+        MAP.setPaintProperty('sensors-parking', 'circle-radius',
+          ['interpolate',['linear'],['zoom'], 12, 2 * scale, 16, 5 * scale]);
+        MAP.setPaintProperty('sensors-ped', 'circle-radius',
+          ['interpolate',['linear'],['zoom'], 12, 4 * scale, 16, 8 * scale]);
+      } catch(_) {}
+      animFrameId = requestAnimationFrame(pulse);
+    }
+    animFrameId = requestAnimationFrame(pulse);
+  }
+
+  function showArterialBase() {
+    const AF = ['match', ['get', 'str_type'], ['Arterial', 'Council Major'], true, false];
+    showLayers('streets-fill', 'streets-outline');
+    MAP.setFilter('streets-fill', AF);
+    MAP.setFilter('streets-outline', AF);
+    MAP.setPaintProperty('streets-fill', 'fill-color', '#60a5fa');
+    MAP.setPaintProperty('streets-fill', 'fill-opacity', 0.15);
+    MAP.setPaintProperty('streets-outline', 'line-color', '#60a5fa');
+    MAP.setPaintProperty('streets-outline', 'line-opacity', 0.4);
+  }
+
+  function animateEdgeDrawing(layerId) {
+    let dashPhase = 0;
+    const totalLen = 8;
+    edgeAnimTimer = setInterval(() => {
+      dashPhase = Math.min(dashPhase + 0.15, totalLen);
+      try {
+        MAP.setPaintProperty(layerId, 'line-dasharray', [dashPhase, totalLen - dashPhase]);
+      } catch(_) {}
+      if (dashPhase >= totalLen && edgeAnimTimer) {
+        clearInterval(edgeAnimTimer);
+        edgeAnimTimer = null;
+        try { MAP.setPaintProperty(layerId, 'line-dasharray', null); } catch(_) {}
+      }
+    }, 50);
+  }
+
+  function stopCubeAnim() {
+    cubeTimers.forEach(t => clearTimeout(t));
+    cubeTimers = [];
+    if (cubeAnimFrame) { cancelAnimationFrame(cubeAnimFrame); cubeAnimFrame = null; }
+  }
+
+  function mapPoints(layerIds, max) {
+    const pts = [];
+    layerIds.forEach(id => {
+      try {
+        MAP.queryRenderedFeatures({ layers: [id] }).forEach(f => {
+          let coord;
+          const g = f.geometry;
+          if (g.type === 'Point') coord = g.coordinates;
+          else if (g.type === 'Polygon') {
+            const ring = g.coordinates[0]; let x=0, y=0;
+            ring.forEach(c => { x+=c[0]; y+=c[1]; });
+            coord = [x/ring.length, y/ring.length];
+          } else if (g.type === 'MultiPolygon') {
+            const ring = g.coordinates[0][0]; let x=0, y=0;
+            ring.forEach(c => { x+=c[0]; y+=c[1]; });
+            coord = [x/ring.length, y/ring.length];
+          }
+          if (coord) { const p = MAP.project(coord); pts.push([p.x, p.y]); }
+        });
+      } catch(_){}
+    });
+    for (let i = pts.length-1; i > 0; i--) {
+      const j = Math.floor(Math.random()*(i+1));
+      [pts[i], pts[j]] = [pts[j], pts[i]];
+    }
+    return pts.slice(0, max || 40);
+  }
+
+  function randomMapPoints(count) {
+    const pts = [];
+    try {
+      const bounds = MAP.getBounds();
+      for (let i = 0; i < count; i++) {
+        const lng = bounds.getWest() + Math.random()*(bounds.getEast()-bounds.getWest());
+        const lat = bounds.getSouth() + Math.random()*(bounds.getNorth()-bounds.getSouth());
+        const p = MAP.project([lng, lat]);
+        pts.push([p.x, p.y]);
+      }
+    } catch(_){}
+    return pts;
+  }
+
+  function stopGnnAnim() {
+    gnnTimers.forEach(t => clearTimeout(t));
+    gnnTimers = [];
+    if (gnnAnimFrame) { cancelAnimationFrame(gnnAnimFrame); gnnAnimFrame = null; }
+  }
+
+  function fadeMapPaint(layerId, prop, target, duration) {
+    const start = performance.now();
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const v = target * t * t * (3 - 2 * t);
+      try { MAP.setPaintProperty(layerId, prop, v); } catch(_) {}
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function activateCubeRow(id) {
+    document.querySelectorAll('.tcf-row.active').forEach(r => {
+      r.classList.remove('active');
+      r.classList.add('done');
+    });
+    const row = document.getElementById(id);
+    if (row) row.classList.add('active');
+  }
+
+  function activateGnnPhase(id) {
+    document.querySelectorAll('.tour-gnn-phase-step.active').forEach(el => {
+      el.classList.remove('active');
+      el.classList.add('done');
+    });
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  }
+
+  function startTemporalPulse() {
+    let phase = 0;
+    function pulse() {
+      phase += 0.05;
+      const op = 0.15 + 0.2 * Math.sin(phase * 2.5);
+      try { MAP.setPaintProperty('ped-sensored-fill', 'fill-opacity', op + 0.3); } catch(_) {}
+      try { MAP.setPaintProperty('ped-imputed-fill', 'fill-opacity', op); } catch(_) {}
+      cubeAnimFrame = requestAnimationFrame(pulse);
+    }
+    cubeAnimFrame = requestAnimationFrame(pulse);
+  }
+
+  function animateSpatialWave() {
+    const south = -37.825, north = -37.805, range = north - south;
+    let t = 0;
+    function tick() {
+      t += 0.008;
+      if (t > 1.3) {
+        try { MAP.setPaintProperty('spatial-graph-lines', 'line-opacity',
+          ['interpolate', ['linear'], ['get', 'weight'], 0, 0.3, 1, 0.85]); } catch(_) {}
+        return;
+      }
+      const front = south + t * range, w = 0.004;
+      try {
+        MAP.setPaintProperty('spatial-graph-lines', 'line-opacity', [
+          'case',
+          ['<', ['get', 'mid_lat'], front - w], 0.55,
+          ['<', ['get', 'mid_lat'], front], 0.9,
+          0.04
+        ]);
+      } catch(_) {}
+      gnnAnimFrame = requestAnimationFrame(tick);
+    }
+    gnnAnimFrame = requestAnimationFrame(tick);
+  }
+
+  function animateSemanticWave() {
+    const south = -37.825, north = -37.805, range = north - south;
+    let t = 0;
+    function tick() {
+      t += 0.01;
+      if (t > 1.3) {
+        try { MAP.setPaintProperty('semantic-graph-lines', 'line-opacity',
+          ['interpolate', ['linear'], ['get', 'weight'], 0.85, 0.15, 1, 0.5]); } catch(_) {}
+        return;
+      }
+      const front = south + t * range, w = 0.005;
+      try {
+        MAP.setPaintProperty('semantic-graph-lines', 'line-opacity', [
+          'case',
+          ['<', ['get', 'mid_lat'], front - w], 0.4,
+          ['<', ['get', 'mid_lat'], front], 0.8,
+          0.02
+        ]);
+      } catch(_) {}
+      gnnAnimFrame = requestAnimationFrame(tick);
+    }
+    gnnAnimFrame = requestAnimationFrame(tick);
+  }
+
+  function animateGruSweep() {
+    const west = 144.950, east = 144.975, range = east - west;
+    let t = 0;
+    function tick() {
+      t += 0.007;
+      if (t > 1.4) {
+        try {
+          MAP.setPaintProperty('ped-sensored-fill', 'fill-opacity', 0.8);
+          MAP.setPaintProperty('ped-imputed-fill', 'fill-opacity', 0.45);
+        } catch(_) {}
+        return;
+      }
+      const front = west + t * range, w = 0.005;
+      try {
+        MAP.setPaintProperty('ped-sensored-fill', 'fill-opacity', [
+          'case',
+          ['<', ['get', 'centroid_lng'], front - w], 0.75,
+          ['<', ['get', 'centroid_lng'], front], 0.95,
+          0.06
+        ]);
+        MAP.setPaintProperty('ped-imputed-fill', 'fill-opacity', [
+          'case',
+          ['<', ['get', 'centroid_lng'], front - w], 0.4,
+          ['<', ['get', 'centroid_lng'], front], 0.65,
+          0.03
+        ]);
+      } catch(_) {}
+      gnnAnimFrame = requestAnimationFrame(tick);
+    }
+    gnnAnimFrame = requestAnimationFrame(tick);
+  }
+
+  const STEPS = [
+    {
+      title: 'The Raw Street Network',
+      text: `We begin with the full City of Melbourne street universe — <span class="num" id="tc-raw">0</span> polygon segments covering every lane, alley, and arterial in the CBD.`,
+      stats: [
+        { val: 3975, label: 'street segments', id: 'ts-raw' },
+        { val: 3, label: 'street types', id: 'ts-types' },
+      ],
+      enter() {
+        hideAllTourLayers();
+        showLayers('streets-fill', 'streets-outline');
+        MAP.setFilter('streets-fill', null);
+        MAP.setFilter('streets-outline', null);
+        MAP.setPaintProperty('streets-fill', 'fill-opacity', 0.12);
+        MAP.setPaintProperty('streets-outline', 'line-opacity', 0.35);
+        MAP.setPaintProperty('streets-fill', 'fill-color', '#60a5fa');
+        MAP.setPaintProperty('streets-outline', 'line-color', '#60a5fa');
+        MAP.flyTo({ center: [144.963, -37.814], zoom: 13.8, pitch: 0, bearing: 0, duration: 1800 });
+        setTimeout(() => {
+          const el = document.getElementById('tc-raw');
+          if (el) animateCounter(el, 3975, 1400);
+          const s = document.getElementById('ts-raw');
+          if (s) animateCounter(s, 3975, 1400);
+        }, 600);
+      },
+      exit() {
+        MAP.setFilter('streets-fill', null);
+        MAP.setFilter('streets-outline', null);
+      },
+    },
+    {
+      title: 'Filtering to the Modelled Universe',
+      text: `Not all streets carry enough activity for meaningful modelling. After filtering for <strong>arterial corridors</strong> and streets with sensor data or imputable activity, the network reduces to <span class="num" id="tc-filt">0</span> segments — the analysis universe that feeds the GNN.`,
+      stats: [
+        { val: 1397, label: 'modelled streets', id: 'ts-filt' },
+        { val: 2578, label: 'filtered out', id: 'ts-out' },
+      ],
+      enter() {
+        hideAllTourLayers();
+        showLayers('streets-fill', 'streets-outline');
+        const ARTERIAL_FILTER = ['match', ['get', 'str_type'], ['Arterial', 'Council Major'], true, false];
+        MAP.setFilter('streets-fill', ARTERIAL_FILTER);
+        MAP.setFilter('streets-outline', ARTERIAL_FILTER);
+        MAP.setPaintProperty('streets-fill', 'fill-color', '#60a5fa');
+        MAP.setPaintProperty('streets-fill', 'fill-opacity', 0.35);
+        MAP.setPaintProperty('streets-outline', 'line-color', '#60a5fa');
+        MAP.setPaintProperty('streets-outline', 'line-opacity', 0.8);
+        MAP.flyTo({ center: [144.963, -37.814], zoom: 14.2, pitch: 0, bearing: 0, duration: 1400 });
+        setTimeout(() => {
+          const el = document.getElementById('tc-filt');
+          if (el) animateCounter(el, 1397, 1200);
+          const s1 = document.getElementById('ts-filt');
+          if (s1) animateCounter(s1, 1397, 1200);
+          const s2 = document.getElementById('ts-out');
+          if (s2) animateCounter(s2, 2578, 1200);
+        }, 500);
+      },
+      exit() {},
+    },
+    {
+      title: 'Land Use — Snapping CLUE Data',
+      text: `Melbourne's Census of Land Use and Employment (CLUE) provides the activity profile of each street. Each point — a cafe, bar, office, landmark — is <strong>snapped to its nearest street polygon</strong>. Watch the dashed lines connecting each feature to its assigned street.`,
+      stats: [
+        { val: 49981, label: 'CLUE points', id: 'ts-clue-total' },
+        { val: 7, label: 'feature layers', id: 'ts-clue-layers' },
+      ],
+      enter() {
+        hideAllTourLayers();
+        showArterialBase();
+        MAP.flyTo({ center: [144.964, -37.814], zoom: 15.0, pitch: 10, bearing: 0, duration: 1600 });
+        const el = document.getElementById('ts-clue-total');
+        if (el) setTimeout(() => animateCounter(el, 49981, 2000), 400);
+        const el2 = document.getElementById('ts-clue-layers');
+        if (el2) setTimeout(() => animateCounter(el2, 7, 600), 400);
+        CLUE_TOUR_LAYERS.forEach((layer, i) => {
+          const t = setTimeout(() => {
+            try {
+              MAP.setLayoutProperty('clue-' + layer.name, 'visibility', 'visible');
+              MAP.setPaintProperty('clue-' + layer.name, 'circle-opacity', 0);
+            } catch(_) {}
+            let op = 0;
+            const fadeClue = setInterval(() => {
+              op = Math.min(op + 0.08, 0.8);
+              try { MAP.setPaintProperty('clue-' + layer.name, 'circle-opacity', op); } catch(_) {}
+              if (op >= 0.8) clearInterval(fadeClue);
+            }, 30);
+            const t2 = setTimeout(() => {
+              try {
+                MAP.setLayoutProperty('snap-' + layer.name, 'visibility', 'visible');
+                MAP.setPaintProperty('snap-' + layer.name, 'line-opacity', 0);
+              } catch(_) {}
+              let snapOp = 0;
+              const fadeSnap = setInterval(() => {
+                snapOp = Math.min(snapOp + 0.04, 0.55);
+                try { MAP.setPaintProperty('snap-' + layer.name, 'line-opacity', snapOp); } catch(_) {}
+                if (snapOp >= 0.55) clearInterval(fadeSnap);
+              }, 30);
+            }, 400);
+            clueTimers.push(t2);
+          }, 800 + i * 700);
+          clueTimers.push(t);
+        });
+      },
+      exit() {
+        stopAnimations();
+      },
+    },
+    {
+      title: 'The Sensor Network',
+      text: `Real-world data comes from two sensor networks embedded in Melbourne's streets. <strong>Parking bay sensors</strong> track occupancy every 15 minutes. <strong>Pedestrian counters</strong> measure foot traffic at key locations. Streets without sensors are estimated by a machine-learning model trained on the measured ones.`,
+      stats: [
+        { val: 143, label: 'parking streets', id: 'ts-park' },
+        { val: 74, label: 'ped sensors', id: 'ts-ped' },
+        { val: 14400, label: 'time bins', id: 'ts-bins' },
+      ],
+      enter() {
+        hideAllTourLayers();
+        showArterialBase();
+        showLayers('sensors-parking', 'sensors-ped');
+        MAP.flyTo({ center: [144.963, -37.815], zoom: 14.5, pitch: 20, bearing: 10, duration: 1600 });
+        setTimeout(() => {
+          animatePulsingSensors();
+          ['ts-park','ts-ped','ts-bins'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const v = id === 'ts-park' ? 143 : id === 'ts-ped' ? 74 : 14400;
+            animateCounter(el, v, 1400);
+          });
+        }, 500);
+      },
+      exit() { stopAnimations(); },
+    },
+    {
+      title: 'Building the Spatial Graph',
+      text: `Streets that share a physical intersection are connected by an edge. The spatial graph encodes <strong>geographic adjacency</strong> — which streets are direct neighbours. Edge weights decay with distance using a Gaussian kernel, so nearby streets have stronger connections.`,
+      stats: [
+        { val: 1397, label: 'nodes', id: 'ts-nodes' },
+        { val: 5447, label: 'edges', id: 'ts-sedges' },
+        { val: 1, label: 'component', id: 'ts-comp' },
+      ],
+      enter() {
+        hideAllTourLayers();
+        showArterialBase();
+        MAP.setPaintProperty('streets-fill', 'fill-opacity', 0.06);
+        MAP.setPaintProperty('streets-outline', 'line-opacity', 0.15);
+        showLayers('graph-nodes-circles');
+        MAP.setPaintProperty('graph-nodes-circles', 'circle-color', '#60d4ff');
+        MAP.setPaintProperty('graph-nodes-circles', 'circle-opacity', 0.9);
+        MAP.setPaintProperty('graph-nodes-circles', 'circle-stroke-color', '#60d4ff');
+        MAP.setPaintProperty('graph-nodes-circles', 'circle-stroke-opacity', 0.5);
+        MAP.flyTo({ center: [144.962, -37.815], zoom: 14.8, pitch: 45, bearing: -20, duration: 1800 });
+        setTimeout(() => {
+          showLayers('spatial-graph-lines');
+          MAP.setPaintProperty('spatial-graph-lines', 'line-color', '#5eaaff');
+          MAP.setPaintProperty('spatial-graph-lines', 'line-width',
+            ['interpolate',['linear'],['get','weight'], 0, 0.8, 1, 2.5]);
+          MAP.setPaintProperty('spatial-graph-lines', 'line-dasharray', [0, 4]);
+          MAP.setPaintProperty('spatial-graph-lines', 'line-opacity',
+            ['interpolate',['linear'],['get','weight'], 0, 0.3, 1, 0.85]);
+          let phase = 0;
+          edgeAnimTimer = setInterval(() => {
+            phase = Math.min(phase + 0.08, 4);
+            try {
+              MAP.setPaintProperty('spatial-graph-lines', 'line-dasharray', [phase, 4 - phase]);
+            } catch(_) {}
+            if (phase >= 4) {
+              clearInterval(edgeAnimTimer); edgeAnimTimer = null;
+              try { MAP.setPaintProperty('spatial-graph-lines', 'line-dasharray', null); } catch(_) {}
+            }
+          }, 30);
+          ['ts-nodes','ts-sedges','ts-comp'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const v = id === 'ts-nodes' ? 1397 : id === 'ts-sedges' ? 5447 : 1;
+            animateCounter(el, v, 1600);
+          });
+        }, 1000);
+      },
+      exit() {
+        try { MAP.setPaintProperty('spatial-graph-lines', 'line-dasharray', null); } catch(_) {}
+      },
+    },
+    {
+      title: 'Building the Semantic Graph',
+      text: `A second graph connects streets that are <strong>functionally similar</strong> — they share land-use profiles (cafes, jobs, nightlife) even if they are physically far apart. This lets the GNN learn that similar streets behave similarly, regardless of location.`,
+      stats: [
+        { val: 3350, label: 'semantic edges', id: 'ts-semedges' },
+      ],
+      enter() {
+        hideAllTourLayers();
+        showArterialBase();
+        MAP.setPaintProperty('streets-fill', 'fill-opacity', 0.06);
+        MAP.setPaintProperty('streets-outline', 'line-opacity', 0.15);
+        showLayers('graph-nodes-circles');
+        MAP.setPaintProperty('graph-nodes-circles', 'circle-color',
+          ['case', ['==', ['get', 'semantic_eligible'], true], '#c084fc', '#475569']);
+        MAP.setPaintProperty('graph-nodes-circles', 'circle-opacity', 0.9);
+        MAP.setPaintProperty('graph-nodes-circles', 'circle-stroke-color',
+          ['case', ['==', ['get', 'semantic_eligible'], true], '#c084fc', '#1e293b']);
+        showLayers('semantic-graph-lines');
+        MAP.setPaintProperty('semantic-graph-lines', 'line-color', '#c084fc');
+        MAP.setPaintProperty('semantic-graph-lines', 'line-width',
+          ['interpolate',['linear'],['get','weight'], 0.85, 0.6, 1, 1.8]);
+        MAP.setPaintProperty('semantic-graph-lines', 'line-dasharray', [0, 4]);
+        MAP.setPaintProperty('semantic-graph-lines', 'line-opacity',
+          ['interpolate',['linear'],['get','weight'], 0.85, 0.25, 1, 0.7]);
+        MAP.flyTo({ center: [144.960, -37.813], zoom: 14.0, pitch: 30, bearing: 15, duration: 1600 });
+        setTimeout(() => {
+          let phase = 0;
+          edgeAnimTimer = setInterval(() => {
+            phase = Math.min(phase + 0.06, 4);
+            try {
+              MAP.setPaintProperty('semantic-graph-lines', 'line-dasharray', [phase, 4 - phase]);
+            } catch(_) {}
+            if (phase >= 4) {
+              clearInterval(edgeAnimTimer); edgeAnimTimer = null;
+              try { MAP.setPaintProperty('semantic-graph-lines', 'line-dasharray', null); } catch(_) {}
+            }
+          }, 30);
+          const el = document.getElementById('ts-semedges');
+          if (el) animateCounter(el, 3350, 1400);
+        }, 800);
+      },
+      exit() {
+        try { MAP.setPaintProperty('semantic-graph-lines', 'line-dasharray', null); } catch(_) {}
+      },
+    },
+    {
+      title: 'Assembling the Data Cube',
+      text: `Every modelled street is described by <strong>23 features</strong> across <strong>14,400 time bins</strong>. Watch as each feature dimension loads into the cube — pedestrian flow, parking occupancy, land use, temporal signals, and weather data all stack into a single tensor.`,
+      customHtml: `
+        <div class="tour-cube-diagram">
+          <div class="tour-cube-dim"><div class="val" id="tc-dim1">0</div><div class="lbl">streets</div></div>
+          <div class="tour-cube-x">&times;</div>
+          <div class="tour-cube-dim"><div class="val" id="tc-dim2">&mdash;</div><div class="lbl">time bins</div></div>
+          <div class="tour-cube-x">&times;</div>
+          <div class="tour-cube-dim"><div class="val" id="tc-dim3">0</div><div class="lbl">features</div></div>
+          <div class="tour-cube-x">=</div>
+          <div class="tour-cube-dim"><div class="val" style="color:var(--accent)" id="tc-size">&mdash;</div><div class="lbl">cube size</div></div>
+        </div>
+        <div class="tour-cube-features" id="tc-features">
+          <div class="tcf-row" id="tcf-ped"><span class="tcf-bar"></span><span class="tcf-label">ped_flow</span></div>
+          <div class="tcf-row" id="tcf-park"><span class="tcf-bar"></span><span class="tcf-label">occupancy_rate</span></div>
+          <div class="tcf-row" id="tcf-clue"><span class="tcf-bar"></span><span class="tcf-label">cafes &middot; bars &middot; jobs &middot; POI &middot; dining</span></div>
+          <div class="tcf-row" id="tcf-time"><span class="tcf-bar"></span><span class="tcf-label">hour &middot; day &middot; weekends &middot; holidays</span></div>
+          <div class="tcf-row" id="tcf-weather"><span class="tcf-bar"></span><span class="tcf-label">temp &middot; humidity &middot; wind &middot; rain</span></div>
+        </div>`,
+      stats: [],
+      enter() {
+        hideAllTourLayers();
+        showArterialBase();
+        MAP.setPaintProperty('streets-fill', 'fill-color', '#2a2822');
+        MAP.setPaintProperty('streets-fill', 'fill-opacity', 0.25);
+        MAP.setPaintProperty('streets-outline', 'line-color', '#4a4540');
+        MAP.setPaintProperty('streets-outline', 'line-opacity', 0.5);
+        MAP.flyTo({ center: [144.963, -37.814], zoom: 14.3, pitch: 0, bearing: 0, duration: 1400 });
+
+        Cube3D.start();
+
+        // Phase 1: Street geometries detach → N axis
+        cubeTimers.push(setTimeout(() => {
+          MAP.setPaintProperty('streets-fill', 'fill-color', '#60a5fa');
+          MAP.setPaintProperty('streets-fill', 'fill-opacity', 0.5);
+          fadeMapPaint('streets-fill', 'fill-opacity', 0.15, 2000);
+          animateCounter(document.getElementById('tc-dim1'), 1397, 1200);
+          const streetPts = mapPoints(['streets-fill'], 60);
+          Cube3D.burst('streets', '1,397 streets', streetPts, 65);
+        }, 800));
+
+        // Phase 2: ped_flow → F axis
+        cubeTimers.push(setTimeout(() => {
+          activateCubeRow('tcf-ped');
+          showLayers('ped-sensored-fill', 'ped-sensored-outline', 'ped-imputed-fill', 'ped-imputed-outline');
+          MAP.setPaintProperty('ped-sensored-fill', 'fill-opacity', 0);
+          MAP.setPaintProperty('ped-imputed-fill', 'fill-opacity', 0);
+          fadeMapPaint('ped-sensored-fill', 'fill-opacity', 0.85, 800);
+          fadeMapPaint('ped-imputed-fill', 'fill-opacity', 0.5, 800);
+          animateCounter(document.getElementById('tc-dim3'), 2, 600);
+          const pedPts = mapPoints(['ped-sensored-fill', 'ped-imputed-fill'], 40);
+          Cube3D.burst('ped', 'ped_flow', pedPts, 45);
+        }, 3000));
+
+        // Phase 3: occupancy_rate → F axis
+        cubeTimers.push(setTimeout(() => {
+          activateCubeRow('tcf-park');
+          showLayers('sensors-parking');
+          MAP.setPaintProperty('sensors-parking', 'circle-opacity', 0);
+          fadeMapPaint('sensors-parking', 'circle-opacity', 0.8, 600);
+          animateCounter(document.getElementById('tc-dim3'), 3, 400);
+          const parkPts = mapPoints(['sensors-parking'], 35);
+          Cube3D.burst('park', 'occupancy_rate', parkPts, 35);
+        }, 5000));
+
+        // Phase 4: CLUE land use → F axis
+        cubeTimers.push(setTimeout(() => {
+          activateCubeRow('tcf-clue');
+          ['cafe', 'bar', 'business'].forEach((name, i) => {
+            cubeTimers.push(setTimeout(() => {
+              showLayers('clue-' + name);
+              MAP.setPaintProperty('clue-' + name, 'circle-opacity', 0);
+              fadeMapPaint('clue-' + name, 'circle-opacity', 0.6, 400);
+            }, i * 300));
+          });
+          animateCounter(document.getElementById('tc-dim3'), 14, 900);
+          cubeTimers.push(setTimeout(() => {
+            const cluePts = mapPoints(['clue-cafe', 'clue-bar', 'clue-business'], 50);
+            Cube3D.burst('clue', 'cafes · bars · jobs · POI · dining', cluePts, 50);
+          }, 400));
+        }, 7000));
+
+        // Phase 5: temporal features → T axis
+        cubeTimers.push(setTimeout(() => {
+          activateCubeRow('tcf-time');
+          startTemporalPulse();
+          animateCounter(document.getElementById('tc-dim3'), 19, 600);
+          const timePts = randomMapPoints(45);
+          Cube3D.burst('time', 'hour · day · weekends · holidays', timePts, 55);
+        }, 9500));
+
+        // Phase 6: weather → F axis
+        cubeTimers.push(setTimeout(() => {
+          activateCubeRow('tcf-weather');
+          if (cubeAnimFrame) { cancelAnimationFrame(cubeAnimFrame); cubeAnimFrame = null; }
+          MAP.setPaintProperty('streets-fill', 'fill-color', '#1e3d5e');
+          MAP.setPaintProperty('streets-fill', 'fill-opacity', 0.2);
+          animateCounter(document.getElementById('tc-dim3'), 23, 600);
+          const wxPts = randomMapPoints(40);
+          Cube3D.burst('weather', 'temp · humidity · wind · rain', wxPts, 40);
+        }, 11500));
+
+        // Phase 7: complete — time dimension fills
+        cubeTimers.push(setTimeout(() => {
+          animateCounter(document.getElementById('tc-dim2'), 14400, 1400);
+          const el = document.getElementById('tc-size');
+          if (el) el.textContent = '1.85 GB';
+          const allPts = randomMapPoints(50);
+          Cube3D.burst('all', '1.85 GB tensor', allPts, 80);
+        }, 13500));
+      },
+      exit() {
+        stopCubeAnim();
+        Cube3D.stop();
+        ['cafe', 'bar', 'business'].forEach(n => {
+          try { MAP.setLayoutProperty('clue-' + n, 'visibility', 'none'); } catch(_) {}
+        });
+      },
+    },
+    {
+      title: 'Training the Graph Neural Network',
+      text: `A <strong>MultiGCN</strong> with dual graph branches processes spatial and semantic structure simultaneously. Watch the information propagate: the <strong style="color:#5eaaff">spatial branch</strong> learns from physical adjacency, then the <strong style="color:#c084fc">semantic branch</strong> connects functionally similar streets. A GRU reads 24-hour temporal rhythms before splitting into dual prediction heads.`,
+      customHtml: `
+        <div class="tour-gnn-diagram">
+          <span class="br-spatial">Spatial GCN</span> (intersection graph) &rarr; 64-dim<br>
+          <span class="br-semantic">Semantic GCN</span> (land-use graph) &rarr; 64-dim<br>
+          &darr; concat &darr;<br>
+          <span class="br-merge">GRU</span> (2 layers, 24h window) &rarr; 64-dim<br>
+          &darr; split &darr;<br>
+          <span class="br-out">Pedestrian head</span> &nbsp;|&nbsp; <span class="br-out">Parking head</span>
+        </div>
+        <div class="tour-gnn-phase" id="gnn-phases">
+          <div class="tour-gnn-phase-step" id="gp-spatial">Spatial</div>
+          <div class="tour-gnn-phase-step" id="gp-semantic">Semantic</div>
+          <div class="tour-gnn-phase-step" id="gp-gru">GRU</div>
+          <div class="tour-gnn-phase-step" id="gp-output">Predict</div>
+        </div>`,
+      stats: [
+        { val: 68076, label: 'parameters', id: 'ts-params' },
+      ],
+      enter() {
+        hideAllTourLayers();
+        showArterialBase();
+        MAP.setPaintProperty('streets-fill', 'fill-opacity', 0.06);
+        MAP.setPaintProperty('streets-outline', 'line-opacity', 0.15);
+        showLayers('graph-nodes-circles');
+        MAP.setPaintProperty('graph-nodes-circles', 'circle-color', '#334155');
+        MAP.setPaintProperty('graph-nodes-circles', 'circle-opacity', 0.5);
+        MAP.setPaintProperty('graph-nodes-circles', 'circle-stroke-color', '#1e293b');
+        MAP.flyTo({ center: [144.963, -37.814], zoom: 14.5, pitch: 40, bearing: -25, duration: 1600 });
+
+        gnnTimers.push(setTimeout(() => {
+          activateGnnPhase('gp-spatial');
+          showLayers('spatial-graph-lines');
+          MAP.setPaintProperty('spatial-graph-lines', 'line-color', '#5eaaff');
+          MAP.setPaintProperty('spatial-graph-lines', 'line-width',
+            ['interpolate', ['linear'], ['get', 'weight'], 0, 0.8, 1, 2.5]);
+          MAP.setPaintProperty('spatial-graph-lines', 'line-opacity', 0.04);
+          animateSpatialWave();
+          MAP.setPaintProperty('graph-nodes-circles', 'circle-color', '#60d4ff');
+          MAP.setPaintProperty('graph-nodes-circles', 'circle-opacity', 0.8);
+          MAP.setPaintProperty('graph-nodes-circles', 'circle-stroke-color', '#60d4ff');
+        }, 1200));
+
+        gnnTimers.push(setTimeout(() => {
+          activateGnnPhase('gp-semantic');
+          showLayers('semantic-graph-lines');
+          MAP.setPaintProperty('semantic-graph-lines', 'line-color', '#c084fc');
+          MAP.setPaintProperty('semantic-graph-lines', 'line-width',
+            ['interpolate', ['linear'], ['get', 'weight'], 0.85, 0.6, 1, 1.8]);
+          MAP.setPaintProperty('semantic-graph-lines', 'line-opacity', 0.02);
+          if (gnnAnimFrame) { cancelAnimationFrame(gnnAnimFrame); gnnAnimFrame = null; }
+          animateSemanticWave();
+          MAP.setPaintProperty('graph-nodes-circles', 'circle-color',
+            ['case', ['==', ['get', 'semantic_eligible'], true], '#c084fc', '#60d4ff']);
+        }, 4500));
+
+        gnnTimers.push(setTimeout(() => {
+          activateGnnPhase('gp-gru');
+          if (gnnAnimFrame) { cancelAnimationFrame(gnnAnimFrame); gnnAnimFrame = null; }
+          showLayers('ped-sensored-fill', 'ped-imputed-fill');
+          MAP.setPaintProperty('ped-sensored-fill', 'fill-opacity', 0.04);
+          MAP.setPaintProperty('ped-imputed-fill', 'fill-opacity', 0.02);
+          MAP.flyTo({ center: [144.960, -37.814], zoom: 14.2, pitch: 20, bearing: 0, duration: 1200 });
+          gnnTimers.push(setTimeout(() => animateGruSweep(), 400));
+        }, 7500));
+
+        gnnTimers.push(setTimeout(() => {
+          activateGnnPhase('gp-output');
+          if (gnnAnimFrame) { cancelAnimationFrame(gnnAnimFrame); gnnAnimFrame = null; }
+          showLayers('ped-sensored-fill', 'ped-sensored-outline', 'ped-imputed-fill', 'ped-imputed-outline');
+          MAP.setPaintProperty('ped-sensored-fill', 'fill-opacity', 0.85);
+          MAP.setPaintProperty('ped-imputed-fill', 'fill-opacity', 0.5);
+          const el = document.getElementById('ts-params');
+          if (el) animateCounter(el, 68076, 1800);
+        }, 11500));
+      },
+      exit() {
+        stopGnnAnim();
+      },
+    },
+    {
+      title: 'Street Archetypes',
+      text: `A Gaussian Mixture Model groups streets into <strong>4 behavioural archetypes</strong> based on their temporal rhythm patterns. Each archetype suggests a different kind of intervention — from pedestrianisation of high-parking streets to activation programs for quiet corridors.`,
+      stats: [
+        { val: 994, label: 'latent midday', id: 'ts-c0' },
+        { val: 141, label: 'parking realloc.', id: 'ts-c1' },
+        { val: 245, label: 'evening dining', id: 'ts-c2' },
+        { val: 17, label: 'major corridor', id: 'ts-c3' },
+      ],
+      enter() {
+        hideAllTourLayers();
+        showLayers('cluster-intervention-fill', 'cluster-intervention-outline');
+        try {
+          MAP.setFilter('cluster-intervention-fill', ['has', 'cluster']);
+          MAP.setFilter('cluster-intervention-outline', ['has', 'cluster']);
+        } catch(_) {}
+        MAP.flyTo({ center: [144.963, -37.814], zoom: 14.3, pitch: 0, bearing: 0, duration: 1400 });
+        setTimeout(() => {
+          ['ts-c0','ts-c1','ts-c2','ts-c3'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const v = id === 'ts-c0' ? 994 : id === 'ts-c1' ? 141 : id === 'ts-c2' ? 245 : 17;
+            animateCounter(el, v, 1200);
+          });
+        }, 500);
+      },
+      exit() {},
+    },
+    {
+      title: 'What-If Scenarios',
+      text: `Now the model is ready for questions. Click any street and ask: <strong>"What happens if we pedestrianise this?"</strong> The model runs a counterfactual simulation — removing parking, predicting pedestrian flow changes, and tracing <strong>spillover effects</strong> through the graph to neighbouring streets. The entire simulation takes under 2 seconds.`,
+      stats: [
+        { val: 3, label: 'intervention types', id: 'ts-ivtypes' },
+      ],
+      enter() {
+        hideAllTourLayers();
+        showLayers('ped-sensored-fill', 'ped-sensored-outline', 'ped-imputed-fill', 'ped-imputed-outline');
+        MAP.flyTo({ center: [144.965, -37.817], zoom: 15.5, pitch: 45, bearing: 20, duration: 2000 });
+        setTimeout(() => {
+          const el = document.getElementById('ts-ivtypes');
+          if (el) animateCounter(el, 3, 600);
+        }, 600);
+      },
+      exit() {},
+    },
+  ];
+
+  const TOTAL_STEPS = STEPS.length;
+
+  function renderStep() {
+    const step = STEPS[tourStep];
+    const body = document.getElementById('tour-body');
+
+    function swapContent() {
+      document.getElementById('tour-step-label').textContent = `Step ${tourStep + 1} of ${TOTAL_STEPS}`;
+      document.getElementById('tour-title').textContent = step.title;
+
+      let textHtml = step.text;
+      if (step.customHtml) textHtml += step.customHtml;
+      document.getElementById('tour-text').innerHTML = textHtml;
+
+      const statsEl = document.getElementById('tour-stats');
+      statsEl.innerHTML = step.stats.map(s =>
+        `<div class="tour-stat tour-glow"><div class="tour-stat-val" id="${s.id}">0</div><div class="tour-stat-lbl">${s.label}</div></div>`
+      ).join('');
+
+      document.getElementById('tour-progress-fill').style.width =
+        ((tourStep + 1) / TOTAL_STEPS * 100) + '%';
+
+      const dots = document.getElementById('tour-dots');
+      dots.innerHTML = '';
+      for (let i = 0; i < TOTAL_STEPS; i++) {
+        const d = document.createElement('div');
+        d.className = 'tour-dot' + (i === tourStep ? ' active' : i < tourStep ? ' done' : '');
+        d.addEventListener('click', () => tourGoTo(i));
+        d.style.cursor = 'pointer';
+        dots.appendChild(d);
+      }
+
+      document.getElementById('tour-prev').style.display = tourStep === 0 ? 'none' : '';
+      const nextBtn = document.getElementById('tour-next');
+      nextBtn.textContent = tourStep === TOTAL_STEPS - 1 ? 'Explore Map' : 'Next';
+
+      body.classList.remove('fade-out');
+      body.classList.add('fade-in');
+      step.enter();
+    }
+
+    const alreadyHidden = getComputedStyle(body).opacity === '0';
+    if (alreadyHidden) {
+      swapContent();
+      return;
+    }
+
+    body.addEventListener('transitionend', function onFadeOut(e) {
+      if (e.propertyName !== 'opacity') return;
+      body.removeEventListener('transitionend', onFadeOut);
+      swapContent();
+    });
+    body.classList.remove('fade-in');
+    body.classList.add('fade-out');
+  }
+
+  window.tourStart = function() {
+    if (!MAP) { alert('Map not loaded yet.'); return; }
+    saveMapState();
+    tourActive = true;
+    tourStep = 0;
+
+    const body = document.getElementById('tour-body');
+    body.classList.add('fade-out');
+
+    const overlay = document.getElementById('tour-overlay');
+    overlay.classList.remove('fading');
+    overlay.classList.add('active');
+
+    document.getElementById('controls').style.pointerEvents = 'none';
+    document.getElementById('controls').style.opacity = '0.3';
+
+    renderStep();
+  };
+
+  window.tourEnd = function() {
+    stopAnimations();
+    const overlay = document.getElementById('tour-overlay');
+    overlay.classList.add('fading');
+    setTimeout(() => {
+      overlay.classList.remove('active', 'fading');
+      tourActive = false;
+      document.getElementById('controls').style.pointerEvents = '';
+      document.getElementById('controls').style.opacity = '';
+      restoreMapState();
+    }, 400);
+  };
+
+  window.tourNext = function() {
+    if (tourStep >= TOTAL_STEPS - 1) { tourEnd(); return; }
+    stopAnimations();
+    STEPS[tourStep].exit();
+    tourStep++;
+    renderStep();
+  };
+
+  window.tourPrev = function() {
+    if (tourStep <= 0) return;
+    stopAnimations();
+    STEPS[tourStep].exit();
+    tourStep--;
+    renderStep();
+  };
+
+  window.tourGoTo = function(idx) {
+    if (idx === tourStep || idx < 0 || idx >= TOTAL_STEPS) return;
+    stopAnimations();
+    STEPS[tourStep].exit();
+    tourStep = idx;
+    renderStep();
+  };
+
+  document.addEventListener('keydown', (e) => {
+    if (!tourActive) return;
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); tourNext(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); tourPrev(); }
+    if (e.key === 'Escape') { e.preventDefault(); tourEnd(); }
+  });
+})();
+</script>
+
+</div><!-- /map-frame -->
+</div><!-- /app-layout -->
+
+<!-- ── Chatbot widget ──────────────────────────────────────────────── -->
+<style>
+  #bottom-taskbar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+    width: 100%; height: 56px;
+    background: var(--surface);
+    border-top: 1px solid var(--border-hi);
+    border-radius: 0;
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 12px;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.4);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  #bottom-taskbar > #tour-btn-taskbar { grid-column: 1; justify-self: start; }
+  #bottom-taskbar > #scenario-btn { grid-column: 2; justify-self: center; }
+  #bottom-taskbar > #chatbot-toggle { grid-column: 3; justify-self: end; }
+  #chatbot-toggle {
+    width: auto; height: 38px; border-radius: 19px;
+    padding: 0 20px;
+    background: var(--surface-hi); color: var(--text);
+    border: 1px solid var(--border-hi); cursor: pointer; font-size: 13px;
+    font-weight: 700; font-family: inherit;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    transition: background 0.15s;
+    display: flex; align-items: center; gap: 8px;
+    animation: pulse-bar 4s ease-in-out infinite;
+  }
+  @keyframes pulse-bar {
+    0%, 70%, 100% { transform: scale(1); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    80% { transform: scale(1.06); box-shadow: 0 2px 16px rgba(0,0,0,0.5); }
+    90% { transform: scale(1); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  }
+  #chatbot-toggle:hover { background: var(--border-hi); }
+
+  #chatbot-panel {
+    position: fixed; bottom: 56px; right: 0; z-index: 10;
+    width: 440px; height: 620px; max-height: calc(100vh - 70px);
+    border-radius: 12px 0 0 0;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border-hi);
+    display: none; flex-direction: column;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  #chatbot-panel.open { display: flex; }
+  #chatbot-header {
+    padding: 12px 16px; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.6px; text-transform: uppercase;
+    color: var(--accent); border-bottom: 1px solid var(--border);
+    border-radius: 12px 12px 0 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #chatbot-close {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 18px; cursor: pointer; line-height: 1;
+  }
+  #chatbot-close:hover { color: var(--accent); }
+  #chatbot-log {
+    flex: 1; overflow-y: auto; padding: 14px 16px;
+    font-size: 14.5px; line-height: 1.6;
+    scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent;
+  }
+  #chatbot-log::-webkit-scrollbar { width: 4px; }
+  #chatbot-log::-webkit-scrollbar-thumb { background: var(--accent-dim); }
+  .cb-msg { margin-bottom: 10px; white-space: pre-wrap; word-wrap: break-word; }
+  .cb-user { color: var(--accent); }
+  .cb-bot  { color: var(--text); }
+  .cb-tool { color: var(--text-muted); font-size: 12px; font-family: monospace; }
+  .cb-pending { color: var(--text-dim); font-style: italic; }
+  #chatbot-form {
+    display: flex; gap: 8px; padding: 12px;
+    border-top: 1px solid var(--border); background: var(--surface-hi);
+    border-radius: 0 0 12px 12px;
+  }
+  #chatbot-input {
+    flex: 1; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); padding: 9px 12px;
+    border-radius: 6px;
+    font-size: 14px; font-family: inherit; outline: none;
+  }
+  #chatbot-input:focus { border-color: var(--accent-dim); }
+  #chatbot-send {
+    background: var(--accent); color: var(--bg);
+    border: none; padding: 9px 16px; cursor: pointer;
+    border-radius: 6px;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.4px;
+  }
+  #chatbot-send:disabled { opacity: 0.4; cursor: wait; }
+</style>
+
+<div id="bottom-taskbar">
+  <button type="button" id="tour-btn-taskbar" onclick="tourStart()">How It Works</button>
+  <button type="button" id="scenario-btn" onclick="onScenarioBtn()">Run Scenario</button>
+  <button id="chatbot-toggle" title="Ask the assistant">ASK ME ANYTHING</button>
+</div>
+<div id="chatbot-panel">
+  <div id="chatbot-header">
+    <span>CBD Assistant</span>
+    <button id="chatbot-close" title="Close">×</button>
+  </div>
+  <div id="chatbot-log">
+    <div class="cb-msg cb-bot">Ask me about streets, clusters, interventions, or the model.
+Try: <em>"Where is the best place for pedestrianisation?"</em>
+or <em>"What is the semantic graph?"</em></div>
+  </div>
+  <form id="chatbot-form">
+    <input id="chatbot-input" autocomplete="off" placeholder="Ask a question…">
+    <button id="chatbot-send" type="submit">Send</button>
+  </form>
+</div>
+
+<script>
+(function () {
+  const CHAT_URL = 'http://127.0.0.1:5051/chat';
+  const toggle = document.getElementById('chatbot-toggle');
+  const panel  = document.getElementById('chatbot-panel');
+  const close  = document.getElementById('chatbot-close');
+  const log    = document.getElementById('chatbot-log');
+  const form   = document.getElementById('chatbot-form');
+  const input  = document.getElementById('chatbot-input');
+  const send   = document.getElementById('chatbot-send');
+  let messages = [];
+
+  toggle.onclick = () => {
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) input.focus();
+  };
+  close.onclick = () => panel.classList.remove('open');
+
+  function add(cls, text) {
+    const div = document.createElement('div');
+    div.className = 'cb-msg ' + cls;
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    add('cb-user', 'You: ' + text);
+    input.value = '';
+    send.disabled = true;
+    const pending = add('cb-pending', 'thinking…');
+    try {
+      const r = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ messages, message: text })
+      });
+      const data = await r.json();
+      pending.remove();
+      if (data.error) {
+        add('cb-bot', '[error] ' + data.error);
+      } else {
+        messages = data.messages;
+        (data.tool_calls || []).forEach(tc =>
+          add('cb-tool', '› ' + tc.name + '(' + JSON.stringify(tc.input) + ')'));
+        add('cb-bot', data.reply || '(empty)');
+      }
+    } catch (err) {
+      pending.remove();
+      add('cb-bot', '[fetch error] ' + err.message + '\n(Is `python chatbot/server.py` running on :5051?)');
+    } finally {
+      send.disabled = false;
+      input.focus();
+    }
+  });
+})();
 </script>
 </body>
 </html>

@@ -1,19 +1,20 @@
 """
-Step 05 — Parking occupancy reconstruction + XGBoost pedestrian imputation.
+Step 05 — Parking occupancy reconstruction + pedestrian fill.
 
 Outputs (all in data/processed/):
   parking_occupancy.parquet  — street_id, time_bin, occupancy_rate, valid_parking
   ped_complete.parquet       — street_id, time_bin, ped_flow, ped_confidence, source
 
-Model (v3 — graph-informed):
-  - GroupKFold(5) over streets: tests generalisation to UNSEEN streets.
-  - log1p target transform: ped_flow is heavily right-skewed.
-  - Parking occupancy stats as street-level features.
-  - Interaction features: hour_sin/cos × is_weekend.
-  - Spatial graph lag: mean ped_flow of sensored spatial neighbours per time_bin.
-    For each street in the graph, its sensored k-NN neighbours act as a local
-    reference signal — giving the XGBoost a "what are nearby streets seeing now?"
-    feature unavailable in pure static+temporal designs.
+Pedestrian fill (city-climatology — D-023, XGBoost removed):
+  - Sensored streets (74) carry their REAL 15-min counts (confidence 1.0).
+  - Unsensored streets (1,323) are filled with the per-bin MEAN of the sensored
+    streets (a single city rhythm) at confidence 0.5, source "climatology".
+  - Rationale: the leave-streets-out GNN test (Fix 5 / D-023) showed the GNN
+    reconstructs unsensored flow as well from this trivial fill as from the former
+    XGBoost imputation (gap within fold noise). Imputation = coverage, not
+    accuracy; per-street scale is information-capped and downstream-irrelevant.
+  - The output schema is unchanged from the XGBoost version, so steps 06/08 are
+    untouched.
 """
 import json
 import logging
@@ -363,176 +364,48 @@ def _build_ped_complete(parking_occ: pd.DataFrame) -> tuple[pd.DataFrame, float,
              f"interp(<={SHORT_GAP_BINS})={int(interp.sum()):,} "
              f"masked-outage={n_masked:,} ({100*n_masked/valid.size:.1f}%)")
 
-    # ── Street-level parking stats ────────────────────────────────────────────
-    parking_stats = (
-        parking_occ.groupby("street_id")["occupancy_rate"]
-        .agg(parking_mean="mean", parking_std="std")
-        .fillna(0).reset_index()
+    # ── City-climatology pedestrian fill (XGBoost removed — D-023) ────────────
+    # Fix 5 (D-023, scripts/fix5_leave_streets_out_gnn.py) showed the GNN
+    # reconstructs unsensored-street flow as well from a trivial city-average
+    # rhythm as from XGBoost imputation (gap B-A = +0.12 MAE, within fold noise),
+    # so the XGBoost stage is dropped. Every unsensored street is filled with the
+    # per-bin MEAN of the sensored streets: same daily SHAPE, no per-street SCALE
+    # (scale is information-capped and downstream-irrelevant per Fix 5). The
+    # ped_complete output schema (street_id, time_bin, ped_flow, ped_confidence,
+    # source, ped_valid) is unchanged, so steps 06/08 need no edit.
+    ped_sensored["ped_confidence"] = 1.0          # observed sensor streets
+    ped_sensored["source"]         = "sensor"
+
+    # City rhythm: mean sensored ped_flow per time_bin, ignoring outage bins so a
+    # masked-out sensor gap does not drag the average toward zero.
+    sens_valid = ped_sensored.copy()
+    sens_valid.loc[~sens_valid["ped_valid"].astype(bool), "ped_flow"] = np.nan
+    city_rhythm = (
+        sens_valid.groupby("time_bin")["ped_flow"].mean()
+        .reindex(time_index).fillna(0.0).to_numpy(dtype=np.float32)
     )
-    parking_stats["has_parking"] = 1.0
-    static = static.merge(parking_stats, on="street_id", how="left")
-    static["parking_mean"] = static["parking_mean"].fillna(0.0)
-    static["parking_std"]  = static["parking_std"].fillna(0.0)
-    static["has_parking"]  = static["has_parking"].fillna(0.0)
-    log.info(f"  Streets with parking data: {parking_stats.street_id.nunique()}")
+    city_rhythm = np.clip(city_rhythm, 0.0, None)
+    log.info(f"  City-climatology fill: mean={city_rhythm.mean():.1f} "
+             f"peak={city_rhythm.max():.1f} ped/bin over {len(time_index)} bins")
 
-    # ── Temporal feature preparation ──────────────────────────────────────────
-    temporal["time_bin"] = pd.to_datetime(temporal["time_bin"], utc=True)
-    weather["time_bin"]  = pd.to_datetime(weather["time_bin"],  utc=True)
-
-    # Interaction: hour shape × weekend/weekday distinction
-    temporal["hour_sin_x_weekend"] = temporal["hour_sin"] * temporal["is_weekend"]
-    temporal["hour_cos_x_weekend"] = temporal["hour_cos"] * temporal["is_weekend"]
-    log.info("  Added hour_sin/cos × is_weekend interaction features")
-
-    # ── Spatial graph lag feature ─────────────────────────────────────────────
-    log.info("  Computing spatial graph lag feature...")
-    lag_pivot = _compute_spatial_lag(ped_sensored, all_streets, sensored_streets)
-    # lag_pivot: index=time_bin, columns=street_id — (14400, n_streets)
-
-    # Pre-merge temporal + weather (same 14400 rows, used everywhere)
-    tw = temporal.merge(weather, on="time_bin", how="left")
-    tw.set_index("time_bin", inplace=True)
-
-    static_cols   = [c for c in static.columns if c != "street_id"]
-    temporal_cols = [c for c in temporal.columns if c != "time_bin"]
-    weather_cols  = [c for c in weather.columns  if c != "time_bin"]
-    feature_cols  = static_cols + temporal_cols + weather_cols + ["spatial_lag_ped"]
-
-    static_lookup = static.set_index("street_id")
-
-    def _make_X(streets_list: list, time_index_arr) -> np.ndarray:
-        """Build feature matrix for given streets × full time_index.
-        Processes one street at a time to keep memory O(14400 × n_features)."""
-        n_times  = len(time_index_arr)
-        tw_vals  = tw.loc[time_index_arr].values.astype(np.float32)   # (T, temporal+weather)
-        n_tw     = tw_vals.shape[1]
-        n_static = len(static_cols)
-        n_feat   = n_static + n_tw + 1   # +1 for spatial_lag
-
-        rows = np.empty((len(streets_list) * n_times, n_feat), dtype=np.float32)
-        for i, sid in enumerate(streets_list):
-            sl = slice(i * n_times, (i + 1) * n_times)
-            # static features (broadcast over time)
-            if sid in static_lookup.index:
-                st_vals = static_lookup.loc[sid, static_cols].values.astype(np.float32)
-            else:
-                st_vals = np.zeros(n_static, dtype=np.float32)
-            rows[sl, :n_static] = st_vals  # broadcast
-            # temporal + weather
-            rows[sl, n_static:n_static + n_tw] = tw_vals
-            # spatial lag
-            if sid in lag_pivot.columns:
-                rows[sl, -1] = lag_pivot[sid].values.astype(np.float32)
-            else:
-                rows[sl, -1] = 0.0
-        return rows
-
-    # Training matrix (all sensored streets at once — 82×14400 = 1.18M rows, fine)
-    X_train = _make_X(sensored_streets, time_index)
-
-    # y in street-major order (matches X_train row order)
-    y_raw   = ped_sensored.sort_values(["street_id", "time_bin"])["ped_flow"].values
-    y_train = np.log1p(y_raw)
-
-    log.info(f"  Training matrix: {X_train.shape}")
-    log.info(f"  Raw ped range: [{y_raw.min():.0f}, {y_raw.max():.0f}]  "
-             f"log1p: [{y_train.min():.3f}, {y_train.max():.3f}]")
-
-    # ── GroupKFold(5) over streets ────────────────────────────────────────────
-    log.info("  Running GroupKFold(5) CV over streets...")
-    # groups: repeat each street_id 14400 times (street-major order)
-    groups = np.repeat(sensored_streets, len(time_index))
-
-    cv_model = xgb.XGBRegressor(
-        n_estimators=400, max_depth=6, learning_rate=0.05,
-        subsample=0.8, colsample_bytree=0.8, min_child_weight=3,
-        tree_method="hist", random_state=42, verbosity=0,
-    )
-    gkf = GroupKFold(n_splits=5)
-    y_pred_cv = cross_val_predict(cv_model, X_train, y_train, cv=gkf, groups=groups)
-
-    overall_r2_log = r2_score(y_train, y_pred_cv)
-
-    y_pred_cv_raw = np.expm1(np.clip(y_pred_cv, 0, None))
-    # groups is street-major: each street occupies a contiguous block of N_TIME_BINS rows
-    street_r2: dict[str, float] = {}
-    for idx_s, sid in enumerate(sensored_streets):
-        lo = idx_s * len(time_index)
-        hi = lo + len(time_index)
-        street_r2[sid] = float(r2_score(y_raw[lo:hi], y_pred_cv_raw[lo:hi]))
-
-    r2_vals   = list(street_r2.values())
-    median_r2 = float(np.median(r2_vals))
-    log.info(f"  Overall GroupKFold R2 (log scale): {overall_r2_log:.3f}")
-    log.info(f"  Per-street R2 -- median: {median_r2:.3f}  "
-             f"range: [{min(r2_vals):.3f}, {max(r2_vals):.3f}]")
-    log.info(f"  Streets with R2 >= 0.6: {sum(v >= 0.6 for v in r2_vals)}/{len(r2_vals)}")
-
-    # ── Final model on all sensored data ──────────────────────────────────────
-    log.info("  Training final model (n_estimators=500)...")
-    final_model = xgb.XGBRegressor(
-        n_estimators=600, max_depth=6, learning_rate=0.05,
-        subsample=0.8, colsample_bytree=0.8, min_child_weight=3,
-        tree_method="hist", random_state=42, verbosity=0,
-    )
-    final_model.fit(X_train, y_train)
-
-    # ── Predict for unsensored streets — batched to avoid OOM ────────────────
-    BATCH = 300
-    log.info(f"  Predicting for {len(unsensored_streets)} unsensored streets "
-             f"(batches of {BATCH})...")
-
+    # Broadcast the city rhythm to every unsensored street (street-major order,
+    # mirroring the sensored block so the downstream concat aligns cleanly).
     pred_sid_list, pred_time_list, pred_flow_list = [], [], []
-    for b_start in range(0, len(unsensored_streets), BATCH):
-        batch = unsensored_streets[b_start : b_start + BATCH]
-        X_b   = _make_X(batch, time_index)
-        p_b   = np.expm1(np.clip(final_model.predict(X_b), 0, None))
-        for i, sid in enumerate(batch):
-            pred_sid_list.append(np.full(len(time_index), sid))
-            pred_time_list.append(time_index)
-            pred_flow_list.append(p_b[i * len(time_index) : (i + 1) * len(time_index)])
-        if (b_start // BATCH) % 5 == 0:
-            log.info(f"    ... {min(b_start + BATCH, len(unsensored_streets))}"
-                     f"/{len(unsensored_streets)} streets predicted")
+    for sid in unsensored_streets:
+        pred_sid_list.append(np.full(len(time_index), sid))
+        pred_time_list.append(time_index)
+        pred_flow_list.append(city_rhythm)
 
     unsensored_grid = pd.DataFrame({
         "street_id": np.concatenate(pred_sid_list),
         "time_bin":  np.concatenate(pred_time_list),
         "ped_flow":  np.concatenate(pred_flow_list).astype(np.float32),
     })
-
-    # ── Confidence tiers ──────────────────────────────────────────────────────
-    ped_sensored["ped_confidence"] = 1.0          # observed sensor streets
-    ped_sensored["source"]         = "sensor"
-
-    # Fix #4 (D-014): per-street confidence for imputed streets via similarity
-    # transfer — borrow the mean CV R² of the CONF_KNN nearest sensored streets in
-    # z-scored static-feature space. Materialises the 0.8 tier (previously a single
-    # global tier put every imputed street at 0.5).
-    conf_feats = [c for c in CONF_FEATURES if c in static_lookup.columns]
-    Zall   = static_lookup[conf_feats].astype(float)
-    fmu    = Zall.loc[sensored_streets].mean()
-    fsd    = Zall.loc[sensored_streets].std().replace(0, 1.0)
-    Zall   = (Zall - fmu) / fsd
-    Z_sens = Zall.loc[sensored_streets].to_numpy()
-    r2_sens = np.array([street_r2[s] for s in sensored_streets])
-
-    def _imputed_conf(sid: str) -> float:
-        if sid not in Zall.index:
-            return 0.5
-        d   = np.linalg.norm(Z_sens - Zall.loc[sid].to_numpy(), axis=1)
-        knn = np.argsort(d)[:CONF_KNN]
-        return 0.8 if float(np.mean(r2_sens[knn])) >= CONF_R2_HIGH else 0.5
-
-    imp_conf = {sid: _imputed_conf(sid) for sid in unsensored_streets}
-    unsensored_grid["ped_confidence"] = unsensored_grid["street_id"].map(imp_conf).astype(np.float32)
-    unsensored_grid["source"]         = "xgboost"
-    unsensored_grid["ped_valid"]      = True       # imputed value exists (not an outage)
-    n08 = sum(v == 0.8 for v in imp_conf.values())
-    log.info(f"  Imputed-street confidence (similarity transfer): "
-             f"{n08} at 0.8, {len(imp_conf) - n08} at 0.5 "
-             f"(global log-R²={overall_r2_log:.3f})")
+    unsensored_grid["ped_confidence"] = np.float32(0.5)   # flat low trust (imputed)
+    unsensored_grid["source"]         = "climatology"
+    unsensored_grid["ped_valid"]      = True              # value exists (not an outage)
+    log.info(f"  Filled {len(unsensored_streets)} unsensored streets with city "
+             f"climatology (confidence=0.5, source=climatology)")
 
     ped_complete = pd.concat([
         ped_sensored[["street_id", "time_bin", "ped_flow", "ped_confidence", "source", "ped_valid"]],
@@ -540,7 +413,7 @@ def _build_ped_complete(parking_occ: pd.DataFrame) -> tuple[pd.DataFrame, float,
     ], ignore_index=True)
 
     log.info(f"  ped_complete: {len(ped_complete):,} rows, {ped_complete.street_id.nunique()} streets")
-    return ped_complete, overall_r2_log, street_r2
+    return ped_complete
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -568,7 +441,7 @@ def _validate(parking_occ: pd.DataFrame, ped_complete: pd.DataFrame):
 
 def run() -> dict[str, Path]:
     parking_occ              = _build_parking_occupancy()
-    ped_complete, r2, sr2    = _build_ped_complete(parking_occ)
+    ped_complete             = _build_ped_complete(parking_occ)
 
     _validate(parking_occ, ped_complete)
 
@@ -595,11 +468,10 @@ def run() -> dict[str, Path]:
     summ_path.write_text(json.dumps(summ_dict, indent=None))
     log.info(f"  Saved ped_street_summary.json ({len(summ_dict)} streets)")
 
-    median_r2 = float(np.median(list(sr2.values())))
     log.info(
         f"Step 5 complete: parking={parking_occ.street_id.nunique()} streets, "
         f"ped={ped_complete.street_id.nunique()} streets, "
-        f"GroupKFold_R2={r2:.3f}, median_per_street_R2={median_r2:.3f}"
+        f"ped fill=city-climatology (XGBoost removed, D-023)"
     )
     return {"parking_occupancy": p_path, "ped_complete": ped_path, "ped_summary": summ_path}
 

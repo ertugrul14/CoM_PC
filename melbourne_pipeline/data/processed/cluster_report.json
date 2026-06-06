@@ -1,32 +1,46 @@
 {
-  "k": 4,
+  "k": 3,
+  "k_selection": "fixed k=3 via stability diagnostic (max silhouette + bootstrap ARI); BIC not used (erratic on 189 streets)",
   "bic": {
-    "2": -44767.6,
-    "3": -52745.0,
-    "4": -56698.6,
-    "5": -56608.2,
-    "6": -55779.2,
-    "7": -55499.2,
-    "8": -54857.5,
-    "9": -53850.0,
-    "10": -52934.7
+    "2": 6832.6,
+    "3": 7190.2,
+    "4": 6471.2,
+    "5": 7271.6,
+    "6": 4124.2,
+    "7": 5481.0,
+    "8": 6268.1,
+    "9": 7552.0,
+    "10": 8585.0
   },
-  "ari": 0.8876,
-  "silhouette": 0.5261,
+  "silhouette_by_k": {
+    "2": 0.3618,
+    "3": 0.3628,
+    "4": 0.1731,
+    "5": 0.1599,
+    "6": 0.187,
+    "7": 0.1716,
+    "8": 0.1611,
+    "9": 0.1099,
+    "10": 0.3027
+  },
+  "ari": 0.5667,
+  "silhouette": 0.3628,
   "pca_components": 20,
-  "pca_variance_explained": 0.9948,
+  "pca_variance_explained": 0.9908,
   "archetype_map": {
-    "0": "latent_evening_potential_medium",
+    "0": "major_pedestrian_corridor",
     "1": "parking_reallocation_priority",
-    "2": "latent_evening_potential_high",
-    "3": "major_pedestrian_corridor"
+    "2": "latent_morning_potential"
   },
   "cluster_sizes": {
-    "0": 981,
-    "1": 139,
-    "2": 227,
-    "3": 50
+    "0": 28,
+    "1": 131,
+    "2": 30
   },
-  "n_uncertain": 3,
-  "n_with_flex_windows": 1109
+  "n_uncertain": 0,
+  "n_with_flex_windows": 50,
+  "n_evidence_clustered": 189,
+  "n_ped_sensor": 74,
+  "n_park_sensor": 143,
+  "n_context_only": 1208
 }

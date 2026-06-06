@@ -97,6 +97,7 @@ build/
 
 # Lightning upload bundles + archives (regenerable via bundle_*.py — never push)
 fix5_bundle/
+retrain_bundle/
 ablation_bundle/
 ablation_v2_bundle/
 training_bundle/

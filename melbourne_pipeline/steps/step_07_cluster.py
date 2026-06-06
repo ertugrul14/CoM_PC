@@ -1,7 +1,15 @@
 """
-Step 07 — GMM clustering on joint temporal street profiles.
+Step 07 — GMM clustering on joint temporal street profiles (sensored streets only).
 
-Input:  data/processed/street_profiles.parquet  (3975 streets × 84 temporal features)
+Evidence gate (D-024): clustering is run ONLY on sensored streets — those with a
+real pedestrian sensor (ped_confidence == 1.0) or a real parking sensor (present in
+parking_occupancy.parquet), the ~189-street ped∪park union. Imputed streets carry no
+observed behaviour to cluster, so they are written out as cluster = -1 /
+intervention_type = "context_only" (kept only so the 1,397-street output contract
+holds for the viz / step_12). This keeps archetypes and interventions grounded in
+real data rather than in the city-climatology fill.
+
+Input:  data/processed/street_profiles.parquet  (1397 streets × temporal features)
 
 Cluster features:
   42 parking features  — mean occupancy_rate per (DoW × time-block)
@@ -54,6 +62,12 @@ OCCUPANCY_THRESHOLD  = 0.30   # occupancy < 30% → potential flexibility window
 CONFIDENCE_THRESHOLD = 0.70   # GMM max-prob < 0.70 → unreliable assignment
 STABILITY_ITERS      = 20
 SEED                 = 42
+# k fixed via the stability diagnostic (scripts/diag_cluster_k.py, D-024): on the
+# ~189 sensored streets, k=3 maximises mean silhouette (0.363) with a reproducible
+# bootstrap ARI, and stays interventionally interpretable. BIC is NOT used — on this
+# small set with full-covariance GMM it is erratic/non-monotonic (near-singular
+# covariances), so its minimum (k=6) is a fitting artifact, not real structure.
+N_CLUSTERS           = 3
 
 # Time-block → archetype mapping
 _ARCHETYPE_MORNING = {"morning", "work_am"}
@@ -267,13 +281,34 @@ def run() -> dict[str, Path]:
     assert len(park_cols) == 42, f"Expected 42 park cols, got {len(park_cols)}"
     assert len(ped_cols)  == 42, f"Expected 42 ped cols, got {len(ped_cols)}"
 
-    streets = profiles["street_id"].tolist()
+    # ── Evidence gate: cluster ONLY sensored streets (D-024) ──────────────────
+    # Clustering, archetypes and interventions are claims about real behaviour, so
+    # they must rest on observed data. A street is "evidence" if it has a real ped
+    # sensor (ped_confidence == 1.0) OR a real parking sensor (present in
+    # parking_occupancy.parquet). The remaining imputed streets are CONTEXT ONLY:
+    # they exist to give the GNN spatial context, not to be clustered or acted on.
+    park_sensor_ids = set(
+        pd.read_parquet(PROCESSED_DIR / "parking_occupancy.parquet", columns=["street_id"])
+        ["street_id"].astype(str).unique()
+    )
+    is_ped_sensor  = profiles["ped_confidence"].to_numpy() == 1.0
+    is_park_sensor = profiles["street_id"].isin(park_sensor_ids).to_numpy()
+    evidence_mask  = is_ped_sensor | is_park_sensor
+
+    profiles_ev  = profiles[evidence_mask].reset_index(drop=True)
+    profiles_ctx = profiles[~evidence_mask].reset_index(drop=True)
+    log.info(f"  Evidence gate: {len(profiles_ev)} sensored streets clustered "
+             f"({int(is_ped_sensor.sum())} ped, {int(is_park_sensor.sum())} park, "
+             f"{int((is_ped_sensor & is_park_sensor).sum())} both); "
+             f"{len(profiles_ctx)} imputed streets marked context-only")
+
+    streets = profiles_ev["street_id"].tolist()
     N = len(streets)
     log.info(f"  Clustering {N} streets on {len(park_cols) + len(ped_cols)} temporal + {len(score_cols)} score features")
     log.info(f"  Score columns: {score_cols}")
 
     joint_cols = park_cols + ped_cols + score_cols
-    X_raw = profiles[joint_cols].values.astype(np.float64)
+    X_raw = profiles_ev[joint_cols].values.astype(np.float64)
 
     # ── Normalise + PCA ───────────────────────────────────────────────────────
     np.random.seed(SEED)
@@ -286,25 +321,26 @@ def run() -> dict[str, Path]:
     expl   = pca.explained_variance_ratio_.sum()
     log.info(f"  PCA: {X_scaled.shape[1]} -> {n_comp} components, variance explained: {expl:.1%}")
 
-    # ── BIC search ────────────────────────────────────────────────────────────
+    # ── k selection: fixed k=N_CLUSTERS (silhouette + stability, NOT BIC) ──────
+    # BIC is logged for transparency but not used to select — it is erratic on this
+    # small full-covariance problem (see N_CLUSTERS note). k is fixed to the value
+    # the stability diagnostic identified as best-separated + reproducible.
     bics: dict[int, float] = {}
-    models: dict[int, GaussianMixture] = {}
+    sils: dict[int, float] = {}
     for k in range(2, 11):
         gmm = GaussianMixture(
             n_components=k, covariance_type="full",
             n_init=5, reg_covar=1e-3, random_state=SEED,
         )
         gmm.fit(X_pca)
-        bics[k]   = gmm.bic(X_pca)
-        models[k] = gmm
+        bics[k] = gmm.bic(X_pca)
+        sils[k] = float(silhouette_score(X_pca, gmm.predict(X_pca)))
 
-    best_k   = min(bics, key=bics.get)
-    # No k=3 constraint — with raw (un-normalised) features the BIC landscape
-    # reflects genuine data structure. Trust the BIC minimum directly.
-
-    log.info(f"  BIC-selected k={best_k}  BIC={bics[best_k]:.1f}")
-    for k, v in sorted(bics.items()):
-        log.info(f"    k={k}: BIC={v:.1f}{'  <-- selected' if k == best_k else ''}")
+    best_k = N_CLUSTERS
+    log.info(f"  k selection: fixed k={best_k} (max-silhouette + stability; BIC not used)")
+    for k in sorted(bics):
+        mark = "  <-- selected" if k == best_k else ""
+        log.info(f"    k={k}: BIC={bics[k]:.1f}  silhouette={sils[k]:.3f}{mark}")
 
     # ── Fit final GMM ─────────────────────────────────────────────────────────
     best_gmm = GaussianMixture(
@@ -345,8 +381,8 @@ def run() -> dict[str, Path]:
     log.info(f"  Archetypes: {archetype_map}")
 
     # ── Flexibility windows ───────────────────────────────────────────────────
-    park_df = profiles.set_index("street_id")[park_cols]
-    ped_df  = profiles.set_index("street_id")[ped_cols]
+    park_df = profiles_ev.set_index("street_id")[park_cols]
+    ped_df  = profiles_ev.set_index("street_id")[ped_cols]
     # Reorder to match labels array order
     park_df = park_df.loc[streets]
     ped_df  = ped_df.loc[streets]
@@ -372,11 +408,35 @@ def run() -> dict[str, Path]:
         "secondary_prob":         secondary_prob.round(4).tolist(),
         "flexibility_windows":    flex_all,
         "best_window":            flex_best,
-        "mean_ped":               profiles["mean_ped"].tolist(),
-        "mean_parking":           profiles["mean_parking"].tolist(),
-        "ped_confidence":         profiles["ped_confidence"].tolist(),
+        "mean_ped":               profiles_ev["mean_ped"].tolist(),
+        "mean_parking":           profiles_ev["mean_parking"].tolist(),
+        "ped_confidence":         profiles_ev["ped_confidence"].tolist(),
         **prob_cols,
     })
+
+    # ── Context-only streets: imputed, not clustered (cluster = -1) ────────────
+    # Kept in the output so the 1,397-street contract holds (viz / step_12), but
+    # explicitly flagged as non-evidence so nothing downstream treats them as a
+    # finding. They carry no archetype, no flexibility window, zero confidence.
+    if len(profiles_ctx):
+        ctx = pd.DataFrame({
+            "street_id":              profiles_ctx["street_id"].tolist(),
+            "cluster":                -1,
+            "intervention_type":      "context_only",
+            "cluster_confidence":     0.0,
+            "intervention_reliable":  False,
+            "secondary_cluster":      -1,
+            "secondary_archetype":    "context_only",
+            "secondary_prob":         0.0,
+            "flexibility_windows":    "[]",
+            "best_window":            "",
+            "mean_ped":               profiles_ctx["mean_ped"].tolist(),
+            "mean_parking":           profiles_ctx["mean_parking"].tolist(),
+            "ped_confidence":         profiles_ctx["ped_confidence"].tolist(),
+        })
+        for k in range(best_k):
+            ctx[f"cluster_prob_{k}"] = 0.0
+        result = pd.concat([result, ctx], ignore_index=True)
 
     # Centroids back-projected to original feature space
     means_orig = scaler.inverse_transform(pca.inverse_transform(best_gmm.means_))
@@ -396,7 +456,9 @@ def run() -> dict[str, Path]:
 
     report = {
         "k":                       best_k,
+        "k_selection":             "fixed k=3 via stability diagnostic (max silhouette + bootstrap ARI); BIC not used (erratic on 189 streets)",
         "bic":                     {str(k): round(v, 1) for k, v in bics.items()},
+        "silhouette_by_k":         {str(k): round(v, 4) for k, v in sils.items()},
         "ari":                     round(mean_ari, 4),
         "silhouette":              round(sil, 4),
         "pca_components":          n_comp,
@@ -405,6 +467,10 @@ def run() -> dict[str, Path]:
         "cluster_sizes":           {str(k): v for k, v in sizes.items()},
         "n_uncertain":             n_uncertain,
         "n_with_flex_windows":     int(sum(1 for w in flex_best if w)),
+        "n_evidence_clustered":    int(len(profiles_ev)),
+        "n_ped_sensor":            int(is_ped_sensor.sum()),
+        "n_park_sensor":           int(is_park_sensor.sum()),
+        "n_context_only":          int(len(profiles_ctx)),
     }
     report_path.write_text(json.dumps(report, indent=2))
 

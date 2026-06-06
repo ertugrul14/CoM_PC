@@ -305,3 +305,53 @@ reinforcing "imputation = coverage, not accuracy" (and now: the imputation METHO
 
 **Status.** Decision recorded. No frozen step_05 edited yet — removing/replacing the GNN-input fill is the
 implementation follow-up (needs OVERRIDE when step_05/08 are touched).
+
+### 2026-06-06 - D-024: Finalized pipeline — XGBoost removed (step_05 climatology) + evidence-gated clustering (step_07)
+
+**OVERRIDE granted.** Implements D-023 in the live pipeline. Two-layer methodology made explicit:
+- **Context layer (all 1,397 streets):** values exist everywhere so the GNN can message-pass and inform
+  sensored streets from their surroundings. Accuracy here is scaffolding, not a finding.
+- **Evidence layer (sensored streets):** the ONLY place we train the loss, cluster, and intervene —
+  because that is where ground truth exists.
+
+**step_05_process.py — XGBoost removed.** `_build_ped_complete()` XGBoost block (GroupKFold CV + 600-tree
+final model + spatial-lag/_make_X features + kNN confidence) replaced by a **city-climatology fill**:
+unsensored streets get the per-bin MEAN of the 74 sensored streets (outage bins excluded), confidence 0.5,
+source "climatology". Sensored streets keep real counts (confidence 1.0). Output schema unchanged
+(street_id, time_bin, ped_flow, ped_confidence, source, ped_valid) → steps 06/08 untouched. Justified by
+Fix 5 (D-023): the GNN reconstructs unsensored flow equally well from this trivial fill.
+
+**step_07_cluster.py — evidence gate.** Clustering now runs ONLY on the ped∪park sensor union
+(ped_confidence==1.0 OR street in parking_occupancy.parquet). Imputed streets are written as cluster=-1 /
+intervention_type="context_only" (kept for the 1,397-street viz contract). Fixes the dishonesty exposed when
+the flat climatology made the old all-1,397 clustering collapse: 1208 identical imputed points formed an
+artificial tight cluster (silhouette 0.875, k=6) that masked real structure.
+
+**Tested end-to-end WITHOUT training (steps 5→6→7→8 all green):**
+- step_05: ped_complete 20,116,800 rows = 1397×14400; 74 sensored; city rhythm mean 114 / peak 440 ped/bin.
+- step_08: cube (1397,14400,23) rebuilt; ped_valid 20,049,837/20,116,800; graphs nnz 5635/8097.
+- step_07 evidence-gated: 189 clustered (74 ped, 143 park, 28 both) + 1208 context_only. The prior all-1397
+  clustering scored silhouette 0.875 / ARI 0.966 — INFLATED by 1208 identical imputed points forming an
+  artificial tight blob. Honest sensored-only numbers are much lower (weak real structure).
+
+**k selection changed from BIC-min to fixed k=3 (stability diagnostic).** BIC is erratic/non-monotonic on
+189 streets with full-covariance GMM (k=6 dip to 4124 is a near-singular-covariance artifact, not structure)
+— see scripts/diag_cluster_k.py, which sweeps k=2..10 reporting BIC + bootstrap ARI + silhouette. No k reaches
+the 0.70 ARI bar (street behaviour is a continuum, not crisp clusters). k=3 maximises silhouette (0.363) with
+ARI 0.567 and stays interpretable. step_07 now FIXES k=N_CLUSTERS=3 (silhouette/stability, BIC logged but
+unused). Final archetypes: major_pedestrian_corridor (28), parking_reallocation_priority (131),
+latent_morning_potential (30). Honest silhouette 0.363 / ARI 0.567 reported as-is (weak-moderate structure).
+
+**Safety.** Pre-change snapshot at data/processed_backup_pre_xgb_removal/ (1.9 GB, local). Git checkpoint
+705f7e11 pushed before edits.
+
+**FINALIZATION (2026-06-06, retrain done).** Retrained on Lightning (T4) via train_lightning.py on the new
+climatology cube with Exp B masked loss. Best epoch 137. HONEST sensor-street metrics: VAL ped MAE 27.85 /
+R² 0.889, park MAE 0.058 / R² 0.885; TEST ped MAE 28.35 / R² 0.877, park MAE 0.052 / R² 0.880 (RMSE 68.5 →
+error concentrated in peak bins). val≈test → generalises to held-out future, no overfit. Beats old all-street
+model's true sensor MAE (~30.7); the circular ~5.5 all-street headline is gone.
+- New model installed into melbourne_pipeline/data/models/ (best_model.pt + sidecars).
+- cube_meta.json split patched to 70/15/15 (T_train_end=10080, T_val_end=12240) — local copy was stale (11520).
+- **step_09_train.py finalized to Exp B**: added PED_LOSS_SCOPE="sensors" (default), ped_sensor mask from
+  ped_confidence==1.0, ped loss+metrics masked to 74 sensors via ped_eval_mask; MAX_EPOCHS 200→300. Now matches
+  train_lightning.py methodology. Steps 10→12 to be re-run by user against the new model + climatology cube.

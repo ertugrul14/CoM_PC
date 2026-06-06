@@ -5,7 +5,7 @@
   "n_ped_features": 42,
   "n_active_ped": 1397,
   "n_active_park": 143,
-  "mean_ped_p50": 15.404667854309082,
-  "mean_ped_p95": 106.46586151123053,
+  "mean_ped_p50": 114.32792663574219,
+  "mean_ped_p95": 114.32792663574219,
   "mean_park_p50": 0.0
 }

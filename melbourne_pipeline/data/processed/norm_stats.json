@@ -1,7 +1,7 @@
 {
   "ped_flow": {
-    "mean": 2.457518,
-    "std": 1.418876
+    "mean": 4.180422,
+    "std": 1.271903
   },
   "occupancy_rate": {
     "mean": 0.292014,

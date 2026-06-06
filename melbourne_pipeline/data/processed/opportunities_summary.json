@@ -1,1610 +1,1274 @@
 {
-  "latent_evening_potential_high": [
+  "context_only": [
     {
-      "street_id": "22819",
-      "opportunity_score": 0.6721,
-      "pred_ped_mean": 59.45,
-      "uplift_fraction": -0.1978,
-      "mean_parking": 0.0,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20022",
-      "opportunity_score": 0.5163,
-      "pred_ped_mean": 64.75,
-      "uplift_fraction": -0.2703,
+      "street_id": "22649",
+      "opportunity_score": 0.3286,
+      "pred_ped_mean": 137.76,
+      "uplift_fraction": -0.6831,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22186",
-      "opportunity_score": 0.5153,
-      "pred_ped_mean": 111.06,
-      "uplift_fraction": -0.3804,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21982",
-      "opportunity_score": 0.5106,
-      "pred_ped_mean": 12.65,
-      "uplift_fraction": -0.0117,
-      "mean_parking": 0.0,
       "best_window": ""
     },
     {
-      "street_id": "20169",
-      "opportunity_score": 0.5003,
-      "pred_ped_mean": 124.15,
-      "uplift_fraction": -0.2494,
+      "street_id": "20689",
+      "opportunity_score": 0.3203,
+      "pred_ped_mean": 124.58,
+      "uplift_fraction": -0.6263,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "20490",
-      "opportunity_score": 0.4977,
-      "pred_ped_mean": 40.91,
-      "uplift_fraction": -0.1829,
+      "street_id": "20813",
+      "opportunity_score": 0.3189,
+      "pred_ped_mean": 120.27,
+      "uplift_fraction": -0.6168,
       "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
+      "best_window": ""
     },
     {
       "street_id": "21622",
-      "opportunity_score": 0.4946,
-      "pred_ped_mean": 104.2,
-      "uplift_fraction": -0.282,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21633",
-      "opportunity_score": 0.4811,
-      "pred_ped_mean": 86.64,
-      "uplift_fraction": -0.2606,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22005",
-      "opportunity_score": 0.4738,
-      "pred_ped_mean": 61.34,
-      "uplift_fraction": -0.3265,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22184",
-      "opportunity_score": 0.4689,
-      "pred_ped_mean": 88.68,
-      "uplift_fraction": -0.2516,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22066",
-      "opportunity_score": 0.4678,
-      "pred_ped_mean": 73.71,
-      "uplift_fraction": -0.298,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22477",
-      "opportunity_score": 0.4678,
-      "pred_ped_mean": 66.18,
-      "uplift_fraction": -0.3328,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20024",
-      "opportunity_score": 0.4663,
-      "pred_ped_mean": 85.97,
-      "uplift_fraction": -0.2424,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22879",
-      "opportunity_score": 0.4643,
-      "pred_ped_mean": 78.34,
-      "uplift_fraction": -0.2408,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22165",
-      "opportunity_score": 0.4642,
-      "pred_ped_mean": 37.21,
-      "uplift_fraction": -0.396,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22190",
-      "opportunity_score": 0.4606,
-      "pred_ped_mean": 50.52,
-      "uplift_fraction": -0.3166,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20873",
-      "opportunity_score": 0.4541,
-      "pred_ped_mean": 10.35,
-      "uplift_fraction": 0.1836,
+      "opportunity_score": 0.3173,
+      "pred_ped_mean": 154.47,
+      "uplift_fraction": -0.6057,
       "mean_parking": 0.2897,
       "best_window": ""
     },
     {
-      "street_id": "22774",
-      "opportunity_score": 0.4541,
-      "pred_ped_mean": 42.11,
-      "uplift_fraction": -0.3347,
+      "street_id": "20848",
+      "opportunity_score": 0.3165,
+      "pred_ped_mean": 88.51,
+      "uplift_fraction": -0.6005,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "22080",
-      "opportunity_score": 0.4537,
-      "pred_ped_mean": 62.93,
-      "uplift_fraction": -0.2574,
+      "street_id": "21494",
+      "opportunity_score": 0.3163,
+      "pred_ped_mean": 106.17,
+      "uplift_fraction": -0.599,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "22188",
-      "opportunity_score": 0.4495,
-      "pred_ped_mean": 42.95,
-      "uplift_fraction": -0.2981,
+      "street_id": "20468",
+      "opportunity_score": 0.3151,
+      "pred_ped_mean": 96.92,
+      "uplift_fraction": -0.5907,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "20534",
-      "opportunity_score": 0.4489,
-      "pred_ped_mean": 36.77,
-      "uplift_fraction": -0.0977,
+      "street_id": "22481",
+      "opportunity_score": 0.3149,
+      "pred_ped_mean": 114.03,
+      "uplift_fraction": -0.5895,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "22673",
-      "opportunity_score": 0.4472,
-      "pred_ped_mean": 21.63,
-      "uplift_fraction": 0.1317,
+      "street_id": "20528",
+      "opportunity_score": 0.3146,
+      "pred_ped_mean": 105.97,
+      "uplift_fraction": -0.5874,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "20218",
-      "opportunity_score": 0.4457,
-      "pred_ped_mean": 80.39,
-      "uplift_fraction": -0.1725,
+      "street_id": "20864",
+      "opportunity_score": 0.3146,
+      "pred_ped_mean": 94.51,
+      "uplift_fraction": -0.5874,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "20011",
-      "opportunity_score": 0.4437,
-      "pred_ped_mean": 55.58,
-      "uplift_fraction": -0.2506,
+      "street_id": "21115",
+      "opportunity_score": 0.3146,
+      "pred_ped_mean": 113.67,
+      "uplift_fraction": -0.5877,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "22085",
-      "opportunity_score": 0.4408,
-      "pred_ped_mean": 54.04,
-      "uplift_fraction": -0.2394,
+      "street_id": "20849",
+      "opportunity_score": 0.3145,
+      "pred_ped_mean": 119.11,
+      "uplift_fraction": -0.5868,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "22649",
-      "opportunity_score": 0.4407,
-      "pred_ped_mean": 63.49,
-      "uplift_fraction": -0.2155,
+      "street_id": "22016",
+      "opportunity_score": 0.3144,
+      "pred_ped_mean": 74.21,
+      "uplift_fraction": -0.5861,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "20187",
-      "opportunity_score": 0.4403,
-      "pred_ped_mean": 30.76,
-      "uplift_fraction": -0.1012,
+      "street_id": "22179",
+      "opportunity_score": 0.3141,
+      "pred_ped_mean": 192.56,
+      "uplift_fraction": -0.5839,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "22001",
-      "opportunity_score": 0.4383,
-      "pred_ped_mean": 52.65,
-      "uplift_fraction": -0.2434,
+      "street_id": "21527",
+      "opportunity_score": 0.3139,
+      "pred_ped_mean": 105.35,
+      "uplift_fraction": -0.5828,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "22651",
-      "opportunity_score": 0.4341,
-      "pred_ped_mean": 74.55,
-      "uplift_fraction": -0.1528,
+      "street_id": "21621",
+      "opportunity_score": 0.3138,
+      "pred_ped_mean": 102.67,
+      "uplift_fraction": -0.5817,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
+    },
+    {
+      "street_id": "21554",
+      "opportunity_score": 0.3138,
+      "pred_ped_mean": 106.72,
+      "uplift_fraction": -0.5817,
+      "mean_parking": 0.2897,
+      "best_window": ""
     },
     {
       "street_id": "22002",
-      "opportunity_score": 0.4327,
-      "pred_ped_mean": 45.16,
-      "uplift_fraction": -0.2234,
+      "opportunity_score": 0.3135,
+      "pred_ped_mean": 120.74,
+      "uplift_fraction": -0.5796,
       "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
+      "best_window": ""
     },
     {
-      "street_id": "20484",
-      "opportunity_score": 0.4324,
-      "pred_ped_mean": 28.44,
-      "uplift_fraction": -0.0339,
+      "street_id": "22149",
+      "opportunity_score": 0.3133,
+      "pred_ped_mean": 129.08,
+      "uplift_fraction": -0.5788,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
-      "street_id": "22553",
-      "opportunity_score": 0.4313,
-      "pred_ped_mean": 18.22,
-      "uplift_fraction": 0.0943,
+      "street_id": "20193",
+      "opportunity_score": 0.3132,
+      "pred_ped_mean": 143.36,
+      "uplift_fraction": -0.578,
       "mean_parking": 0.2897,
-      "best_window": "Thu_night"
+      "best_window": ""
     },
     {
-      "street_id": "22805",
-      "opportunity_score": 0.4298,
-      "pred_ped_mean": 30.34,
-      "uplift_fraction": 0.029,
+      "street_id": "20945",
+      "opportunity_score": 0.3132,
+      "pred_ped_mean": 95.61,
+      "uplift_fraction": -0.5776,
       "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
+      "best_window": ""
     },
     {
-      "street_id": "22446",
-      "opportunity_score": 0.4295,
-      "pred_ped_mean": 48.13,
-      "uplift_fraction": -0.2052,
+      "street_id": "21609",
+      "opportunity_score": 0.3126,
+      "pred_ped_mean": 82.7,
+      "uplift_fraction": -0.5737,
       "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22565",
-      "opportunity_score": 0.4291,
-      "pred_ped_mean": 67.21,
-      "uplift_fraction": -0.172,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
+      "best_window": ""
     },
     {
       "street_id": "22567",
-      "opportunity_score": 0.4278,
-      "pred_ped_mean": 30.7,
-      "uplift_fraction": -0.2517,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20222",
-      "opportunity_score": 0.4243,
-      "pred_ped_mean": 46.59,
-      "uplift_fraction": -0.0083,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22470",
-      "opportunity_score": 0.4239,
-      "pred_ped_mean": 60.54,
-      "uplift_fraction": -0.1565,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20530",
-      "opportunity_score": 0.4238,
-      "pred_ped_mean": 37.01,
-      "uplift_fraction": 0.0244,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20077",
-      "opportunity_score": 0.4236,
-      "pred_ped_mean": 47.46,
-      "uplift_fraction": 0.0622,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22103",
-      "opportunity_score": 0.4235,
-      "pred_ped_mean": 57.69,
-      "uplift_fraction": -0.1763,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20886",
-      "opportunity_score": 0.4232,
-      "pred_ped_mean": 39.33,
-      "uplift_fraction": -0.1877,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "22450",
-      "opportunity_score": 0.4232,
-      "pred_ped_mean": 40.78,
-      "uplift_fraction": -0.2094,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20550",
-      "opportunity_score": 0.423,
-      "pred_ped_mean": 49.22,
-      "uplift_fraction": -0.1616,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20067",
-      "opportunity_score": 0.423,
-      "pred_ped_mean": 50.23,
-      "uplift_fraction": -0.1701,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22487",
-      "opportunity_score": 0.4223,
-      "pred_ped_mean": 47.16,
-      "uplift_fraction": -0.1981,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22506",
-      "opportunity_score": 0.4218,
-      "pred_ped_mean": 33.74,
-      "uplift_fraction": -0.1418,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "22092",
-      "opportunity_score": 0.4208,
-      "pred_ped_mean": 58.75,
-      "uplift_fraction": -0.1532,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22488",
-      "opportunity_score": 0.4202,
-      "pred_ped_mean": 40.9,
-      "uplift_fraction": -0.2045,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22507",
-      "opportunity_score": 0.4202,
-      "pred_ped_mean": 35.78,
-      "uplift_fraction": -0.1894,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_work_am"
-    }
-  ],
-  "latent_evening_potential_medium": [
-    {
-      "street_id": "21697",
-      "opportunity_score": 0.4441,
-      "pred_ped_mean": 11.03,
-      "uplift_fraction": 0.1638,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21423",
-      "opportunity_score": 0.4411,
-      "pred_ped_mean": 10.67,
-      "uplift_fraction": 0.1525,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21417",
-      "opportunity_score": 0.4348,
-      "pred_ped_mean": 7.77,
-      "uplift_fraction": 0.1402,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21287",
-      "opportunity_score": 0.4294,
-      "pred_ped_mean": 8.8,
-      "uplift_fraction": 0.1094,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21693",
-      "opportunity_score": 0.4277,
-      "pred_ped_mean": 16.82,
-      "uplift_fraction": 0.1291,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20999",
-      "opportunity_score": 0.4187,
-      "pred_ped_mean": 10.24,
-      "uplift_fraction": 0.0626,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20492",
-      "opportunity_score": 0.4165,
-      "pred_ped_mean": 14.63,
-      "uplift_fraction": 0.0281,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "23230",
-      "opportunity_score": 0.4121,
-      "pred_ped_mean": 14.86,
-      "uplift_fraction": -0.2245,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21192",
-      "opportunity_score": 0.4107,
-      "pred_ped_mean": 9.92,
-      "uplift_fraction": 0.2321,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_work_am"
-    },
-    {
-      "street_id": "22677",
-      "opportunity_score": 0.408,
-      "pred_ped_mean": 10.93,
-      "uplift_fraction": 0.2165,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "23128",
-      "opportunity_score": 0.4072,
-      "pred_ped_mean": 9.93,
-      "uplift_fraction": 0.2228,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22516",
-      "opportunity_score": 0.4057,
-      "pred_ped_mean": 9.32,
-      "uplift_fraction": 0.2151,
-      "mean_parking": 0.2897,
-      "best_window": "Sat_work_am"
-    },
-    {
-      "street_id": "21026",
-      "opportunity_score": 0.4054,
-      "pred_ped_mean": 11.55,
-      "uplift_fraction": 0.2072,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21216",
-      "opportunity_score": 0.4051,
-      "pred_ped_mean": 8.78,
-      "uplift_fraction": 0.2158,
+      "opportunity_score": 0.3124,
+      "pred_ped_mean": 196.99,
+      "uplift_fraction": -0.5726,
       "mean_parking": 0.2897,
       "best_window": ""
     },
     {
-      "street_id": "21433",
-      "opportunity_score": 0.4048,
-      "pred_ped_mean": 7.76,
-      "uplift_fraction": 0.2171,
+      "street_id": "22496",
+      "opportunity_score": 0.3122,
+      "pred_ped_mean": 101.05,
+      "uplift_fraction": -0.5708,
       "mean_parking": 0.2897,
       "best_window": ""
     },
     {
-      "street_id": "21009",
-      "opportunity_score": 0.4039,
-      "pred_ped_mean": 9.35,
-      "uplift_fraction": 0.2086,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_work_pm"
-    },
-    {
-      "street_id": "20596",
-      "opportunity_score": 0.4038,
-      "pred_ped_mean": 9.92,
-      "uplift_fraction": 0.207,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22339",
-      "opportunity_score": 0.4038,
-      "pred_ped_mean": 10.16,
-      "uplift_fraction": 0.2065,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22999",
-      "opportunity_score": 0.4037,
-      "pred_ped_mean": 12.97,
-      "uplift_fraction": 0.1952,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22608",
-      "opportunity_score": 0.4033,
-      "pred_ped_mean": 9.87,
-      "uplift_fraction": 0.2067,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22369",
-      "opportunity_score": 0.4032,
-      "pred_ped_mean": 9.77,
-      "uplift_fraction": 0.2054,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22363",
-      "opportunity_score": 0.4031,
-      "pred_ped_mean": 9.76,
-      "uplift_fraction": 0.2051,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22337",
-      "opportunity_score": 0.403,
-      "pred_ped_mean": 9.36,
-      "uplift_fraction": 0.2056,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20779",
-      "opportunity_score": 0.4026,
-      "pred_ped_mean": 9.33,
-      "uplift_fraction": 0.2025,
-      "mean_parking": 0.2897,
-      "best_window": "Sat_work_pm"
-    },
-    {
-      "street_id": "22151",
-      "opportunity_score": 0.4025,
-      "pred_ped_mean": 21.54,
-      "uplift_fraction": -0.1769,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21056",
-      "opportunity_score": 0.4021,
-      "pred_ped_mean": 8.05,
-      "uplift_fraction": 0.2064,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "22312",
-      "opportunity_score": 0.4021,
-      "pred_ped_mean": 10.12,
-      "uplift_fraction": 0.199,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20587",
-      "opportunity_score": 0.4021,
-      "pred_ped_mean": 10.26,
-      "uplift_fraction": 0.1978,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_work_am"
-    },
-    {
-      "street_id": "20884",
-      "opportunity_score": 0.402,
-      "pred_ped_mean": 9.47,
-      "uplift_fraction": 0.2014,
-      "mean_parking": 0.2897,
-      "best_window": "Sun_work_pm"
-    },
-    {
-      "street_id": "21215",
-      "opportunity_score": 0.402,
-      "pred_ped_mean": 9.61,
-      "uplift_fraction": 0.1997,
-      "mean_parking": 0.2897,
-      "best_window": "Sat_morning"
-    },
-    {
-      "street_id": "22605",
-      "opportunity_score": 0.4019,
-      "pred_ped_mean": 10.78,
-      "uplift_fraction": 0.1969,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21031",
-      "opportunity_score": 0.4017,
-      "pred_ped_mean": 7.92,
-      "uplift_fraction": 0.2056,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "22325",
-      "opportunity_score": 0.4015,
-      "pred_ped_mean": 9.93,
-      "uplift_fraction": 0.1965,
-      "mean_parking": 0.2897,
-      "best_window": "Tue_midday"
-    },
-    {
-      "street_id": "23123",
-      "opportunity_score": 0.4014,
-      "pred_ped_mean": 7.64,
-      "uplift_fraction": 0.206,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "21169",
-      "opportunity_score": 0.4013,
-      "pred_ped_mean": 9.07,
-      "uplift_fraction": 0.1992,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "22361",
-      "opportunity_score": 0.4013,
-      "pred_ped_mean": 10.49,
-      "uplift_fraction": 0.1925,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_work_am"
-    },
-    {
-      "street_id": "22371",
-      "opportunity_score": 0.4012,
-      "pred_ped_mean": 12.55,
-      "uplift_fraction": 0.191,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22924",
-      "opportunity_score": 0.4011,
-      "pred_ped_mean": 10.04,
-      "uplift_fraction": 0.1941,
-      "mean_parking": 0.2897,
-      "best_window": "Tue_work_am"
-    },
-    {
-      "street_id": "21232",
-      "opportunity_score": 0.4011,
-      "pred_ped_mean": 9.0,
-      "uplift_fraction": 0.1995,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "21771",
-      "opportunity_score": 0.4011,
-      "pred_ped_mean": 9.05,
-      "uplift_fraction": 0.1983,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "20583",
-      "opportunity_score": 0.4009,
-      "pred_ped_mean": 8.54,
-      "uplift_fraction": 0.2,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "21797",
-      "opportunity_score": 0.4009,
-      "pred_ped_mean": 7.92,
-      "uplift_fraction": 0.2004,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "21237",
-      "opportunity_score": 0.4007,
-      "pred_ped_mean": 8.71,
-      "uplift_fraction": 0.1979,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "20673",
-      "opportunity_score": 0.4006,
-      "pred_ped_mean": 8.74,
-      "uplift_fraction": 0.1988,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20880",
-      "opportunity_score": 0.4006,
-      "pred_ped_mean": 11.29,
-      "uplift_fraction": 0.1899,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21254",
-      "opportunity_score": 0.4005,
-      "pred_ped_mean": 7.35,
-      "uplift_fraction": 0.2037,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "20585",
-      "opportunity_score": 0.4004,
-      "pred_ped_mean": 9.87,
-      "uplift_fraction": 0.1912,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_work_pm"
-    },
-    {
-      "street_id": "20616",
-      "opportunity_score": 0.4003,
-      "pred_ped_mean": 10.0,
-      "uplift_fraction": 0.1925,
-      "mean_parking": 0.2897,
-      "best_window": "Tue_midday"
-    },
-    {
-      "street_id": "23381",
-      "opportunity_score": 0.4002,
-      "pred_ped_mean": 9.16,
-      "uplift_fraction": 0.1936,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "22145",
-      "opportunity_score": 0.4002,
-      "pred_ped_mean": 17.2,
-      "uplift_fraction": 0.1735,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    }
-  ],
-  "major_pedestrian_corridor": [
-    {
-      "street_id": "20160",
-      "opportunity_score": 0.838,
-      "pred_ped_mean": 373.47,
-      "uplift_fraction": -0.3733,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21619",
-      "opportunity_score": 0.7238,
-      "pred_ped_mean": 231.06,
-      "uplift_fraction": -0.2926,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20110",
-      "opportunity_score": 0.6896,
-      "pred_ped_mean": 173.31,
-      "uplift_fraction": -0.1901,
-      "mean_parking": 0.0,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20120",
-      "opportunity_score": 0.6646,
-      "pred_ped_mean": 206.73,
-      "uplift_fraction": -0.27,
-      "mean_parking": 0.2311,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20156",
-      "opportunity_score": 0.6595,
-      "pred_ped_mean": 244.7,
-      "uplift_fraction": -0.2318,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20154",
-      "opportunity_score": 0.6475,
-      "pred_ped_mean": 274.33,
-      "uplift_fraction": -0.2903,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20127",
-      "opportunity_score": 0.6462,
-      "pred_ped_mean": 163.19,
-      "uplift_fraction": -0.2279,
-      "mean_parking": 0.197,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "22059",
-      "opportunity_score": 0.644,
-      "pred_ped_mean": 230.33,
-      "uplift_fraction": -0.2772,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22195",
-      "opportunity_score": 0.6252,
-      "pred_ped_mean": 192.63,
-      "uplift_fraction": -0.3167,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20162",
-      "opportunity_score": 0.6039,
-      "pred_ped_mean": 205.83,
-      "uplift_fraction": -0.221,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20157",
-      "opportunity_score": 0.581,
-      "pred_ped_mean": 135.96,
-      "uplift_fraction": -0.2824,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_work_am"
-    },
-    {
-      "street_id": "20164",
-      "opportunity_score": 0.5807,
-      "pred_ped_mean": 202.3,
-      "uplift_fraction": -0.3086,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "21647",
-      "opportunity_score": 0.5804,
-      "pred_ped_mean": 196.04,
-      "uplift_fraction": -0.1763,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20166",
-      "opportunity_score": 0.5694,
-      "pred_ped_mean": 130.79,
-      "uplift_fraction": -0.2887,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20163",
-      "opportunity_score": 0.562,
-      "pred_ped_mean": 188.37,
-      "uplift_fraction": -0.3062,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20038",
-      "opportunity_score": 0.561,
-      "pred_ped_mean": 156.28,
-      "uplift_fraction": -0.4054,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20165",
-      "opportunity_score": 0.5573,
-      "pred_ped_mean": 141.49,
-      "uplift_fraction": -0.1592,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22087",
-      "opportunity_score": 0.5502,
-      "pred_ped_mean": 71.96,
-      "uplift_fraction": -0.3169,
-      "mean_parking": 0.2897,
-      "best_window": "Sun_morning"
-    },
-    {
-      "street_id": "20161",
-      "opportunity_score": 0.5414,
-      "pred_ped_mean": 146.41,
-      "uplift_fraction": -0.307,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20155",
-      "opportunity_score": 0.5388,
-      "pred_ped_mean": 158.02,
-      "uplift_fraction": -0.2616,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22062",
-      "opportunity_score": 0.5381,
-      "pred_ped_mean": 135.48,
-      "uplift_fraction": -0.3999,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20097",
-      "opportunity_score": 0.5371,
-      "pred_ped_mean": 166.72,
-      "uplift_fraction": -0.1554,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20040",
-      "opportunity_score": 0.5351,
-      "pred_ped_mean": 144.38,
-      "uplift_fraction": -0.3565,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20082",
-      "opportunity_score": 0.535,
-      "pred_ped_mean": 100.76,
-      "uplift_fraction": -0.2328,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_work_am"
-    },
-    {
-      "street_id": "22067",
-      "opportunity_score": 0.5318,
-      "pred_ped_mean": 86.34,
-      "uplift_fraction": -0.2484,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20168",
-      "opportunity_score": 0.5303,
-      "pred_ped_mean": 152.54,
-      "uplift_fraction": -0.3114,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21643",
-      "opportunity_score": 0.5267,
-      "pred_ped_mean": 130.88,
-      "uplift_fraction": -0.3247,
-      "mean_parking": 0.2897,
-      "best_window": "Wed_evening"
-    },
-    {
-      "street_id": "20125",
-      "opportunity_score": 0.5166,
-      "pred_ped_mean": 153.11,
-      "uplift_fraction": -0.2341,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20214",
-      "opportunity_score": 0.5161,
-      "pred_ped_mean": 90.32,
-      "uplift_fraction": -0.1939,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20158",
-      "opportunity_score": 0.5119,
-      "pred_ped_mean": 117.4,
-      "uplift_fraction": -0.2772,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_work_am"
-    },
-    {
-      "street_id": "20159",
-      "opportunity_score": 0.5064,
-      "pred_ped_mean": 116.37,
-      "uplift_fraction": -0.294,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20076",
-      "opportunity_score": 0.5032,
-      "pred_ped_mean": 127.41,
-      "uplift_fraction": -0.0763,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20057",
-      "opportunity_score": 0.4998,
-      "pred_ped_mean": 122.62,
-      "uplift_fraction": -0.2633,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_midday"
-    },
-    {
-      "street_id": "22187",
-      "opportunity_score": 0.4984,
-      "pred_ped_mean": 109.26,
-      "uplift_fraction": -0.3248,
-      "mean_parking": 0.2897,
-      "best_window": "Tue_morning"
-    },
-    {
-      "street_id": "21631",
-      "opportunity_score": 0.4943,
-      "pred_ped_mean": 88.42,
-      "uplift_fraction": -0.1021,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21618",
-      "opportunity_score": 0.4939,
-      "pred_ped_mean": 117.29,
-      "uplift_fraction": -0.2167,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22174",
-      "opportunity_score": 0.4879,
-      "pred_ped_mean": 70.62,
-      "uplift_fraction": -0.1431,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22493",
-      "opportunity_score": 0.4869,
-      "pred_ped_mean": 82.3,
-      "uplift_fraction": -0.3106,
-      "mean_parking": 0.2897,
-      "best_window": "Sat_morning"
-    },
-    {
-      "street_id": "22176",
-      "opportunity_score": 0.479,
-      "pred_ped_mean": 95.68,
-      "uplift_fraction": -0.0157,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20051",
-      "opportunity_score": 0.4735,
-      "pred_ped_mean": 57.12,
-      "uplift_fraction": -0.1324,
-      "mean_parking": 0.2897,
-      "best_window": "Fri_night"
-    },
-    {
-      "street_id": "20071",
-      "opportunity_score": 0.4627,
-      "pred_ped_mean": 92.05,
-      "uplift_fraction": -0.231,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "23298",
-      "opportunity_score": 0.4527,
-      "pred_ped_mean": 43.1,
-      "uplift_fraction": -0.1202,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "21629",
-      "opportunity_score": 0.4476,
-      "pred_ped_mean": 54.12,
-      "uplift_fraction": -0.0091,
-      "mean_parking": 0.2897,
-      "best_window": "Tue_night"
-    },
-    {
-      "street_id": "20192",
-      "opportunity_score": 0.4416,
-      "pred_ped_mean": 63.63,
-      "uplift_fraction": -0.0238,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22670",
-      "opportunity_score": 0.4354,
-      "pred_ped_mean": 33.14,
-      "uplift_fraction": -0.0227,
-      "mean_parking": 0.2897,
-      "best_window": ""
-    },
-    {
-      "street_id": "20084",
-      "opportunity_score": 0.4307,
-      "pred_ped_mean": 90.78,
-      "uplift_fraction": -0.0974,
+      "street_id": "20204",
+      "opportunity_score": 0.3119,
+      "pred_ped_mean": 89.89,
+      "uplift_fraction": -0.5692,
       "mean_parking": 0.2897,
       "best_window": ""
     },
     {
       "street_id": "21626",
-      "opportunity_score": 0.4304,
-      "pred_ped_mean": 67.34,
-      "uplift_fraction": -0.1247,
+      "opportunity_score": 0.3119,
+      "pred_ped_mean": 98.12,
+      "uplift_fraction": -0.5693,
       "mean_parking": 0.2897,
       "best_window": ""
     },
     {
-      "street_id": "20114",
-      "opportunity_score": 0.4265,
-      "pred_ped_mean": 76.4,
-      "uplift_fraction": -0.1419,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20829",
-      "opportunity_score": 0.4153,
-      "pred_ped_mean": 81.44,
-      "uplift_fraction": -0.0666,
+      "street_id": "20524",
+      "opportunity_score": 0.3119,
+      "pred_ped_mean": 119.63,
+      "uplift_fraction": -0.569,
       "mean_parking": 0.2897,
       "best_window": ""
     },
     {
-      "street_id": "20143",
-      "opportunity_score": 0.397,
-      "pred_ped_mean": 69.79,
-      "uplift_fraction": -0.1189,
+      "street_id": "22544",
+      "opportunity_score": 0.3117,
+      "pred_ped_mean": 87.49,
+      "uplift_fraction": -0.5679,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "20569",
+      "opportunity_score": 0.3117,
+      "pred_ped_mean": 92.43,
+      "uplift_fraction": -0.5673,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22062",
+      "opportunity_score": 0.3112,
+      "pred_ped_mean": 236.91,
+      "uplift_fraction": -0.564,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "23308",
+      "opportunity_score": 0.3112,
+      "pred_ped_mean": 88.66,
+      "uplift_fraction": -0.5641,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22070",
+      "opportunity_score": 0.3109,
+      "pred_ped_mean": 101.52,
+      "uplift_fraction": -0.5619,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22177",
+      "opportunity_score": 0.3108,
+      "pred_ped_mean": 152.27,
+      "uplift_fraction": -0.5614,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22737",
+      "opportunity_score": 0.3107,
+      "pred_ped_mean": 114.94,
+      "uplift_fraction": -0.5611,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "20220",
+      "opportunity_score": 0.3107,
+      "pred_ped_mean": 106.86,
+      "uplift_fraction": -0.5609,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22182",
+      "opportunity_score": 0.3107,
+      "pred_ped_mean": 87.63,
+      "uplift_fraction": -0.5607,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22815",
+      "opportunity_score": 0.3101,
+      "pred_ped_mean": 103.48,
+      "uplift_fraction": -0.5568,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "20838",
+      "opportunity_score": 0.3101,
+      "pred_ped_mean": 95.11,
+      "uplift_fraction": -0.5566,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22227",
+      "opportunity_score": 0.31,
+      "pred_ped_mean": 107.8,
+      "uplift_fraction": -0.5559,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "20067",
+      "opportunity_score": 0.3099,
+      "pred_ped_mean": 119.66,
+      "uplift_fraction": -0.5555,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "23306",
+      "opportunity_score": 0.3098,
+      "pred_ped_mean": 108.82,
+      "uplift_fraction": -0.5547,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22643",
+      "opportunity_score": 0.3097,
+      "pred_ped_mean": 111.94,
+      "uplift_fraction": -0.5541,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "21625",
+      "opportunity_score": 0.3092,
+      "pred_ped_mean": 90.16,
+      "uplift_fraction": -0.5503,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "21557",
+      "opportunity_score": 0.309,
+      "pred_ped_mean": 114.26,
+      "uplift_fraction": -0.5492,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "20565",
+      "opportunity_score": 0.3088,
+      "pred_ped_mean": 100.98,
+      "uplift_fraction": -0.548,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22545",
+      "opportunity_score": 0.3087,
+      "pred_ped_mean": 96.51,
+      "uplift_fraction": -0.5471,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22085",
+      "opportunity_score": 0.3086,
+      "pred_ped_mean": 93.0,
+      "uplift_fraction": -0.5463,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22165",
+      "opportunity_score": 0.3081,
+      "pred_ped_mean": 103.88,
+      "uplift_fraction": -0.5428,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "20516",
+      "opportunity_score": 0.3076,
+      "pred_ped_mean": 78.61,
+      "uplift_fraction": -0.5399,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22121",
+      "opportunity_score": 0.3075,
+      "pred_ped_mean": 120.08,
+      "uplift_fraction": -0.5388,
       "mean_parking": 0.2897,
       "best_window": ""
     }
   ],
-  "parking_reallocation_priority": [
-    {
-      "street_id": "22555",
-      "opportunity_score": 0.5977,
-      "pred_ped_mean": 68.22,
-      "uplift_fraction": -0.219,
-      "mean_parking": 0.0,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20139",
-      "opportunity_score": 0.5821,
-      "pred_ped_mean": 102.2,
-      "uplift_fraction": -0.032,
-      "mean_parking": 0.0,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "22862",
-      "opportunity_score": 0.5765,
-      "pred_ped_mean": 56.7,
-      "uplift_fraction": -0.1617,
-      "mean_parking": 0.0,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20129",
-      "opportunity_score": 0.5727,
-      "pred_ped_mean": 112.47,
-      "uplift_fraction": -0.1418,
-      "mean_parking": 0.0888,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20190",
-      "opportunity_score": 0.5658,
-      "pred_ped_mean": 114.86,
-      "uplift_fraction": -0.1869,
-      "mean_parking": 0.1036,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20167",
-      "opportunity_score": 0.561,
-      "pred_ped_mean": 168.59,
-      "uplift_fraction": -0.3015,
-      "mean_parking": 0.3367,
-      "best_window": "Mon_morning"
-    },
+  "latent_morning_potential": [
     {
       "street_id": "22801",
-      "opportunity_score": 0.5548,
-      "pred_ped_mean": 13.36,
-      "uplift_fraction": 0.03,
-      "mean_parking": 0.0239,
+      "opportunity_score": 0.5863,
+      "pred_ped_mean": 30.44,
+      "uplift_fraction": -0.2695,
+      "mean_parking": 0.0286,
       "best_window": "Mon_morning"
     },
     {
-      "street_id": "20090",
-      "opportunity_score": 0.5529,
-      "pred_ped_mean": 105.21,
-      "uplift_fraction": -0.2727,
-      "mean_parking": 0.2526,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20112",
-      "opportunity_score": 0.5366,
-      "pred_ped_mean": 94.05,
-      "uplift_fraction": -0.2385,
-      "mean_parking": 0.2874,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20055",
-      "opportunity_score": 0.5349,
-      "pred_ped_mean": 155.39,
-      "uplift_fraction": -0.2959,
-      "mean_parking": 0.3021,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20990",
-      "opportunity_score": 0.5339,
-      "pred_ped_mean": 23.89,
-      "uplift_fraction": -0.0746,
-      "mean_parking": 0.0,
-      "best_window": "Mon_evening"
-    },
-    {
-      "street_id": "20889",
-      "opportunity_score": 0.5325,
-      "pred_ped_mean": 25.64,
-      "uplift_fraction": -0.07,
-      "mean_parking": 0.0,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20189",
-      "opportunity_score": 0.5314,
-      "pred_ped_mean": 133.83,
-      "uplift_fraction": -0.2037,
-      "mean_parking": 0.1926,
+      "street_id": "21631",
+      "opportunity_score": 0.5655,
+      "pred_ped_mean": 124.3,
+      "uplift_fraction": -0.5567,
+      "mean_parking": 0.2897,
       "best_window": "Mon_night"
     },
     {
       "street_id": "23293",
-      "opportunity_score": 0.5303,
-      "pred_ped_mean": 9.89,
-      "uplift_fraction": 0.0662,
-      "mean_parking": 0.0841,
+      "opportunity_score": 0.5421,
+      "pred_ped_mean": 18.5,
+      "uplift_fraction": -0.1812,
+      "mean_parking": 0.0919,
       "best_window": ""
     },
     {
-      "street_id": "20896",
-      "opportunity_score": 0.5259,
-      "pred_ped_mean": 17.59,
-      "uplift_fraction": -0.0658,
+      "street_id": "20490",
+      "opportunity_score": 0.5262,
+      "pred_ped_mean": 80.99,
+      "uplift_fraction": -0.435,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "21629",
+      "opportunity_score": 0.5251,
+      "pred_ped_mean": 89.41,
+      "uplift_fraction": -0.4499,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "22670",
+      "opportunity_score": 0.5153,
+      "pred_ped_mean": 67.82,
+      "uplift_fraction": -0.4543,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_work_am"
+    },
+    {
+      "street_id": "20022",
+      "opportunity_score": 0.5124,
+      "pred_ped_mean": 95.08,
+      "uplift_fraction": -0.3308,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20534",
+      "opportunity_score": 0.4985,
+      "pred_ped_mean": 58.51,
+      "uplift_fraction": -0.383,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20192",
+      "opportunity_score": 0.4911,
+      "pred_ped_mean": 90.24,
+      "uplift_fraction": -0.2338,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20051",
+      "opportunity_score": 0.4884,
+      "pred_ped_mean": 67.99,
+      "uplift_fraction": 0.18,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "22805",
+      "opportunity_score": 0.4864,
+      "pred_ped_mean": 66.63,
+      "uplift_fraction": -0.3103,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_morning"
+    },
+    {
+      "street_id": "23298",
+      "opportunity_score": 0.4832,
+      "pred_ped_mean": 50.61,
+      "uplift_fraction": -0.2822,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20484",
+      "opportunity_score": 0.4828,
+      "pred_ped_mean": 45.43,
+      "uplift_fraction": -0.3003,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "22553",
+      "opportunity_score": 0.48,
+      "pred_ped_mean": 29.8,
+      "uplift_fraction": -0.3717,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_morning"
+    },
+    {
+      "street_id": "20187",
+      "opportunity_score": 0.4777,
+      "pred_ped_mean": 52.37,
+      "uplift_fraction": -0.2968,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "21634",
+      "opportunity_score": 0.4756,
+      "pred_ped_mean": 35.74,
+      "uplift_fraction": -0.3011,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20222",
+      "opportunity_score": 0.4733,
+      "pred_ped_mean": 53.07,
+      "uplift_fraction": -0.2302,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "21693",
+      "opportunity_score": 0.4571,
+      "pred_ped_mean": 29.71,
+      "uplift_fraction": -0.2208,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_morning"
+    },
+    {
+      "street_id": "22673",
+      "opportunity_score": 0.456,
+      "pred_ped_mean": 38.5,
+      "uplift_fraction": -0.1635,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20093",
+      "opportunity_score": 0.4553,
+      "pred_ped_mean": 34.3,
+      "uplift_fraction": -0.2239,
+      "mean_parking": 0.2979,
+      "best_window": "Mon_morning"
+    },
+    {
+      "street_id": "20530",
+      "opportunity_score": 0.4551,
+      "pred_ped_mean": 47.48,
+      "uplift_fraction": 0.0806,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20999",
+      "opportunity_score": 0.4503,
+      "pred_ped_mean": 15.6,
+      "uplift_fraction": -0.2049,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "20873",
+      "opportunity_score": 0.4497,
+      "pred_ped_mean": 27.61,
+      "uplift_fraction": -0.1746,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "20492",
+      "opportunity_score": 0.4331,
+      "pred_ped_mean": 19.85,
+      "uplift_fraction": -0.0559,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "21287",
+      "opportunity_score": 0.4325,
+      "pred_ped_mean": 14.14,
+      "uplift_fraction": -0.0902,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "21423",
+      "opportunity_score": 0.4305,
+      "pred_ped_mean": 16.32,
+      "uplift_fraction": -0.0691,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "22046",
+      "opportunity_score": 0.4299,
+      "pred_ped_mean": 32.08,
+      "uplift_fraction": 0.0236,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_morning"
+    },
+    {
+      "street_id": "22054",
+      "opportunity_score": 0.4291,
+      "pred_ped_mean": 23.07,
+      "uplift_fraction": 0.0398,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "21697",
+      "opportunity_score": 0.4271,
+      "pred_ped_mean": 18.65,
+      "uplift_fraction": -0.0442,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    },
+    {
+      "street_id": "21417",
+      "opportunity_score": 0.4197,
+      "pred_ped_mean": 11.66,
+      "uplift_fraction": -0.0063,
+      "mean_parking": 0.2897,
+      "best_window": ""
+    }
+  ],
+  "major_pedestrian_corridor": [
+    {
+      "street_id": "20160",
+      "opportunity_score": 0.8339,
+      "pred_ped_mean": 578.06,
+      "uplift_fraction": -0.4865,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "21619",
+      "opportunity_score": 0.7094,
+      "pred_ped_mean": 368.67,
+      "uplift_fraction": -0.4463,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20156",
+      "opportunity_score": 0.6738,
+      "pred_ped_mean": 370.99,
+      "uplift_fraction": -0.3691,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "22059",
+      "opportunity_score": 0.6691,
+      "pred_ped_mean": 373.93,
+      "uplift_fraction": -0.4893,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20120",
+      "opportunity_score": 0.6538,
+      "pred_ped_mean": 438.91,
+      "uplift_fraction": -0.3219,
+      "mean_parking": 0.2641,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "22819",
+      "opportunity_score": 0.6517,
+      "pred_ped_mean": 205.25,
+      "uplift_fraction": -0.2786,
+      "mean_parking": 0.0255,
+      "best_window": "Mon_morning"
+    },
+    {
+      "street_id": "20127",
+      "opportunity_score": 0.6471,
+      "pred_ped_mean": 319.71,
+      "uplift_fraction": -0.3606,
+      "mean_parking": 0.2211,
+      "best_window": "Mon_morning"
+    },
+    {
+      "street_id": "20154",
+      "opportunity_score": 0.6374,
+      "pred_ped_mean": 430.48,
+      "uplift_fraction": -0.377,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "21647",
+      "opportunity_score": 0.6362,
+      "pred_ped_mean": 265.74,
+      "uplift_fraction": -0.5797,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "22195",
+      "opportunity_score": 0.6334,
+      "pred_ped_mean": 244.63,
+      "uplift_fraction": -0.5074,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20162",
+      "opportunity_score": 0.6221,
+      "pred_ped_mean": 349.18,
+      "uplift_fraction": -0.3585,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20898",
+      "opportunity_score": 0.6072,
+      "pred_ped_mean": 54.25,
+      "uplift_fraction": -0.2957,
+      "mean_parking": 0.0043,
+      "best_window": ""
+    },
+    {
+      "street_id": "20157",
+      "opportunity_score": 0.5926,
+      "pred_ped_mean": 207.16,
+      "uplift_fraction": -0.4278,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_midday"
+    },
+    {
+      "street_id": "20076",
+      "opportunity_score": 0.5874,
+      "pred_ped_mean": 202.62,
+      "uplift_fraction": -0.5547,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20165",
+      "opportunity_score": 0.586,
+      "pred_ped_mean": 267.97,
+      "uplift_fraction": -0.3246,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "21932",
+      "opportunity_score": 0.5796,
+      "pred_ped_mean": 30.76,
+      "uplift_fraction": 0.0969,
       "mean_parking": 0.0,
       "best_window": ""
     },
     {
-      "street_id": "21902",
-      "opportunity_score": 0.5234,
-      "pred_ped_mean": 26.45,
-      "uplift_fraction": -0.0361,
+      "street_id": "22176",
+      "opportunity_score": 0.5792,
+      "pred_ped_mean": 175.43,
+      "uplift_fraction": -0.5761,
+      "mean_parking": 0.2897,
+      "best_window": "Thu_night"
+    },
+    {
+      "street_id": "21982",
+      "opportunity_score": 0.5747,
+      "pred_ped_mean": 41.15,
+      "uplift_fraction": 0.0603,
       "mean_parking": 0.0,
       "best_window": ""
     },
     {
-      "street_id": "20897",
-      "opportunity_score": 0.5233,
-      "pred_ped_mean": 13.35,
-      "uplift_fraction": -0.0665,
-      "mean_parking": 0.0,
+      "street_id": "22862",
+      "opportunity_score": 0.5739,
+      "pred_ped_mean": 64.34,
+      "uplift_fraction": -0.0863,
+      "mean_parking": 0.0057,
       "best_window": ""
     },
     {
       "street_id": "21937",
-      "opportunity_score": 0.5218,
-      "pred_ped_mean": 15.1,
-      "uplift_fraction": -0.052,
+      "opportunity_score": 0.5683,
+      "pred_ped_mean": 45.35,
+      "uplift_fraction": 0.0376,
       "mean_parking": 0.0,
       "best_window": ""
     },
+    {
+      "street_id": "20082",
+      "opportunity_score": 0.5666,
+      "pred_ped_mean": 184.09,
+      "uplift_fraction": -0.4708,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_work_am"
+    },
+    {
+      "street_id": "20166",
+      "opportunity_score": 0.5579,
+      "pred_ped_mean": 214.43,
+      "uplift_fraction": -0.2706,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20186",
+      "opportunity_score": 0.5497,
+      "pred_ped_mean": 151.91,
+      "uplift_fraction": -0.5074,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_morning"
+    },
+    {
+      "street_id": "22067",
+      "opportunity_score": 0.548,
+      "pred_ped_mean": 103.85,
+      "uplift_fraction": -0.4277,
+      "mean_parking": 0.2897,
+      "best_window": "Sat_morning"
+    },
+    {
+      "street_id": "22087",
+      "opportunity_score": 0.5327,
+      "pred_ped_mean": 97.73,
+      "uplift_fraction": -0.3197,
+      "mean_parking": 0.2897,
+      "best_window": "Sun_evening"
+    },
+    {
+      "street_id": "20214",
+      "opportunity_score": 0.531,
+      "pred_ped_mean": 128.85,
+      "uplift_fraction": -0.3135,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    },
+    {
+      "street_id": "20106",
+      "opportunity_score": 0.5307,
+      "pred_ped_mean": 211.3,
+      "uplift_fraction": -0.3317,
+      "mean_parking": 0.3264,
+      "best_window": ""
+    },
+    {
+      "street_id": "22174",
+      "opportunity_score": 0.5291,
+      "pred_ped_mean": 96.84,
+      "uplift_fraction": -0.4036,
+      "mean_parking": 0.2897,
+      "best_window": "Mon_night"
+    }
+  ],
+  "parking_reallocation_priority": [
     {
       "street_id": "20980",
-      "opportunity_score": 0.5207,
-      "pred_ped_mean": 23.06,
-      "uplift_fraction": -0.0221,
+      "opportunity_score": 0.633,
+      "pred_ped_mean": 89.14,
+      "uplift_fraction": -0.4581,
       "mean_parking": 0.0,
       "best_window": ""
     },
     {
-      "street_id": "22619",
-      "opportunity_score": 0.5203,
-      "pred_ped_mean": 17.86,
-      "uplift_fraction": -0.0373,
+      "street_id": "20990",
+      "opportunity_score": 0.6229,
+      "pred_ped_mean": 73.44,
+      "uplift_fraction": -0.3889,
       "mean_parking": 0.0,
       "best_window": ""
     },
     {
-      "street_id": "20053",
-      "opportunity_score": 0.52,
-      "pred_ped_mean": 92.83,
-      "uplift_fraction": -0.3305,
-      "mean_parking": 0.3458,
-      "best_window": ""
-    },
-    {
-      "street_id": "22453",
-      "opportunity_score": 0.5195,
-      "pred_ped_mean": 22.71,
-      "uplift_fraction": -0.0108,
-      "mean_parking": 0.0,
-      "best_window": "Sat_midday"
-    },
-    {
-      "street_id": "21860",
-      "opportunity_score": 0.5184,
-      "pred_ped_mean": 15.63,
-      "uplift_fraction": -0.0383,
-      "mean_parking": 0.0,
-      "best_window": ""
-    },
-    {
-      "street_id": "21859",
-      "opportunity_score": 0.5172,
-      "pred_ped_mean": 18.57,
-      "uplift_fraction": -0.0264,
-      "mean_parking": 0.0,
-      "best_window": ""
-    },
-    {
-      "street_id": "21932",
-      "opportunity_score": 0.5167,
-      "pred_ped_mean": 16.23,
-      "uplift_fraction": -0.0261,
-      "mean_parking": 0.0,
+      "street_id": "20889",
+      "opportunity_score": 0.6144,
+      "pred_ped_mean": 109.5,
+      "uplift_fraction": -0.3727,
+      "mean_parking": 0.0129,
       "best_window": ""
     },
     {
       "street_id": "20893",
-      "opportunity_score": 0.5164,
-      "pred_ped_mean": 13.43,
-      "uplift_fraction": 0.0344,
+      "opportunity_score": 0.6075,
+      "pred_ped_mean": 57.45,
+      "uplift_fraction": -0.2988,
+      "mean_parking": 0.0046,
+      "best_window": ""
+    },
+    {
+      "street_id": "22555",
+      "opportunity_score": 0.5991,
+      "pred_ped_mean": 212.19,
+      "uplift_fraction": -0.2937,
+      "mean_parking": 0.0208,
+      "best_window": ""
+    },
+    {
+      "street_id": "22619",
+      "opportunity_score": 0.5975,
+      "pred_ped_mean": 53.82,
+      "uplift_fraction": -0.2152,
       "mean_parking": 0.0,
       "best_window": ""
     },
     {
-      "street_id": "20891",
-      "opportunity_score": 0.5143,
-      "pred_ped_mean": 16.42,
-      "uplift_fraction": -0.0178,
+      "street_id": "20139",
+      "opportunity_score": 0.5944,
+      "pred_ped_mean": 91.17,
+      "uplift_fraction": -0.1944,
       "mean_parking": 0.0,
       "best_window": ""
     },
     {
       "street_id": "23314",
-      "opportunity_score": 0.5127,
-      "pred_ped_mean": 15.86,
-      "uplift_fraction": -0.0041,
+      "opportunity_score": 0.5914,
+      "pred_ped_mean": 50.38,
+      "uplift_fraction": -0.1738,
       "mean_parking": 0.0,
-      "best_window": "Sun_morning"
-    },
-    {
-      "street_id": "20898",
-      "opportunity_score": 0.5119,
-      "pred_ped_mean": 13.76,
-      "uplift_fraction": 0.0182,
-      "mean_parking": 0.0,
-      "best_window": ""
-    },
-    {
-      "street_id": "22622",
-      "opportunity_score": 0.5119,
-      "pred_ped_mean": 14.11,
-      "uplift_fraction": -0.0152,
-      "mean_parking": 0.0,
-      "best_window": ""
-    },
-    {
-      "street_id": "21373",
-      "opportunity_score": 0.5108,
-      "pred_ped_mean": 10.28,
-      "uplift_fraction": 0.0657,
-      "mean_parking": 0.0237,
-      "best_window": ""
-    },
-    {
-      "street_id": "20212",
-      "opportunity_score": 0.5106,
-      "pred_ped_mean": 39.67,
-      "uplift_fraction": -0.1289,
-      "mean_parking": 0.212,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20106",
-      "opportunity_score": 0.508,
-      "pred_ped_mean": 101.9,
-      "uplift_fraction": -0.1164,
-      "mean_parking": 0.2907,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20188",
-      "opportunity_score": 0.5029,
-      "pred_ped_mean": 34.31,
-      "uplift_fraction": -0.0522,
-      "mean_parking": 0.1511,
-      "best_window": "Tue_night"
-    },
-    {
-      "street_id": "20992",
-      "opportunity_score": 0.5021,
-      "pred_ped_mean": 43.88,
-      "uplift_fraction": -0.0439,
-      "mean_parking": 0.1775,
-      "best_window": "Mon_morning"
-    },
-    {
-      "street_id": "20005",
-      "opportunity_score": 0.5016,
-      "pred_ped_mean": 81.23,
-      "uplift_fraction": -0.2618,
-      "mean_parking": 0.3209,
-      "best_window": "Tue_night"
-    },
-    {
-      "street_id": "22956",
-      "opportunity_score": 0.5013,
-      "pred_ped_mean": 17.1,
-      "uplift_fraction": 0.0542,
-      "mean_parking": 0.0403,
-      "best_window": ""
-    },
-    {
-      "street_id": "20200",
-      "opportunity_score": 0.4987,
-      "pred_ped_mean": 105.96,
-      "uplift_fraction": -0.2493,
-      "mean_parking": 0.234,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "23311",
-      "opportunity_score": 0.498,
-      "pred_ped_mean": 14.62,
-      "uplift_fraction": 0.0424,
-      "mean_parking": 0.0451,
-      "best_window": ""
-    },
-    {
-      "street_id": "21180",
-      "opportunity_score": 0.4971,
-      "pred_ped_mean": 10.33,
-      "uplift_fraction": 0.0791,
-      "mean_parking": 0.0538,
-      "best_window": ""
-    },
-    {
-      "street_id": "21518",
-      "opportunity_score": 0.497,
-      "pred_ped_mean": 12.5,
-      "uplift_fraction": -0.0033,
-      "mean_parking": 0.0219,
-      "best_window": ""
-    },
-    {
-      "street_id": "20186",
-      "opportunity_score": 0.4968,
-      "pred_ped_mean": 71.24,
-      "uplift_fraction": -0.1648,
-      "mean_parking": 0.2897,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "21117",
-      "opportunity_score": 0.4948,
-      "pred_ped_mean": 14.83,
-      "uplift_fraction": -0.0179,
-      "mean_parking": 0.0383,
       "best_window": ""
     },
     {
       "street_id": "20983",
-      "opportunity_score": 0.4933,
-      "pred_ped_mean": 20.72,
-      "uplift_fraction": -0.0347,
-      "mean_parking": 0.0555,
-      "best_window": "Sat_work_am"
-    },
-    {
-      "street_id": "20146",
-      "opportunity_score": 0.4931,
-      "pred_ped_mean": 95.04,
-      "uplift_fraction": -0.2096,
-      "mean_parking": 0.2536,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20998",
-      "opportunity_score": 0.4921,
-      "pred_ped_mean": 9.92,
-      "uplift_fraction": 0.1101,
-      "mean_parking": 0.0794,
+      "opportunity_score": 0.5897,
+      "pred_ped_mean": 65.87,
+      "uplift_fraction": -0.3678,
+      "mean_parking": 0.0634,
       "best_window": ""
     },
     {
-      "street_id": "20206",
-      "opportunity_score": 0.4908,
-      "pred_ped_mean": 37.02,
-      "uplift_fraction": -0.1095,
-      "mean_parking": 0.2202,
+      "street_id": "22622",
+      "opportunity_score": 0.5887,
+      "pred_ped_mean": 47.3,
+      "uplift_fraction": -0.1552,
+      "mean_parking": 0.0,
+      "best_window": ""
+    },
+    {
+      "street_id": "22453",
+      "opportunity_score": 0.5825,
+      "pred_ped_mean": 44.75,
+      "uplift_fraction": -0.1453,
+      "mean_parking": 0.01,
+      "best_window": ""
+    },
+    {
+      "street_id": "20897",
+      "opportunity_score": 0.5812,
+      "pred_ped_mean": 52.57,
+      "uplift_fraction": -0.1041,
+      "mean_parking": 0.0,
+      "best_window": ""
+    },
+    {
+      "street_id": "21117",
+      "opportunity_score": 0.5802,
+      "pred_ped_mean": 58.03,
+      "uplift_fraction": -0.257,
+      "mean_parking": 0.0493,
+      "best_window": ""
+    },
+    {
+      "street_id": "20896",
+      "opportunity_score": 0.5796,
+      "pred_ped_mean": 48.11,
+      "uplift_fraction": -0.093,
+      "mean_parking": 0.0,
+      "best_window": ""
+    },
+    {
+      "street_id": "20129",
+      "opportunity_score": 0.5795,
+      "pred_ped_mean": 170.55,
+      "uplift_fraction": -0.3958,
+      "mean_parking": 0.0937,
+      "best_window": ""
+    },
+    {
+      "street_id": "21180",
+      "opportunity_score": 0.5785,
+      "pred_ped_mean": 58.08,
+      "uplift_fraction": -0.3404,
+      "mean_parking": 0.0786,
+      "best_window": ""
+    },
+    {
+      "street_id": "23378",
+      "opportunity_score": 0.5782,
+      "pred_ped_mean": 70.82,
+      "uplift_fraction": -0.2787,
+      "mean_parking": 0.0602,
+      "best_window": ""
+    },
+    {
+      "street_id": "20110",
+      "opportunity_score": 0.5734,
+      "pred_ped_mean": 87.44,
+      "uplift_fraction": -0.051,
+      "mean_parking": 0.0,
+      "best_window": ""
+    },
+    {
+      "street_id": "20891",
+      "opportunity_score": 0.573,
+      "pred_ped_mean": 39.35,
+      "uplift_fraction": -0.048,
+      "mean_parking": 0.0,
+      "best_window": ""
+    },
+    {
+      "street_id": "21859",
+      "opportunity_score": 0.5729,
+      "pred_ped_mean": 51.09,
+      "uplift_fraction": -0.1965,
+      "mean_parking": 0.046,
+      "best_window": ""
+    },
+    {
+      "street_id": "21860",
+      "opportunity_score": 0.5682,
+      "pred_ped_mean": 48.61,
+      "uplift_fraction": 0.0151,
+      "mean_parking": 0.0,
+      "best_window": ""
+    },
+    {
+      "street_id": "23311",
+      "opportunity_score": 0.5675,
+      "pred_ped_mean": 57.06,
+      "uplift_fraction": -0.1953,
+      "mean_parking": 0.0571,
+      "best_window": ""
+    },
+    {
+      "street_id": "21902",
+      "opportunity_score": 0.5668,
+      "pred_ped_mean": 49.53,
+      "uplift_fraction": 0.0057,
+      "mean_parking": 0.0,
+      "best_window": ""
+    },
+    {
+      "street_id": "22956",
+      "opportunity_score": 0.5637,
+      "pred_ped_mean": 137.89,
+      "uplift_fraction": -0.1463,
+      "mean_parking": 0.05,
+      "best_window": ""
+    },
+    {
+      "street_id": "20190",
+      "opportunity_score": 0.5613,
+      "pred_ped_mean": 154.05,
+      "uplift_fraction": -0.3648,
+      "mean_parking": 0.1225,
+      "best_window": ""
+    },
+    {
+      "street_id": "21518",
+      "opportunity_score": 0.5587,
+      "pred_ped_mean": 41.0,
+      "uplift_fraction": 0.0638,
+      "mean_parking": 0.035,
+      "best_window": ""
+    },
+    {
+      "street_id": "20090",
+      "opportunity_score": 0.5581,
+      "pred_ped_mean": 210.95,
+      "uplift_fraction": -0.2787,
+      "mean_parking": 0.1986,
       "best_window": "Mon_morning"
     },
     {
-      "street_id": "20210",
-      "opportunity_score": 0.4895,
-      "pred_ped_mean": 43.17,
-      "uplift_fraction": -0.0958,
-      "mean_parking": 0.2199,
-      "best_window": "Mon_night"
-    },
-    {
-      "street_id": "20095",
-      "opportunity_score": 0.4871,
-      "pred_ped_mean": 108.08,
-      "uplift_fraction": -0.1787,
-      "mean_parking": 0.2841,
-      "best_window": "Mon_morning"
+      "street_id": "20992",
+      "opportunity_score": 0.558,
+      "pred_ped_mean": 72.64,
+      "uplift_fraction": -0.4556,
+      "mean_parking": 0.201,
+      "best_window": ""
     },
     {
       "street_id": "20073",
-      "opportunity_score": 0.4809,
-      "pred_ped_mean": 90.13,
-      "uplift_fraction": -0.1714,
-      "mean_parking": 0.3337,
+      "opportunity_score": 0.558,
+      "pred_ped_mean": 170.85,
+      "uplift_fraction": -0.3899,
+      "mean_parking": 0.265,
       "best_window": "Tue_morning"
+    },
+    {
+      "street_id": "21373",
+      "opportunity_score": 0.5571,
+      "pred_ped_mean": 38.59,
+      "uplift_fraction": -0.0525,
+      "mean_parking": 0.035,
+      "best_window": ""
+    },
+    {
+      "street_id": "20112",
+      "opportunity_score": 0.5546,
+      "pred_ped_mean": 173.43,
+      "uplift_fraction": -0.5085,
+      "mean_parking": 0.3238,
+      "best_window": "Wed_morning"
+    },
+    {
+      "street_id": "22201",
+      "opportunity_score": 0.5476,
+      "pred_ped_mean": 43.51,
+      "uplift_fraction": -0.2166,
+      "mean_parking": 0.1056,
+      "best_window": ""
+    },
+    {
+      "street_id": "20998",
+      "opportunity_score": 0.5468,
+      "pred_ped_mean": 36.27,
+      "uplift_fraction": -0.1423,
+      "mean_parking": 0.0844,
+      "best_window": ""
+    },
+    {
+      "street_id": "21847",
+      "opportunity_score": 0.5466,
+      "pred_ped_mean": 52.31,
+      "uplift_fraction": -0.3046,
+      "mean_parking": 0.1349,
+      "best_window": ""
+    },
+    {
+      "street_id": "22913",
+      "opportunity_score": 0.542,
+      "pred_ped_mean": 113.88,
+      "uplift_fraction": -0.226,
+      "mean_parking": 0.1203,
+      "best_window": ""
+    },
+    {
+      "street_id": "21122",
+      "opportunity_score": 0.5418,
+      "pred_ped_mean": 68.59,
+      "uplift_fraction": -0.3092,
+      "mean_parking": 0.1463,
+      "best_window": ""
+    },
+    {
+      "street_id": "20135",
+      "opportunity_score": 0.5398,
+      "pred_ped_mean": 62.6,
+      "uplift_fraction": -0.2945,
+      "mean_parking": 0.1462,
+      "best_window": ""
+    },
+    {
+      "street_id": "22203",
+      "opportunity_score": 0.5368,
+      "pred_ped_mean": 38.31,
+      "uplift_fraction": -0.0888,
+      "mean_parking": 0.0889,
+      "best_window": ""
+    },
+    {
+      "street_id": "20034",
+      "opportunity_score": 0.5308,
+      "pred_ped_mean": 100.32,
+      "uplift_fraction": -0.3213,
+      "mean_parking": 0.1734,
+      "best_window": ""
+    },
+    {
+      "street_id": "20088",
+      "opportunity_score": 0.528,
+      "pred_ped_mean": 124.89,
+      "uplift_fraction": -0.4155,
+      "mean_parking": 0.2083,
+      "best_window": ""
+    },
+    {
+      "street_id": "22199",
+      "opportunity_score": 0.5275,
+      "pred_ped_mean": 48.32,
+      "uplift_fraction": -0.1422,
+      "mean_parking": 0.1249,
+      "best_window": ""
+    },
+    {
+      "street_id": "20167",
+      "opportunity_score": 0.5259,
+      "pred_ped_mean": 248.13,
+      "uplift_fraction": -0.2099,
+      "mean_parking": 0.3648,
+      "best_window": "Mon_morning"
+    },
+    {
+      "street_id": "20188",
+      "opportunity_score": 0.5232,
+      "pred_ped_mean": 40.47,
+      "uplift_fraction": -0.338,
+      "mean_parking": 0.2069,
+      "best_window": ""
+    },
+    {
+      "street_id": "20131",
+      "opportunity_score": 0.5204,
+      "pred_ped_mean": 62.02,
+      "uplift_fraction": -0.3152,
+      "mean_parking": 0.1935,
+      "best_window": ""
+    },
+    {
+      "street_id": "21141",
+      "opportunity_score": 0.5201,
+      "pred_ped_mean": 101.34,
+      "uplift_fraction": -0.5059,
+      "mean_parking": 0.2528,
+      "best_window": ""
+    },
+    {
+      "street_id": "22686",
+      "opportunity_score": 0.5193,
+      "pred_ped_mean": 64.97,
+      "uplift_fraction": -0.2885,
+      "mean_parking": 0.1875,
+      "best_window": ""
+    },
+    {
+      "street_id": "20075",
+      "opportunity_score": 0.518,
+      "pred_ped_mean": 149.3,
+      "uplift_fraction": -0.5139,
+      "mean_parking": 0.37,
+      "best_window": ""
+    },
+    {
+      "street_id": "20005",
+      "opportunity_score": 0.5176,
+      "pred_ped_mean": 101.98,
+      "uplift_fraction": -0.3708,
+      "mean_parking": 0.3117,
+      "best_window": "Tue_night"
+    },
+    {
+      "street_id": "20210",
+      "opportunity_score": 0.5157,
+      "pred_ped_mean": 74.31,
+      "uplift_fraction": -0.3354,
+      "mean_parking": 0.2468,
+      "best_window": ""
+    },
+    {
+      "street_id": "20141",
+      "opportunity_score": 0.5151,
+      "pred_ped_mean": 66.92,
+      "uplift_fraction": -0.28,
+      "mean_parking": 0.1937,
+      "best_window": ""
     }
   ]
 }

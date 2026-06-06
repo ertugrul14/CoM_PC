@@ -12,9 +12,11 @@ Architecture:
   +-- Per-node bias for each head [N, 1]
 
   Joint loss:  MAE_ped  +  PARK_WEIGHT * MAE_park
-  Parking loss is masked to the 138 streets that have real sensor data.
-  The remaining 1,259 streets have zero occupancy in the cube and contribute
-  no parking supervision signal.
+  FINALIZED (Exp B, PED_LOSS_SCOPE="sensors"): the ped loss + metrics are masked to
+  the 74 real ped-sensor streets; the 1,323 city-climatology-imputed streets stay in
+  the graph as spatial context but are never ped targets. Honest sensor R² ~0.88.
+  Parking loss is likewise masked to the streets with real parking sensors. The
+  remaining streets contribute no supervision signal (context only).
 
 Training protocol:
   - Split (chronological, no leakage):
@@ -66,12 +68,21 @@ HIDDEN        = 64        # GCN hidden dim per branch (x2 after concat)
 GRU_LAYERS    = 2
 DROPOUT       = 0.1
 LR            = 1e-3
-MAX_EPOCHS    = 200
+MAX_EPOCHS    = 300       # raised from 200 to match the finalized Lightning run
 PATIENCE      = 25        # early-stop on val MAE (fixed windows)
 BATCHES_EPOCH = 256       # gradient steps per epoch
 BATCH_SIZE    = 8         # windows per gradient step
 SEED          = 42
 PARK_WEIGHT   = 0.5   # weight of parking MAE in the combined loss
+
+# D-016/D-024 (FINALIZED — Exp B). Scope of the pedestrian training loss + metrics:
+#   "sensors" — ped head trained/scored ONLY on the 74 real ped-sensor streets; the
+#               1,323 imputed (city-climatology) streets stay in the graph as spatial
+#               context but are never ped targets. This is the deployed protocol and
+#               matches train_lightning.py. Honest sensor R² ~0.88 (vs the old circular
+#               all-street MAE ~5.5 that just measured the GNN copying its own fill).
+#   "all"     — legacy: ped head trained on all 1,397 streets (imputed targets included).
+PED_LOSS_SCOPE = "sensors"
 
 # Chronological data split fractions
 TRAIN_FRAC = 0.70
@@ -388,6 +399,20 @@ def run() -> dict[str, Path]:
     ped_valid_mask_np = torch.load(PROCESSED_DIR / "ped_valid_mask.pt").numpy().astype(bool)  # [N,T]
     log.info(f"  Ped valid mask: {ped_valid_mask_np.mean()*100:.1f}% of bins valid")
 
+    # D-016/D-024 (Exp B): restrict the ped loss + metrics to real ped-sensor streets.
+    # ped_confidence == 1.0 only on the 74 sensor streets and is NOT normalised, so it
+    # survives in cube_norm unchanged. When scope == "sensors" we AND it into the ped
+    # validity mask; the imputed streets then never act as ped targets (context only).
+    conf_idx      = feat_names.index("ped_confidence")
+    ped_sensor_np = (cube_norm[:, 0, conf_idx] == 1.0)                       # [N] bool
+    if PED_LOSS_SCOPE == "sensors":
+        ped_eval_mask = ped_valid_mask_np & ped_sensor_np[:, None]          # [N,T]
+    else:
+        ped_eval_mask = ped_valid_mask_np
+    log.info(f"  Ped loss scope: '{PED_LOSS_SCOPE}' ({int(ped_sensor_np.sum())} sensor "
+             f"streets); ped loss + metrics over "
+             f"{'sensor' if PED_LOSS_SCOPE == 'sensors' else 'all'} streets")
+
     # Precompute fixed val windows (same every epoch -> stable early stopping)
     val_max_start = T_val_end - WINDOW - 1
     val_fixed_starts = np.linspace(
@@ -440,7 +465,7 @@ def run() -> dict[str, Path]:
             X, y_ped, y_park, m_ped = _sample_windows(
                 cube_norm, 0, T_train_end, BATCH_SIZE,
                 WINDOW, target_fi, park_fi, device,
-                ped_valid_mask=ped_valid_mask_np, return_ped_mask=True,
+                ped_valid_mask=ped_eval_mask, return_ped_mask=True,
             )
             optimiser.zero_grad()
             pred_ped, pred_park = model(X)
@@ -464,7 +489,7 @@ def run() -> dict[str, Path]:
         val_ped_mae, val_ped_rmse, val_ped_r2, val_park_mae, val_park_rmse, val_park_r2 = _evaluate(
             model, cube_norm, T_train_end, T_val_end, WINDOW,
             target_fi, park_fi, norm_stats, feat_names, device,
-            val_fixed_starts, parking_mask, ped_valid_mask=ped_valid_mask_np,
+            val_fixed_starts, parking_mask, ped_valid_mask=ped_eval_mask,
         )
         val_mae = val_ped_mae  # early stopping criterion is ped MAE
 
@@ -505,13 +530,13 @@ def run() -> dict[str, Path]:
      val_park_mae_f, val_park_rmse_f, val_park_r2_f) = _evaluate(
         model, cube_norm, T_train_end, T_val_end, WINDOW,
         target_fi, park_fi, norm_stats, feat_names, device,
-        val_fixed_starts, parking_mask, ped_valid_mask=ped_valid_mask_np,
+        val_fixed_starts, parking_mask, ped_valid_mask=ped_eval_mask,
     )
     (test_ped_mae, test_ped_rmse, test_ped_r2,
      test_park_mae, test_park_rmse, test_park_r2) = _evaluate(
         model, cube_norm, T_val_end, T, WINDOW,
         target_fi, park_fi, norm_stats, feat_names, device,
-        test_fixed_starts, parking_mask, ped_valid_mask=ped_valid_mask_np,
+        test_fixed_starts, parking_mask, ped_valid_mask=ped_eval_mask,
     )
 
     log.info(

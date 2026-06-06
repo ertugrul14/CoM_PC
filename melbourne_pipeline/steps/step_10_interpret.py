@@ -34,9 +34,7 @@ N_EVAL     = 64
 
 
 def _baseline_mae(model, cube_norm, T_train, T, target_fi, park_fi,
-                  norm_stats, feat_names, device, n_eval=N_EVAL):
-    mu  = norm_stats[feat_names[target_fi]]["mean"]
-    std = norm_stats[feat_names[target_fi]]["std"]
+                  norm_stats, feat_names, device, sensor_mask=None, n_eval=N_EVAL):
     all_pred, all_y = [], []
     model.eval()
     with torch.no_grad():
@@ -48,15 +46,16 @@ def _baseline_mae(model, cube_norm, T_train, T, target_fi, park_fi,
             p = denormalise_feature(p_ped.cpu().numpy(), feat_names[target_fi], norm_stats)
             all_pred.append(np.clip(p, 0, None))
             all_y.append(denormalise_feature(y_n.cpu().numpy(), feat_names[target_fi], norm_stats))
-    pred = np.concatenate(all_pred); y = np.concatenate(all_y)
+    pred = np.concatenate(all_pred); y = np.concatenate(all_y)   # [n, N, 1]
+    if sensor_mask is not None:   # D-024: importance measured on the evidence layer only
+        pred = pred[:, sensor_mask, :]
+        y    = y[:, sensor_mask, :]
     return float(np.mean(np.abs(pred - y)))
 
 
 def _perturbed_mae(model, cube_norm, T_train, T, target_fi, feat_idx,
-                   park_fi, norm_stats, feat_names, device, n_eval=N_EVAL):
-    """Replace feature feat_idx with N(0,1) noise, measure MAE."""
-    mu  = norm_stats[feat_names[target_fi]]["mean"]
-    std = norm_stats[feat_names[target_fi]]["std"]
+                   park_fi, norm_stats, feat_names, device, sensor_mask=None, n_eval=N_EVAL):
+    """Replace feature feat_idx with N(0,1) noise, measure MAE (on sensor_mask if given)."""
     all_pred, all_y = [], []
     model.eval()
     with torch.no_grad():
@@ -70,7 +69,10 @@ def _perturbed_mae(model, cube_norm, T_train, T, target_fi, feat_idx,
             p = denormalise_feature(p_ped.cpu().numpy(), feat_names[target_fi], norm_stats)
             all_pred.append(np.clip(p, 0, None))
             all_y.append(denormalise_feature(y_n.cpu().numpy(), feat_names[target_fi], norm_stats))
-    pred = np.concatenate(all_pred); y = np.concatenate(all_y)
+    pred = np.concatenate(all_pred); y = np.concatenate(all_y)   # [n, N, 1]
+    if sensor_mask is not None:   # D-024: evidence layer only
+        pred = pred[:, sensor_mask, :]
+        y    = y[:, sensor_mask, :]
     return float(np.mean(np.abs(pred - y)))
 
 
@@ -107,9 +109,18 @@ def run() -> dict[str, Path]:
     cube_norm = _normalise_cube(cube_raw, norm_stats, feat_names)
     del cube_raw
 
+    # D-024: measure importance on the EVIDENCE LAYER only. The 1,323 imputed streets
+    # carry a uniform city-climatology target, so all-street MAE is degenerate and yields
+    # spurious negative importances. ped_confidence == 1.0 marks the 74 real ped sensors
+    # (not normalised, so it survives in cube_norm unchanged).
+    conf_idx        = feat_names.index("ped_confidence")
+    ped_sensor_mask = (cube_norm[:, 0, conf_idx] == 1.0)   # [N] bool
+    log.info(f"  Evidence gate: importance on {int(ped_sensor_mask.sum())} ped-sensor streets")
+
     baseline = _baseline_mae(model, cube_norm, T_train, T,
-                              target_fi, park_fi, norm_stats, feat_names, device)
-    log.info(f"  Baseline val MAE: {baseline:.3f}")
+                              target_fi, park_fi, norm_stats, feat_names, device,
+                              sensor_mask=ped_sensor_mask)
+    log.info(f"  Baseline val MAE (sensor streets): {baseline:.3f}")
 
     # ── Permutation importance ────────────────────────────────────────────────
     scores: dict[str, float] = {}
@@ -117,7 +128,8 @@ def run() -> dict[str, Path]:
         deltas = []
         for _ in range(N_REPEATS):
             mae_p = _perturbed_mae(model, cube_norm, T_train, T, target_fi,
-                                   fi, park_fi, norm_stats, feat_names, device)
+                                   fi, park_fi, norm_stats, feat_names, device,
+                                   sensor_mask=ped_sensor_mask)
             deltas.append(mae_p - baseline)
         importance = float(np.mean(deltas))
         scores[name] = round(importance, 4)
@@ -137,7 +149,8 @@ def run() -> dict[str, Path]:
             else:
                 for p in model.proj_sem.parameters(): p.zero_()
         mae = _baseline_mae(model, cube_norm, T_train, T,
-                            target_fi, park_fi, norm_stats, feat_names, device)
+                            target_fi, park_fi, norm_stats, feat_names, device,
+                            sensor_mask=ped_sensor_mask)
         with torch.no_grad():
             for name_p, p in model.proj_s.named_parameters():
                 p.copy_(orig_s[name_p])

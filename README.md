@@ -4,8 +4,6 @@
 
 A 12-step reproducible pipeline that ingests multi-source urban data, constructs dual graph representations of Melbourne's street network, trains a spatio-temporal GNN (MultiGCN), and exposes an interactive scenario simulation tool for exploring "what-if" urban interventions — such as pedestrianising a street or reallocating kerbside parking.
 
-![Pedestrian Intensity](docs/figures/fig1_pedestrian_intensity.png)
-
 ---
 
 ## Motivation
@@ -19,7 +17,20 @@ This thesis addresses that gap by:
 3. **Learning joint dynamics** — a dual-head GNN simultaneously predicts pedestrian flow and parking occupancy, capturing cross-modal dependencies.
 4. **Simulating counterfactuals** — autoregressive rollouts with graph diffusion estimate how interventions propagate through the network.
 
-**Study period:** Pre-COVID, 2015–2019 (14,400 time bins at 15-minute resolution).
+**Study period:** Nov 2025 – Mar 2026 (post-COVID, southern-hemisphere summer/autumn) — 14,400 time bins at 15-minute resolution.
+
+---
+
+## Two-Layer Methodology
+
+The pipeline follows a **two-layer design** that separates spatial context from evidential claims:
+
+| Layer | Streets | Purpose |
+|-------|---------|---------|
+| **Context layer** | All 1,397 modelled streets | Provides the GNN with full spatial topology — imputed streets carry city-climatology placeholder values so the graph has no structural holes |
+| **Evidence layer** | 189 sensored streets (74 ped + 143 park, 28 overlap) | Training targets, evaluation metrics, clustering, and intervention eligibility — all grounded in observed data |
+
+This design was validated empirically: a leave-streets-out ablation showed the GNN reconstructs unsensored flow as well from a trivial city-climatology fill as from a learned imputer (gap +0.12 MAE, within noise). Imputation provides **coverage, not accuracy** — which is why all downstream claims rest on the evidence layer.
 
 ---
 
@@ -41,11 +52,9 @@ Input:  [batch, W=96, N=1397, F=23]
             └─ head_park: Linear → [batch, N, 1]  + per-node bias  → parking occupancy
 ```
 
-**Joint loss:** `MAE_ped + 0.5 * masked_MAE_park` — parking loss is masked to the 143 streets with real sensor data.
+**Joint loss:** `masked_MAE_ped + 0.5 × masked_MAE_park` — the ped loss is masked to the 74 real pedestrian-sensor streets (Exp B) and the parking loss to the 143 real parking-sensor streets. The ~1,323 imputed streets remain in the graph as spatial context but are never prediction targets.
 
 **Total parameters:** 68,076
-
-![Architecture](docs/figures/fig4_architecture.png)
 
 ### Graph Construction
 
@@ -54,19 +63,27 @@ Input:  [batch, W=96, N=1397, F=23]
 | **Spatial** | Intersection-topology + Gaussian kernel | 5,635 directed | 1 connected component, 0 isolates |
 | **Semantic** | Land-use/activity cosine similarity | 8,097 directed | Links functionally similar streets across the CBD |
 
-<p align="center">
-  <img src="docs/figures/fig2_spatial_graph.png" width="48%" alt="Spatial Graph" />
-  <img src="docs/figures/fig3_semantic_graph.png" width="48%" alt="Semantic Graph" />
-</p>
+### Branch Contribution (delta MAE if branch zeroed, sensor-gated)
 
-### Training Results
+| Branch | Delta MAE | Role |
+|--------|-----------|------|
+| Spatial | +66.1 | Dominant — street connectivity drives predictions |
+| Semantic | +9.55 | Meaningful but secondary — land-use similarity adds context |
 
-Chronological split (no data leakage): Train 70% | Validation 15% | Test 15%
+---
+
+## Training Results
+
+**Protocol:** Chronological split (no data leakage) — Train 70% (bins 0–10,079) | Validation 15% (10,080–12,239) | Test 15% (12,240–14,399). Window W=96 bins (24 h), stride=1. Adam lr=1e-3, ReduceLROnPlateau, early stopping patience=25 on val ped MAE. Best epoch: 137.
+
+Metrics are reported on the **74 real pedestrian-sensor streets** (the evidence layer) — the honest measure:
 
 | Split | Ped MAE | Ped R² | Park MAE | Park R² |
 |-------|---------|--------|----------|---------|
-| **Validation** | 5.997 | 0.878 | 0.049 | 0.852 |
-| **Test** | 5.804 | 0.876 | 0.040 | 0.842 |
+| **Validation** | 27.85 | 0.889 | 0.058 | 0.885 |
+| **Test** | 28.35 | 0.877 | 0.052 | 0.880 |
+
+> The MAE is in raw pedestrians per 15-min bin on busy CBD arterials (peaks in the hundreds), so **R² ≈ 0.88 is the headline**. Val ≈ Test confirms generalisation to held-out future periods. Test ped RMSE 68.5 (error concentrated in peak bins).
 
 ---
 
@@ -80,29 +97,29 @@ The pipeline is organised into 12 sequential steps, each implemented as an indep
 | 02 | `step_02_snap.py` | Snap sensors to street segments, spatial aggregation of CLUE point data |
 | 03 | `step_03_temporal.py` | Temporal encoding (cyclic hour/dow), weather alignment, holiday flags |
 | 04 | `step_04_graph.py` | Build spatial (intersection-topology) and semantic (activity-similarity) graphs |
-| 05 | `step_05_process.py` | Compute parking occupancy rates, XGBoost-based pedestrian imputation |
+| 05 | `step_05_process.py` | Compute parking occupancy rates; pedestrian fill (sensored = real, unsensored = city-climatology) |
 | 06 | `step_06_aggregate.py` | Aggregate street-level temporal profiles (103 features per street) |
-| 07 | `step_07_cluster.py` | GMM clustering into 4 street archetypes (k=4, ARI=0.940, silhouette=0.550) |
+| 07 | `step_07_cluster.py` | GMM clustering on sensored streets only (k=3, evidence-gated; imputed = `context_only`) |
 | 08 | `step_08_cube.py` | Assemble the model-ready data cube `[1397, 14400, 23]` |
-| 09 | `step_09_train.py` | Train MultiGCN with dual prediction heads |
+| 09 | `step_09_train.py` | Train MultiGCN with dual prediction heads and masked loss |
 | 10 | `step_10_interpret.py` | Permutation feature importance + branch contribution analysis |
 | 11 | `step_11_scenario.py` | Counterfactual scenario simulation with graph diffusion and spillover |
 | 12 | `step_12_export.py` | Export enriched GeoJSON and JSON for the interactive frontend |
 
-Steps 01–09 are **frozen** post-training. Active development is on Steps 10–12 (interpretation, simulation, visualisation).
+The pipeline is **finalized** (2026-06-06). XGBoost imputation was removed in favour of city-climatology fill after empirical validation showed no accuracy difference on sensor streets.
 
 ---
 
 ## Street Archetypes (Clustering)
 
-The pipeline identifies four distinct street behaviour archetypes via Gaussian Mixture Modelling:
+Clustering runs **only on the 189 sensored streets** (ped ∪ park sensor union) — claims about street behaviour rest on observed data, not imputation. The 1,208 imputed streets are labelled `context_only`. GMM with k=3 (chosen by silhouette/stability; silhouette 0.363, ARI 0.567 — honest, weak-to-moderate structure, so archetypes are soft tendencies):
 
-| Cluster | Archetype | Count | Recommended Intervention |
-|---------|-----------|-------|--------------------------|
-| 0 | Latent midday potential | 994 | `boost_ped` |
-| 1 | Parking reallocation priority | 141 | `pedestrianise` |
-| 2 | Evening outdoor dining | 245 | `boost_ped` / `restrict_park` |
-| 3 | Major pedestrian corridor | 17 | `restrict_park` |
+| Archetype | Count | Recommended Intervention |
+|-----------|-------|--------------------------|
+| Parking reallocation priority | 131 | `pedestrianise` / `restrict_park` |
+| Latent morning potential | 30 | `boost_ped` |
+| Major pedestrian corridor | 28 | `restrict_park` |
+| _context_only_ (imputed) | 1,208 | none — graph context only |
 
 ---
 
@@ -121,6 +138,7 @@ Network-level analysis includes:
 - **Graph diffusion** — propagation through A^k (k=1..3 hops) on both spatial and semantic graphs
 - **Rebound analysis** — half-life and recovery fraction after the intervention ends
 - **Semantic neighbour reporting** — identifies functionally similar streets affected at a distance
+- **Honesty gate** — rejects counterfactuals on non-sensor-backed streets by default (intervention-aware: parking interventions require parking sensor, ped boosts require ped sensor)
 
 ---
 
@@ -134,7 +152,20 @@ Network-level analysis includes:
 | **Weather** | `temperature_2m`, `relative_humidity_2m`, `wind_speed_10m`, `precipitation` |
 | **Land use (CLUE)** | `total_jobs`, `cafe_count`, `cafe_total_seats`, `bar_count`, `bar_patron_capacity`, `business_count`, `poi_total`, `dining_capacity`, `area_m2` |
 
-![Feature Importance](docs/figures/fig5_importance.png)
+### Feature Importance (permutation, sensor-gated)
+
+| Feature | Delta MAE | | Feature | Delta MAE |
+|---------|-----------|---|---------|-----------|
+| ped_flow | +71.62 | | total_jobs | +2.48 |
+| cafe_count | +6.67 | | bar_patron_capacity | +2.40 |
+| bar_count | +5.01 | | relative_humidity | +1.93 |
+| hour_sin | +4.08 | | dining_capacity | +1.87 |
+| ped_confidence | +3.76 | | area_m2 | +1.55 |
+| poi_total | +3.46 | | precipitation | +0.90 |
+| dow_cos | +3.18 | | is_public_holiday | +0.67 |
+| business_count | +2.63 | | hour_cos | +0.38 |
+
+`ped_flow` is overwhelmingly dominant — foot traffic is primarily autoregressive/temporal; land-use features (cafes, bars, POIs, jobs) set per-street level.
 
 ---
 
@@ -240,11 +271,10 @@ melbourne_ingestor/
 │   ├── frontend/
 │   │   └── sensor_map_viz.html        # Interactive Mapbox GL JS map
 │   └── logs/                          # Timestamped pipeline run logs
-├── chatbot/                           # Conversational agent for querying pipeline results
 ├── scripts/                           # Utility scripts (data fetch, export, reporting)
 ├── tests/                             # Smoke tests and stress tests
 └── docs/
-    ├── figures/                       # Thesis figures (graphs, architecture, importance)
+    ├── figures/                       # Thesis figures
     └── notes/                         # Design decisions and issue tracking
 ```
 
@@ -262,16 +292,19 @@ melbourne_ingestor/
 | Feature importance | `data/models/feature_importance.json` | Permutation importance (23 features) + branch deltas |
 | Evaluation metrics | `data/models/model_eval.json` | Full val/test MAE, R², and training history |
 | Frontend GeoJSON | `data/processed/streets_viz.geojson` | Enriched with predictions, opportunity scores, uplift |
-| Cluster report | `data/processed/cluster_report.json` | Archetype assignments, confidence, intervention types |
+| Cluster assignments | `data/processed/clustered.parquet` | Archetype labels, confidence, intervention types |
 
 ---
 
 ## Known Limitations
 
-- **Timezone offset:** Raw data is AEDT (UTC+11) but treated as UTC throughout. Both signals are internally consistent, but temporal profiles are shifted by 11 hours relative to actual Melbourne local time.
-- **Pre-COVID only:** Study period is 2015–2019. Post-pandemic dynamics are not captured.
-- **Parking extrapolation:** Only 143 of 1,397 streets have parking sensor supervision — predictions on the remaining 1,254 streets are model extrapolations.
-- **Autoregressive drift:** Rollouts beyond ~4 hours (16 steps) are indicative rather than precise due to compounding prediction error.
+- **Imputation = coverage, not accuracy:** unsensored streets carry a city-climatology placeholder so the graph has no holes; a leave-streets-out test showed the GNN reconstructs flow as well from this trivial fill as from a learned imputer. Their pedestrian value is **context, never a claim** — which is why clustering and interventions are restricted to sensored streets.
+- **Sensor coverage:** only 74 of 1,397 streets have pedestrian sensors and 143 have parking sensors; the model is validated on these (busy arterials), and predictions on the rest are context-layer extrapolations.
+- **Weak cluster structure:** silhouette ≈ 0.36 — CBD street behaviour is a continuum, so archetypes are soft tendencies rather than crisp groups.
+- **Autoregressive drift:** scenario rollouts beyond ~4 hours (16 steps) are indicative rather than precise due to compounding prediction error.
+- **Parking head extrapolation:** no parking supervision on 1,259 non-sensor streets — parking predictions there are extrapolations.
+- **Timezone (label, not a shift):** timestamps are naive Melbourne local (AEDT) wall-clock values carrying a UTC tzinfo label. Day/time-block assignment reads the wall-clock fields directly, so temporal profiles are correctly aligned (peak ~17:00).
+- **Study period:** Nov 2025 – Mar 2026 — results are specific to post-COVID southern-hemisphere summer/autumn conditions.
 
 ---
 

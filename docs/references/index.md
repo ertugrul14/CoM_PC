@@ -11,6 +11,9 @@
 | sevtsuk2021 | Sevtsuk | 2021 | JAPA | Pedestrian flows on street networks |
 | nyc2025 | NYC DOT | 2023 | Policy report | Curb Management Action Plan |
 | rhythm2024 | Su, Sun, Fan et al. | 2022 | EPJ Data Science | Street classification by activity patterns |
+| cambra2020 | Cambra & Moura | 2020 | J Transport & Health | Street improvement → +18% pedestrian volumes (Lisbon) |
+| aldred2019 | Aldred & Croft | 2019 | J Transport & Health | Hounslow modal filter → +39% walking, ~30% new / ~70% diverted |
+| livingstreets2024 | Hopkinson, Hiblin, Wedderburn et al. | 2024 | Living Streets report | Pedestrian Pound 3rd Ed — footfall-uplift evidence aggregator |
 
 ## Tags
 - `#model` — proposes or evaluates a prediction model
@@ -20,6 +23,7 @@
 - `#pedestrian` — focuses on pedestrian flow
 - `#parking` — focuses on parking occupancy
 - `#graph` — uses GCN or graph-based architecture
+- `#intervention-evidence` — measured before/after effect of a real street intervention (scenario calibration)
 
 | Key | Tags |
 |-----|------|
@@ -30,3 +34,6 @@
 | sevtsuk2021 | #pedestrian |
 | nyc2025 | #curb-policy |
 | rhythm2024 | #clustering #pedestrian |
+| cambra2020 | #pedestrian #curb-policy #intervention-evidence |
+| aldred2019 | #pedestrian #curb-policy #intervention-evidence |
+| livingstreets2024 | #pedestrian #curb-policy #intervention-evidence |

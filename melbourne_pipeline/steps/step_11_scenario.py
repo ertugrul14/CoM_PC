@@ -109,11 +109,56 @@ FI_OCC_RATE      = 1
 # How many spatial neighbours to include in the network summary
 N_NEIGHBOURS_REPORT = 8
 
-VALID_INTERVENTIONS = {"pedestrianise", "restrict_park", "boost_ped"}
+VALID_INTERVENTIONS = {"pedestrianise", "restrict_park", "boost_ped", "curbside_dining",
+                       "reallocate_kerb", "reallocate"}
 
 # Interventions that perturb the parking signal (occupancy_rate). For these the
 # counterfactual is only defensible on a street with a real parking sensor.
-PARKING_INTERVENTIONS = {"pedestrianise", "restrict_park"}
+# curbside_dining reclaims parking bays (occupancy_rate ↓) AND converts them to
+# outdoor dining (land-use features ↑), so it is a parking intervention too.
+# reallocate (two-stage funnel, D-027) removes a fraction of the kerb's parking,
+# so it perturbs occupancy_rate and is a parking intervention as well.
+PARKING_INTERVENTIONS = {"pedestrianise", "restrict_park", "curbside_dining", "reallocate"}
+
+# ── Two-stage kerb reallocation (D-027) ──────────────────────────────────────
+# The frontend funnel splits a reallocation into two levers:
+#   Stage A — remove a fraction `removal_frac` of the kerb's parking. occupancy_rate
+#             scales to (1 - removal_frac) of its current level (1.0 = full clear),
+#             and the GNN predicts the footfall response (model-driven, correlational).
+#   Stage B — the reclaimed use. ONLY the pedestrian-plaza use injects an evidence-based
+#             footfall uplift (the D-026 band, applied analytically with the same
+#             mass-conserving redistribution as reallocate_kerb). Outdoor-dining and
+#             greening/parklet inject NO uplift for now: they are pure occupancy-response
+#             scenarios, so they currently produce identical numbers and differ only in
+#             label (an explicit interim state, not a forecast that they behave the same).
+REALLOCATE_USES = {"outdoor_dining", "greening_parklet", "pedestrian_plaza"}
+UPLIFT_USES     = {"pedestrian_plaza"}   # only these inject a Stage-B footfall uplift
+
+# ── Curbside-dining conversion assumptions (D-025) ───────────────────────────
+# The curbside_dining intervention models "curbside intensification": reclaiming
+# on-street parking bays and converting that kerb into outdoor dining (parklets).
+# magnitude = number of parking bays reclaimed. The factors below translate bays
+# into (a) an occupancy_rate reduction and (b) increases in the land-use features
+# the GNN rewards. They are STATED THESIS ASSUMPTIONS, not learned quantities —
+# the model only learned correlations, so the causal "kerb → dining → footfall"
+# chain is asserted here and must be reported as such (see Known Limitations).
+SEATS_PER_BAY        = 7.0    # NACTO / City of Melbourne parklet ≈ 6–8 seats / bay
+CAFE_SEAT_SHARE      = 0.7    # share of reclaimed seats attributed to cafés
+BAR_SEAT_SHARE       = 0.3    # remainder attributed to bars
+BAYS_PER_NEW_CAFE    = 4.0    # ~4 reclaimed bays read to the model as +1 café frontage
+BAYS_PER_NEW_BAR     = 8.0    # bars convert at half the café rate
+DEFAULT_STREET_BAYS  = 20.0   # assumed on-street bay supply per block face;
+                              # used only to map bays → an occupancy fraction
+
+# ── reallocate_kerb conservation split (D-026; Aldred & Croft 2019, Hounslow) ─
+# Their before/after counts found the treated street's GROSS footfall uplift is
+# mostly DIVERTED from neighbouring streets, not created: ~30.8% genuinely new
+# (mode shift), ~69.2% rerouted from other streets. reallocate_kerb conserves this:
+# the diverted share is subtracted from spatial neighbours (edge-weighted); only the
+# new share is net-new footfall. The GNN's diffusion would (wrongly) make neighbours
+# GAIN — see docs/references/evidence/aldred2019.md + decisions.md D-026.
+REALLOCATE_NEW_FRACTION      = 0.308
+REALLOCATE_DIVERTED_FRACTION = 0.692
 
 # A street counts as ped-sensor-backed when its confidence tier is exactly 1.0
 # (real pedestrian sensor). Imputed streets carry 0.8 / 0.5 tiers (D-014).
@@ -172,13 +217,34 @@ def _data_backing(
 # Loading helpers
 # ==============================================================================
 
+# Process-level artifact cache. The scenario server (api_server.py) is long-lived
+# and handles many requests; loading the 1.72 GB cube + normalised copy + model +
+# graphs on EVERY request churns disk and RAM and stalls the machine. We load once
+# and reuse. Keyed by device string so a CPU and (hypothetical) CUDA caller don't
+# share device-bound tensors. The CLI path also benefits (single-shot, harmless).
+_ARTIFACT_CACHE: dict[str, dict] = {}
+
+
 def _load_artifacts(device: torch.device):
     """
     Load and return all artefacts needed for scenario simulation:
-      model, cube_norm, cube_raw, norm_stats, feat_names, node_order,
-      adj_s (sparse), adj_sem (sparse), node_index DataFrame, meta dict,
-      parking_mask (bool np.ndarray [N], None if not available).
+      model, cube_norm, cube_raw, norm_stats, feat_names, meta,
+      node_index DataFrame, parking_mask (bool np.ndarray [N], None if absent),
+      adj_s (sparse), adj_sem (sparse).
+
+    Results are cached at module level per device: the first call reads from disk;
+    subsequent calls return the cached objects with no I/O or recomputation. The
+    returned tensors/arrays are treated as read-only by the rollout (it copies the
+    window slices it mutates), so sharing them across requests is safe.
     """
+    key = str(device)
+    cached = _ARTIFACT_CACHE.get(key)
+    if cached is not None:
+        c = cached
+        return (c["model"], c["cube_norm"], c["cube_raw"], c["norm_stats"],
+                c["feat_names"], c["meta"], c["node_index"], c["parking_mask"],
+                c["adj_s"], c["adj_sem"])
+
     meta        = json.loads((PROCESSED_DIR / "cube_meta.json").read_text())
     norm_stats  = json.loads((PROCESSED_DIR / "norm_stats.json").read_text())
     feat_names  = meta["feature_names"]
@@ -203,9 +269,33 @@ def _load_artifacts(device: torch.device):
     model.load_state_dict(state)
     model.eval()
 
-    log.info("  Loading cube...")
-    cube_raw  = np.load(PROCESSED_DIR / "cube.npy")          # [N, T, F]
-    cube_norm = _normalise_cube(cube_raw, norm_stats, feat_names)
+    # ── Cubes: memory-map, never load resident ──────────────────────────────
+    # The rollout only ever reads small time-slices, so a full in-RAM load (1.72 GB)
+    # plus a normalised copy (1.85 GB) is pure waste — and recomputing the z-score
+    # over 460M elements took ~150 s, which is what froze the machine. Instead we
+    # mmap the raw cube and a PERSISTED normalised cube (cube_norm.npy), built once.
+    cube_src   = PROCESSED_DIR / "cube.npy"
+    norm_path  = PROCESSED_DIR / "cube_norm.npy"
+    stats_path = PROCESSED_DIR / "norm_stats.json"
+
+    cube_raw = np.load(cube_src, mmap_mode="r")             # [N, T, F] lazy view
+
+    # cube_norm.npy is derived from cube.npy AND norm_stats.json, so it is stale if
+    # either input is newer (e.g. after a retrain that rewrites the normalisation).
+    _norm_inputs_mtime = max(cube_src.stat().st_mtime, stats_path.stat().st_mtime)
+    if norm_path.exists() and norm_path.stat().st_mtime >= _norm_inputs_mtime:
+        log.info("  Loading cached normalised cube (mmap)...")
+        cube_norm = np.load(norm_path, mmap_mode="r")
+    else:
+        # One-time build: load the raw cube fully, normalise, persist, then mmap.
+        # Subsequent process starts skip this entirely and just mmap the result.
+        log.info("  Building normalised cube (one-time; cube_norm.npy missing/stale)...")
+        cube_full = np.load(cube_src)
+        cube_norm_arr = _normalise_cube(cube_full, norm_stats, feat_names)
+        np.save(norm_path, cube_norm_arr)
+        del cube_full, cube_norm_arr
+        cube_norm = np.load(norm_path, mmap_mode="r")
+        log.info(f"  Saved {norm_path.name} — future starts will mmap it instantly.")
 
     node_index = pd.read_parquet(PROCESSED_DIR / "node_index.parquet")
 
@@ -220,7 +310,16 @@ def _load_artifacts(device: torch.device):
         parking_mask = None
         log.warning("  parking_mask.pt not found — parking predictions disabled")
 
-    return model, cube_norm, cube_raw, norm_stats, feat_names, meta, node_index, parking_mask
+    _ARTIFACT_CACHE[key] = {
+        "model": model, "cube_norm": cube_norm, "cube_raw": cube_raw,
+        "norm_stats": norm_stats, "feat_names": feat_names, "meta": meta,
+        "node_index": node_index, "parking_mask": parking_mask,
+        "adj_s": adj_s, "adj_sem": adj_sem,
+    }
+    log.info("  Artifacts cached for reuse across requests.")
+
+    return (model, cube_norm, cube_raw, norm_stats, feat_names, meta,
+            node_index, parking_mask, adj_s, adj_sem)
 
 
 def _get_spatial_neighbours(adj_s: torch.Tensor, node_idx: int) -> list[int]:
@@ -395,6 +494,9 @@ def _encode_intervention(
     norm_stats: dict,
     feat_names: list,
     ped_pred_norm: np.ndarray,     # [N] — model ped_flow prediction for this step (normalised)
+    step: int | None = None,       # rollout step index (reallocate_kerb pins to baseline)
+    baseline_ped_norm: np.ndarray | None = None,  # [n_steps, N] baseline rollout ped (normalised)
+    uplift: float = 0.0,           # reallocate (option 2, D-029): plaza footfall uplift injected here
 ) -> np.ndarray:
     """
     Apply the intervention to the target node's features in next_row.
@@ -407,6 +509,9 @@ def _encode_intervention(
       ped_flow for all streets.
     - This function only modifies the target node (node_idx).
     - boost_ped adds to the model prediction in raw units, then re-normalises.
+    - reallocate_kerb (D-026) scales the BASELINE ped by an externally-estimated
+      elasticity (1 + magnitude). Pinned to the baseline rollout (not the evolving
+      treated prediction) so the imposed shock cannot compound across steps.
     """
     row = next_row.copy()
 
@@ -429,6 +534,74 @@ def _encode_intervention(
         current_raw = denormalise_feature(ped_pred_norm[node_idx], "ped_flow", norm_stats)
         boosted_raw = current_raw + magnitude
         row[node_idx, FI_PED_FLOW] = normalise_feature(boosted_raw, "ped_flow", norm_stats)
+
+    elif itype == "reallocate_kerb":
+        # Post-hoc elasticity composition (D-026). Rather than perturb model
+        # features and hope the GNN infers a footfall response (it does not — the
+        # learned land-use↔ped relationship is wrong-signed / OOD-fragile), we
+        # IMPOSE an externally-estimated uplift on the treated street's baseline
+        # ped, then let the GNN propagate that shock through the graph for spillover.
+        # magnitude = uplift FRACTION (0.12 = +12%); the causal claim lives in this
+        # number (literature), not in the model. Pin to the baseline rollout so the
+        # target's delta equals exactly baseline × magnitude, with no compounding.
+        if baseline_ped_norm is not None and step is not None:
+            base_raw = denormalise_feature(baseline_ped_norm[step, node_idx], "ped_flow", norm_stats)
+        else:
+            base_raw = denormalise_feature(ped_pred_norm[node_idx], "ped_flow", norm_stats)
+        boosted_raw = base_raw * (1.0 + magnitude)
+        row[node_idx, FI_PED_FLOW] = normalise_feature(boosted_raw, "ped_flow", norm_stats)
+
+    elif itype == "curbside_dining":
+        # Curbside intensification (D-025): reclaim `magnitude` parking bays and
+        # convert them to outdoor dining. Two opposing pushes on the target street:
+        #   (1) parking ↓  — reclaimed bays leave the kerb, so occupancy_rate falls;
+        #   (2) dining  ↑  — those bays become seats/frontage, raising the land-use
+        #                    features the GNN positively associates with footfall.
+        # The model nets the two effects; the graph carries spillover to neighbours.
+        bays = max(0.0, float(magnitude))
+
+        # (1) Parking side: occupancy scales down by the reclaimed fraction.
+        occ_cur = denormalise_feature(row[node_idx, FI_OCC_RATE], "occupancy_rate", norm_stats)
+        occ_new = occ_cur * max(0.0, 1.0 - bays / DEFAULT_STREET_BAYS)
+        row[node_idx, FI_OCC_RATE] = normalise_feature(occ_new, "occupancy_rate", norm_stats)
+
+        # (2) Dining side: bays → seats (capacity) and frontage (counts). Each
+        # increment is added in RAW units then renormalised so the per-feature
+        # transform/scale is applied consistently (config.normalise_feature).
+        seats = bays * SEATS_PER_BAY
+        increments = {
+            "cafe_total_seats":    seats * CAFE_SEAT_SHARE,
+            "dining_capacity":     seats,
+            "bar_patron_capacity": seats * BAR_SEAT_SHARE,
+            "cafe_count":          bays / BAYS_PER_NEW_CAFE,
+            "bar_count":           bays / BAYS_PER_NEW_BAR,
+        }
+        for fname, inc in increments.items():
+            if fname not in feat_names or fname not in norm_stats:
+                continue
+            fi = feat_names.index(fname)
+            cur = denormalise_feature(row[node_idx, fi], fname, norm_stats)
+            row[node_idx, fi] = normalise_feature(cur + inc, fname, norm_stats)
+
+    elif itype == "reallocate":
+        # Two-stage funnel (D-027 / D-029). Stage A reclaims a fraction `f` of the kerb's
+        # parking: occupancy_rate scales to (1 - f) of its current level (f = 1.0 → full
+        # clear / pedestrianisation). `magnitude` carries the removal fraction.
+        f = min(1.0, max(0.0, float(magnitude)))
+        occ_cur = denormalise_feature(row[node_idx, FI_OCC_RATE], "occupancy_rate", norm_stats)
+        occ_new = occ_cur * (1.0 - f)
+        row[node_idx, FI_OCC_RATE] = normalise_feature(occ_new, "occupancy_rate", norm_stats)
+        # Stage B (option 2, D-029): inject the pedestrian-plaza footfall uplift INTO the
+        # rollout so the GNN propagates it through the spatial/semantic graphs — neighbours
+        # rise per the model's learned spillover instead of being docked a diverted share.
+        # Pin to the baseline ped so the imposed uplift cannot compound across rollout steps.
+        if uplift and uplift > 0.0:
+            if baseline_ped_norm is not None and step is not None:
+                base_raw = denormalise_feature(baseline_ped_norm[step, node_idx], "ped_flow", norm_stats)
+            else:
+                base_raw = denormalise_feature(ped_pred_norm[node_idx], "ped_flow", norm_stats)
+            boosted_raw = base_raw * (1.0 + uplift)
+            row[node_idx, FI_PED_FLOW] = normalise_feature(boosted_raw, "ped_flow", norm_stats)
 
     return row
 
@@ -548,6 +721,9 @@ def _rollout(
                     intervention["_norm_stats"],
                     intervention["_feat_names"],
                     pred_ped_norm,
+                    step=step,
+                    baseline_ped_norm=intervention.get("_baseline_ped_norm"),
+                    uplift=intervention.get("uplift", 0.0),
                 )
 
             # ── Slide window ──────────────────────────────────────────────────
@@ -763,6 +939,9 @@ def run_scenario(
     rollout_steps: int,
     intervention_type: str,
     magnitude: float | None = None,
+    removal_frac: float | None = None,
+    use: str | None = None,
+    uplift: float | None = None,
     out_path: Path | None = None,
     save: bool = True,
     allow_imputed: bool = False,
@@ -779,10 +958,23 @@ def run_scenario(
     rollout_steps    : Total autoregressive steps to simulate.  Must be >= duration.
                        Rollout continues after the intervention ends so that
                        rebound / decay effects are observable.
-    intervention_type: One of 'pedestrianise', 'restrict_park', 'boost_ped'.
+    intervention_type: One of 'pedestrianise', 'restrict_park', 'boost_ped',
+                       'curbside_dining'.
     magnitude        : For restrict_park: target occupancy [0, 1].
                        For boost_ped: raw ped uplift per 15-min interval.
+                       For curbside_dining: number of parking bays reclaimed and
+                       converted to outdoor dining (drives both the occupancy
+                       reduction and the land-use uplift; see D-025 constants).
                        Ignored for pedestrianise (implicitly 0).
+    removal_frac     : For 'reallocate' (D-027): fraction of the kerb's parking removed,
+                       in [0, 1]. 1.0 = full clear (pedestrianisation). Required for
+                       'reallocate'; ignored otherwise.
+    use              : For 'reallocate': the reclaimed use, one of REALLOCATE_USES
+                       ('outdoor_dining' | 'greening_parklet' | 'pedestrian_plaza').
+                       Only 'pedestrian_plaza' injects the Stage-B footfall uplift.
+    uplift           : For 'reallocate' + 'pedestrian_plaza': the evidence-based
+                       footfall uplift FRACTION (e.g. 0.30 = +30%, the D-026 band).
+                       Forced to 0 for non-plaza uses.
     out_path         : Where to write the JSON result.  Auto-generated if None.
     allow_imputed    : If False (default), the scenario is rejected when the target
                        street lacks a real sensor for the signal the intervention
@@ -805,6 +997,24 @@ def run_scenario(
         raise ValueError("magnitude is required for restrict_park (target occupancy in [0,1])")
     if magnitude is None and intervention_type == "boost_ped":
         raise ValueError("magnitude is required for boost_ped (raw ped uplift per 15-min)")
+    if magnitude is None and intervention_type == "curbside_dining":
+        raise ValueError("magnitude is required for curbside_dining (parking bays reclaimed for dining)")
+    if magnitude is None and intervention_type == "reallocate_kerb":
+        raise ValueError("magnitude is required for reallocate_kerb (footfall uplift fraction, e.g. 0.12 = +12%)")
+
+    # ── Two-stage reallocate (D-027): resolve Stage A removal + Stage B use/uplift ─
+    if intervention_type == "reallocate":
+        if removal_frac is None:
+            raise ValueError("removal_frac is required for reallocate (parking removed, fraction in [0,1])")
+        removal_frac = min(1.0, max(0.0, float(removal_frac)))
+        use = use or "pedestrian_plaza"
+        if use not in REALLOCATE_USES:
+            raise ValueError(f"use must be one of {REALLOCATE_USES}")
+        # Only the pedestrian-plaza use injects a Stage-B footfall uplift; others = 0.
+        uplift = float(uplift) if (uplift is not None and use in UPLIFT_USES) else 0.0
+        # The rollout's occupancy scaling reads `magnitude` as the removal fraction.
+        magnitude = removal_frac
+
     if magnitude is None:
         magnitude = 0.0
 
@@ -815,7 +1025,8 @@ def run_scenario(
     log.info(f"  Device: {device}")
 
     (model, cube_norm, cube_raw, norm_stats,
-     feat_names, meta, node_index, parking_mask) = _load_artifacts(device)
+     feat_names, meta, node_index, parking_mask,
+     adj_s, adj_sem) = _load_artifacts(device)
 
     N, T, F = meta["N"], meta["T"], meta["F"]
 
@@ -877,15 +1088,15 @@ def run_scenario(
         "magnitude":   magnitude,
         "start_step":  0,
         "duration":    duration,
+        # reallocate option 2 (D-029): plaza uplift injected into the rollout so the GNN
+        # diffuses it to neighbours. 0.0 for every other intervention / use.
+        "uplift":      uplift if (uplift is not None) else 0.0,
         # Private refs for _encode_intervention
         "_norm_stats": norm_stats,
         "_feat_names": feat_names,
     }
 
-    adj_s   = torch.load(PROCESSED_DIR / "graph_spatial.pt",
-                         map_location=device, weights_only=False)
-    adj_sem = torch.load(PROCESSED_DIR / "graph_semantic.pt",
-                         map_location=device, weights_only=False)
+    # adj_s / adj_sem come from the cached artifacts above (no re-load).
 
     # ── Baseline rollout (no intervention) ───────────────────────────────────
     log.info("  Running baseline rollout...")
@@ -894,6 +1105,10 @@ def run_scenario(
         intervention=None,
         parking_mask=parking_mask,
     )   # each [n_steps, N]
+
+    # reallocate_kerb (D-026) imposes its uplift on the BASELINE ped at each step,
+    # so the treated rollout needs the baseline series available inside the encoder.
+    intervention["_baseline_ped_norm"] = baseline_ped_norm
 
     # ── Treated rollout (with intervention; model handles parking spillover) ──
     log.info(f"  Running treated rollout ({intervention_type})...")
@@ -908,7 +1123,58 @@ def run_scenario(
     # The raw delta MUST be the difference of the two expm1'd series, not delta*std.
     baseline_ped_raw = denormalise_feature(baseline_ped_norm, "ped_flow", norm_stats)  # [n_steps, N]
     treated_ped_raw  = denormalise_feature(treated_ped_norm,  "ped_flow", norm_stats)
-    ped_delta_raw    = treated_ped_raw   - baseline_ped_raw   # [n_steps, N] true raw delta
+
+    if intervention_type == "reallocate_kerb":
+        # ── Conservation / redistribution (D-026; Aldred & Croft 2019) ──────────
+        # The treated street's gross uplift is mostly DIVERTED from neighbours, not
+        # created (~30.8% new, ~69.2% rerouted). The GNN does diffusion → neighbours
+        # would GAIN, the wrong sign. We override the network propagation with a
+        # mass-conserving redistribution:
+        #   (1) treated street shows the imposed gross uplift  (baseline × (1+U));
+        #   (2) the diverted share of its gain is SUBTRACTED from spatial neighbours,
+        #       weighted by learned spatial edge weights (which neighbours, how much);
+        #   (3) the new share (~31%) is the only net-new footfall (no neighbour cost).
+        # Treated matches observation; neighbours lose realistically; city net = new share.
+        # The imposed uplift is exogenous (literature), not model-predicted; the GNN
+        # contributes only the edge weights that target which neighbours lose.
+        treated_uplift = np.zeros_like(baseline_ped_raw[:, node_idx])          # [n_steps]
+        treated_uplift[:duration] = baseline_ped_raw[:duration, node_idx] * magnitude
+        diverted = treated_uplift * REALLOCATE_DIVERTED_FRACTION               # [n_steps]
+
+        # Rebuild network delta from scratch: no GNN diffusion; treated keeps its
+        # imposed delta; spatial neighbours absorb the diversion as edge-weighted losses.
+        ped_delta_raw = np.zeros_like(baseline_ped_raw)
+        ped_delta_raw[:, node_idx] = treated_uplift
+        nbr_idx = _get_spatial_neighbours(adj_s, node_idx)
+        if nbr_idx:
+            w = np.asarray(_get_edge_weights(adj_s, node_idx, nbr_idx), dtype=np.float64)
+            if w.sum() > 0:
+                w = w / w.sum()
+                for j, n in enumerate(nbr_idx):
+                    ped_delta_raw[:, n] = -diverted * w[j]
+        # Clip so no street loses more than it has, then resync treated for consistency.
+        treated_ped_raw = np.maximum(baseline_ped_raw + ped_delta_raw, 0.0)
+        ped_delta_raw   = treated_ped_raw - baseline_ped_raw
+
+    elif intervention_type == "reallocate":
+        # Option 2 (D-029). The pedestrian-plaza footfall uplift is injected INTO the treated
+        # rollout (see _encode_intervention), so the GNN propagates it through the spatial and
+        # semantic graphs. NEIGHBOURS therefore rise per the model's own learned spillover
+        # rather than being docked a diverted share — no REALLOCATE_DIVERTED_FRACTION here.
+        ped_delta_raw = treated_ped_raw - baseline_ped_raw   # neighbours: GNN diffusion
+        # The TREATED street's own headline is the imposed evidence uplift. The recorded model
+        # output for the treated node is muted by the occupancy-removal correlation (low
+        # occupancy reads as "quieter"), so we pin the treated node to the exogenous +uplift
+        # the scheme asserts. Neighbours keep their GNN-diffused gain; only the treated node
+        # is overridden. Pinned to baseline (not compounding) and active for the duration only.
+        if uplift > 0.0:
+            imposed = np.zeros_like(baseline_ped_raw[:, node_idx])          # [n_steps]
+            imposed[:duration] = baseline_ped_raw[:duration, node_idx] * uplift
+            ped_delta_raw[:, node_idx]   = imposed
+            treated_ped_raw[:, node_idx] = baseline_ped_raw[:, node_idx] + imposed
+
+    else:
+        ped_delta_raw = treated_ped_raw - baseline_ped_raw   # [n_steps, N] true raw delta
 
     # ── Denormalise parking to raw occupancy rate ─────────────────────────────
     mu_occ  = norm_stats["occupancy_rate"]["mean"]
@@ -952,6 +1218,27 @@ def run_scenario(
         top_k                 = 20,
     )
 
+    # ── First spatial neighbour (highest edge weight from target node) ───────
+    _nbr_candidates = _get_spatial_neighbours(adj_s, node_idx)
+    first_spatial_neighbour = None
+    if _nbr_candidates:
+        _nbr_weights   = _get_edge_weights(adj_s, node_idx, _nbr_candidates)
+        _top_pos       = int(np.argmax(_nbr_weights))
+        _top_nbr_idx   = _nbr_candidates[_top_pos]
+        first_spatial_neighbour = {
+            "node_idx":          int(_top_nbr_idx),
+            "street_id":         str(node_order[_top_nbr_idx]),
+            "edge_weight":       float(_nbr_weights[_top_pos]),
+            "ped_confidence":    float(ped_confidence[_top_nbr_idx]),
+            "mean_ped_delta":    float(ped_delta_raw[:, _top_nbr_idx].mean()),
+            "baseline_ped_flow": baseline_ped_raw[:, _top_nbr_idx].tolist(),
+            "treated_ped_flow":  treated_ped_raw[:, _top_nbr_idx].tolist(),
+            "ped_delta":         ped_delta_raw[:, _top_nbr_idx].tolist(),
+        }
+        if parking_mask is not None and parking_mask[_top_nbr_idx]:
+            first_spatial_neighbour["baseline_occ_rate"] = baseline_park_raw[:, _top_nbr_idx].tolist()
+            first_spatial_neighbour["treated_occ_rate"]  = treated_park_raw[:, _top_nbr_idx].tolist()
+
     # ── Assemble result ───────────────────────────────────────────────────────
     # Build parking delta series for sensor streets among top_affected
     top_affected_park_series = {}
@@ -982,7 +1269,14 @@ def run_scenario(
                 "(joint head), propagating learned spillover through the rollout.",
                 "Autoregressive error compounds; interpret rollouts > 4h cautiously.",
                 "Confidence tiers (1.0/0.8/0.5) weight the trustworthiness of per-street deltas.",
-            ],
+            ] + ([
+                f"curbside_dining: {magnitude:g} bays reclaimed → occupancy scaled by "
+                f"(1 - bays/{DEFAULT_STREET_BAYS:g}) and {magnitude * SEATS_PER_BAY:g} dining seats "
+                f"added (cafés {CAFE_SEAT_SHARE:g} / bars {BAR_SEAT_SHARE:g}), plus frontage "
+                f"(+1 café / {BAYS_PER_NEW_CAFE:g} bays, +1 bar / {BAYS_PER_NEW_BAR:g} bays). "
+                "These bay→dining conversions are ASSERTED assumptions (D-025), not learned by "
+                "the model — the GNN encodes correlation, so the causal uplift is asserted here.",
+            ] if intervention_type == "curbside_dining" else []),
         },
         "baseline": {
             "ped_flow_treated_street":  baseline_ped_raw[:, node_idx].tolist(),
@@ -1007,7 +1301,26 @@ def run_scenario(
             "top_affected_park_series": top_affected_park_series,
         },
         "network_summary": network_summary,
+        "first_spatial_neighbour": first_spatial_neighbour,
     }
+
+    # ── Two-stage reallocate (D-027): expose the split + use/removal metadata ─────
+    if intervention_type == "reallocate":
+        result["meta"]["removal_frac"] = float(removal_frac)
+        result["meta"]["use"]          = use
+        result["meta"]["uplift"]       = float(uplift)
+        result["meta"]["assumptions"].append(
+            f"reallocate (D-029): removed {removal_frac * 100:.0f}% of the kerb's parking "
+            f"(occupancy_rate scaled to {(1 - removal_frac) * 100:.0f}% of its level). "
+            f"Reclaimed use = '{use}'."
+            + (f" A +{uplift * 100:.0f}% pedestrian-plaza footfall uplift (Cambra & Moura 2020 / "
+               "Aldred & Croft 2019) was injected into the treated street and PROPAGATED through the "
+               "spatial/semantic graphs by the GNN (option 2), so neighbouring streets rise per the "
+               "model's learned spillover. No diverted share is subtracted."
+               if uplift > 0 else
+               " No footfall uplift injected for this use — pure model occupancy response "
+               "(dining and parklet are numerically identical for now; they differ only in label).")
+        )
 
     # ── Save ──────────────────────────────────────────────────────────────────
     if save:

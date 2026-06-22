@@ -11,9 +11,11 @@ Endpoints:
 POST /scenario body (JSON):
     street_id         : str   — Melbourne street identifier
     intervention_type : str   — "pedestrianise" | "restrict_park" | "boost_ped"
+                                | "curbside_dining"
     duration          : int   — number of 15-min bins the intervention is active
     rollout_steps     : int   — total autoregressive steps to simulate
-    magnitude         : float | null — required for restrict_park / boost_ped
+    magnitude         : float | null — required for restrict_park / boost_ped /
+                                curbside_dining (bays reclaimed for dining)
     dow               : int   — day of week (0=Monday … 6=Sunday), default 0
     hour              : int   — hour 0–23, default 9
     minute            : int   — minute 0–59, default 0
@@ -26,11 +28,24 @@ validation set so the model never sees its own training data during inference.
 import json
 import logging
 import math
+import os
 import sys
 from pathlib import Path
 
 import numpy as np
+import torch
 from flask import Flask, Response, jsonify, request, send_file
+
+# ── CPU thread cap ────────────────────────────────────────────────────────────
+# Scenario rollouts run the GCN+GRU on CPU. PyTorch defaults to grabbing every
+# logical core for its matmuls, which pegs the whole machine at 100% and makes the
+# desktop unresponsive ("frozen") for the duration of a rollout. The model is tiny
+# (68k params), so a handful of threads is plenty and leaves cores for the OS and
+# the Flask server. Capped to <= 8, always leaving >= 4 cores free. Must be set
+# before the first torch op. Override with SCENARIO_TORCH_THREADS if needed.
+_n_cores  = os.cpu_count() or 4
+_n_thread = int(os.environ.get("SCENARIO_TORCH_THREADS", min(8, max(1, _n_cores - 4))))
+torch.set_num_threads(_n_thread)
 
 # Allow import of melbourne_pipeline modules
 sys.path.insert(0, str(Path(__file__).resolve().parent / "melbourne_pipeline"))
@@ -43,6 +58,7 @@ log = logging.getLogger(__name__)
 app = Flask(__name__)
 
 FRONTEND_HTML = Path(__file__).parent / "melbourne_pipeline" / "frontend" / "sensor_map_viz.html"
+FRONTEND_DIR = FRONTEND_HTML.parent
 
 # ── Cube time-feature cache (loaded once) ────────────────────────────────────
 
@@ -112,6 +128,11 @@ def index():
     return send_file(FRONTEND_HTML)
 
 
+@app.route("/cbd_viz.json")
+def cbd_viz():
+    return send_file(FRONTEND_DIR / "cbd_viz.json")
+
+
 @app.route("/scenario", methods=["POST", "OPTIONS"])
 def scenario():
     if request.method == "OPTIONS":
@@ -124,6 +145,10 @@ def scenario():
         duration          = int(body.get("duration", 16))
         rollout_steps     = int(body.get("rollout_steps", 32))
         magnitude         = body.get("magnitude")
+        # Two-stage reallocate (D-027): Stage A removal fraction + Stage B use/uplift.
+        removal_frac      = body.get("removal_frac")
+        use               = body.get("use")
+        uplift            = body.get("uplift")
         dow               = int(body.get("dow",    0))
         hour              = int(body.get("hour",   9))
         minute            = int(body.get("minute", 0))
@@ -145,6 +170,9 @@ def scenario():
             rollout_steps     = rollout_steps,
             intervention_type = intervention_type,
             magnitude         = magnitude,
+            removal_frac      = removal_frac,
+            use               = use,
+            uplift            = uplift,
             save              = True,
             allow_imputed     = allow_imputed,
         )
@@ -173,5 +201,14 @@ if __name__ == "__main__":
         level   = logging.INFO,
         format  = "%(asctime)s  %(levelname)s  %(message)s",
     )
-    _load_cache()       # warm up before first request
+    log.info(f"torch CPU threads capped at {_n_thread} of {_n_cores} cores")
+    _load_cache()       # warm up time-feature cache before first request
+
+    # Warm the scenario artifact cache (cube + model + graphs) once at startup so
+    # the first /scenario request doesn't pay the 1.72 GB load + normalise cost.
+    from steps.step_11_scenario import _load_artifacts
+    log.info("Warming scenario artifact cache…")
+    _load_artifacts(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    log.info("Scenario artifact cache ready.")
+
     app.run(host="127.0.0.1", port=5050, debug=False)

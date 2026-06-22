@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#0e0d08;overflow:hidden;height:100%;}
+  body{font-family:'Hanken Grotesk',system-ui,sans-serif;color:#ddd5c8;}
+  ::selection{background:#8db4c8;color:#0e0d08;}
+  #kb-scroll::-webkit-scrollbar{width:0;height:0;}
+  .kb-cta:hover{filter:brightness(1.08);}
+  .kb-ghost:hover{background:rgba(141,180,200,.08);border-color:#4a7488;}
+  .kb-nav-link:hover{color:#ddd5c8;}
+  .iv-card{transition:border-color .15s,background .15s,transform .15s;}
+  .iv-card:hover{border-color:#4a7488;transform:translateY(-2px);}
+  .kb-runbtn{transition:filter .15s,transform .1s;}
+  .kb-runbtn:hover:not([data-dis="1"]){filter:brightness(1.08);}
+  .kb-runbtn:active:not([data-dis="1"]){transform:translateY(1px);}
+  input[type=range].kb-range{-webkit-appearance:none;appearance:none;height:4px;border-radius:3px;background:#2c2820;outline:none;}
+  input[type=range].kb-range::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#8db4c8;cursor:pointer;border:3px solid #0e0d08;box-shadow:0 0 0 1px #4a7488;}
+  select.kb-sel{appearance:none;background:#16140f url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%237d7268' stroke-width='1.6'><path d='M1 1l4 4 4-4'/></svg>") no-repeat right 12px center;}
+  @keyframes kbPulse{0%,100%{opacity:.4;transform:scale(1);}50%{opacity:1;transform:scale(1.4);}}
+  @keyframes kbBob{0%,100%{transform:translateY(0);opacity:.65;}50%{transform:translateY(7px);opacity:1;}}
+  @keyframes kbRise{from{transform:translateY(16px);}to{transform:translateY(0);}}
+  @keyframes kbFade{from{opacity:0;}to{opacity:1;}}
+  @keyframes kbSheen{0%{background-position:-120% 0;}100%{background-position:220% 0;}}
+</style>
+</helmet>
+
+<div id="kb-scroll" style="height:100vh;overflow-y:auto;overflow-x:hidden;background:#0e0d08;">
+
+  <!-- ================= FIXED TOP NAV ================= -->
+  <div style="position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;justify-content:space-between;padding:18px 34px;background:linear-gradient(180deg,rgba(14,13,8,.92),rgba(14,13,8,0));backdrop-filter:blur(2px);">
+    <div onClick="{{ goHome }}" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+      <div style="width:13px;height:13px;border-radius:4px;background:#8db4c8;transform:rotate(45deg);"></div>
+      <span style="font-family:'Space Grotesk';font-weight:700;font-size:18px;color:#f1ece1;letter-spacing:-.3px;">Curbside Intensification</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:26px;font-size:13.5px;color:#9b9082;font-weight:500;white-space:nowrap;">
+      <span class="kb-nav-link" onClick="{{ goBuild }}" style="cursor:pointer;white-space:nowrap;">Scenarios</span>
+      <span onClick="{{ goBuild }}" class="kb-cta" style="cursor:pointer;white-space:nowrap;flex-shrink:0;padding:9px 18px;border-radius:9px;background:#8db4c8;color:#0e1110;font-weight:700;font-size:13.5px;">Start a scenario</span>
+    </div>
+  </div>
+
+  <!-- ================= HOME VIEW (hero + pipeline) ================= -->
+  <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+  <div>
+    <!-- ---- HERO ---- -->
+    <div style="position:relative;height:100vh;min-height:680px;overflow:hidden;">
+      <canvas id="cvHero" style="position:absolute;inset:0;width:100%;height:100%;display:block;"></canvas>
+      <div style="position:absolute;inset:0;background:radial-gradient(125% 95% at 50% 44%,rgba(14,13,8,0) 28%,rgba(14,13,8,.5) 68%,rgba(14,13,8,.93) 100%);"></div>
+      <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,13,8,.72) 0%,rgba(14,13,8,0) 26%,rgba(14,13,8,0) 58%,rgba(14,13,8,.9) 100%);"></div>
+
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 40px;z-index:3;">
+        <div style="font-family:'Space Mono',monospace;font-size:12.5px;letter-spacing:3px;text-transform:uppercase;color:#8db4c8;margin-bottom:24px;display:inline-flex;align-items:center;gap:10px;animation:kbRise .8s cubic-bezier(.16,1,.3,1) both;"><span style="width:8px;height:8px;border-radius:50%;background:#8db4c8;animation:kbPulse 1.6s ease-in-out infinite;"></span>Melbourne CBD · live curbside model</div>
+        <h1 style="font-family:'Space Grotesk';font-weight:700;font-size:clamp(44px,7vw,86px);line-height:.98;letter-spacing:-2.4px;color:#f3ecde;margin:0 0 26px;max-width:1000px;animation:kbRise .9s cubic-bezier(.16,1,.3,1) both;">Plan the curb.<br>Watch the city answer.</h1>
+        <p style="font-size:clamp(16px,1.7vw,20px);line-height:1.6;color:#bcb1a1;max-width:610px;margin:0 0 38px;animation:kbRise 1s cubic-bezier(.16,1,.3,1) both;">Curbside Intensification turns the CBD's live sensor network into a model you can question. Test a parking change, an alfresco strip, or a loading zone, and watch the footfall ripple across the city before anything moves.</p>
+        <div style="display:flex;gap:14px;align-items:center;animation:kbRise 1.1s cubic-bezier(.16,1,.3,1) both;">
+          <span onClick="{{ goBuild }}" class="kb-cta" style="cursor:pointer;display:inline-flex;align-items:center;gap:9px;padding:15px 28px;border-radius:11px;background:#8db4c8;color:#0e1110;font-weight:700;font-size:15.5px;box-shadow:0 10px 30px -8px rgba(141,180,200,.6);">Start a scenario <span style="font-size:17px;">→</span></span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= HOW IT WORKS · STEP 07 ================= -->
+    <div style="padding:88px 0 100px;border-top:1px solid #1a1814;">
+      <div style="max-width:1080px;margin:0 auto;padding:0 48px;">
+
+        <!-- eyebrow -->
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:50px;">
+          <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#8db4c8;">How it works</span>
+          <div style="flex:1;height:1px;background:#1c1a14;"></div>
+        </div>
+
+        <!-- step track -->
+        <div style="margin-bottom:44px;">
+          <div style="position:relative;display:flex;align-items:flex-start;">
+            <div style="position:absolute;top:3px;left:3px;right:3px;height:1px;background:rgba(141,180,200,0.1);z-index:0;"></div>
+            <div style="position:absolute;top:3px;left:3px;width:calc(6/8 * 100% - 3px);height:1px;background:rgba(141,180,200,0.28);z-index:0;"></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;"><div style="width:7px;height:7px;border-radius:50%;background:rgba(141,180,200,0.2);"></div><span style="font-family:'Space Mono',monospace;font-size:8.5px;color:#3a3830;white-space:nowrap;">Ingest</span></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;"><div style="width:7px;height:7px;border-radius:50%;background:rgba(141,180,200,0.2);"></div><span style="font-family:'Space Mono',monospace;font-size:8.5px;color:#3a3830;white-space:nowrap;">CLUE</span></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;"><div style="width:7px;height:7px;border-radius:50%;background:rgba(141,180,200,0.2);"></div><span style="font-family:'Space Mono',monospace;font-size:8.5px;color:#3a3830;white-space:nowrap;">Weather</span></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;"><div style="width:7px;height:7px;border-radius:50%;background:rgba(141,180,200,0.2);"></div><span style="font-family:'Space Mono',monospace;font-size:8.5px;color:#3a3830;white-space:nowrap;">Graph</span></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;"><div style="width:7px;height:7px;border-radius:50%;background:rgba(141,180,200,0.2);"></div><span style="font-family:'Space Mono',monospace;font-size:8.5px;color:#3a3830;white-space:nowrap;">Impute</span></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;"><div style="width:7px;height:7px;border-radius:50%;background:rgba(141,180,200,0.2);"></div><span style="font-family:'Space Mono',monospace;font-size:8.5px;color:#3a3830;white-space:nowrap;">Cluster</span></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;"><div style="width:9px;height:9px;border-radius:50%;background:#8db4c8;margin-top:-1px;"></div><span style="font-family:'Space Mono',monospace;font-size:8.5px;color:#8db4c8;white-space:nowrap;">Cube</span></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;"><div style="width:7px;height:7px;border-radius:50%;background:rgba(141,180,200,0.1);"></div><span style="font-family:'Space Mono',monospace;font-size:8.5px;color:#2e2c28;white-space:nowrap;">Train</span></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;"><div style="width:7px;height:7px;border-radius:50%;background:rgba(141,180,200,0.1);"></div><span style="font-family:'Space Mono',monospace;font-size:8.5px;color:#2e2c28;white-space:nowrap;">Simulate</span></div>
+          </div>
+        </div>
+
+        <!-- title row -->
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:32px;margin-bottom:28px;">
+          <div style="flex:1;max-width:520px;">
+            <div style="font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:#5b5349;margin-bottom:12px;">Step 07 · Data cube assembly</div>
+            <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(26px,3vw,40px);line-height:1.08;letter-spacing:-1px;color:#f3ecde;margin:0 0 16px;">Assemble the data cube.</h2>
+            <p style="font-size:15px;line-height:1.75;color:#9b9082;margin:0;">Every 15 minutes the sensor network wakes. Pedestrian gates count footfall. Parking bays log occupancy. Weather stations record conditions. Each reading is snapped to its street and written into one column. 14,400 columns later, five months of the city are frozen in a single cube.</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;padding-top:4px;">
+            <div style="background:#16140f;border:1px solid #211e18;border-radius:12px;padding:14px 18px;text-align:center;">
+              <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:#8db4c8;">14,400</div>
+              <div style="font-size:10px;color:#7d7268;margin-top:3px;white-space:nowrap;">time bins</div>
+            </div>
+            <div style="background:#16140f;border:1px solid #211e18;border-radius:12px;padding:14px 18px;text-align:center;">
+              <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:#f472b6;">1,397</div>
+              <div style="font-size:10px;color:#7d7268;margin-top:3px;white-space:nowrap;">streets</div>
+            </div>
+            <div style="background:#16140f;border:1px solid #211e18;border-radius:12px;padding:14px 18px;text-align:center;">
+              <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:#f59e0b;">23</div>
+              <div style="font-size:10px;color:#7d7268;margin-top:3px;white-space:nowrap;">features</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- animation canvas -->
+        <div style="position:relative;border:1px solid #211e18;border-radius:16px;overflow:hidden;background:#0b0a05;">
+          <canvas id="cvCube" style="width:100%;height:370px;display:block;"></canvas>
+          <div style="position:absolute;top:14px;left:18px;font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:#3a3830;pointer-events:none;">Sensor network · Melbourne CBD</div>
+          <div style="position:absolute;top:14px;right:18px;font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:#3a3830;pointer-events:none;">Data cube [N=1,397 · T · F=23]</div>
+        </div>
+
+        <!-- legend -->
+        <div style="margin-top:13px;display:flex;align-items:center;gap:22px;font-size:11px;color:#5b5349;flex-wrap:wrap;">
+          <span style="display:flex;align-items:center;gap:7px;"><span style="width:7px;height:7px;border-radius:50%;background:#f472b6;flex-shrink:0;"></span>Pedestrian sensor (74 streets)</span>
+          <span style="display:flex;align-items:center;gap:7px;"><span style="width:7px;height:7px;border-radius:50%;background:#8db4c8;flex-shrink:0;"></span>Parking sensor (143 streets)</span>
+          <span style="display:flex;align-items:center;gap:7px;"><span style="width:7px;height:7px;border-radius:2px;background:#8db4c8;opacity:0.32;flex-shrink:0;"></span>City-climatology fill (1,323 streets)</span>
+          <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:1px;">cube grows left to right</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ================= BUILD VIEW (wizard) ================= -->
+  <sc-if value="{{ isBuild }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;height:100vh;padding-top:0;">
+    <!-- map -->
+    <div style="position:relative;flex:1;min-width:0;background:#0b0a05;">
+      <canvas id="cvMap" style="position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;"></canvas>
+      <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(130% 120% at 60% 50%,rgba(11,10,5,0) 60%,rgba(11,10,5,.45) 100%);"></div>
+      <!-- map hint -->
+      <div style="position:absolute;top:80px;left:50%;transform:translateX(-50%);z-index:5;pointer-events:none;">
+        <sc-if value="{{ noSel }}" hint-placeholder-val="{{ true }}">
+          <div style="font-family:'Space Mono',monospace;font-size:12px;color:#cdc2b2;background:rgba(14,13,8,.78);border:1px solid #2c2820;border-radius:20px;padding:9px 18px;display:flex;align-items:center;gap:9px;animation:kbFade .4s ease both;"><span style="width:7px;height:7px;border-radius:50%;background:#8db4c8;animation:kbPulse 1.5s infinite;"></span>Click any street to begin</div>
+        </sc-if>
+      </div>
+      <!-- legend -->
+      <div style="position:absolute;bottom:18px;left:18px;z-index:5;display:flex;flex-direction:column;gap:6px;font-size:11px;color:#9b9082;background:rgba(14,13,8,.6);border:1px solid #211e18;border-radius:10px;padding:10px 13px;">
+        <div style="font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:1px;color:#7d7268;text-transform:uppercase;margin-bottom:2px;">Pedestrian activity</div>
+        <div style="width:150px;height:6px;border-radius:4px;background:linear-gradient(90deg,#1e3a5f,#1d4ed8,#0891b2,#10b981,#f59e0b,#ef4444);"></div>
+        <div style="display:flex;justify-content:space-between;width:150px;font-size:10px;"><span>quiet</span><span>busy</span></div>
+      </div>
+    </div>
+
+    <!-- wizard panel -->
+    <div style="flex:0 0 416px;background:#16140f;border-left:1px solid #211e18;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="padding:74px 28px 18px;border-bottom:1px solid #211e18;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-family:'Space Grotesk';font-weight:700;font-size:19px;color:#f1ece1;">Build a scenario</div>
+          <span onClick="{{ goHome }}" class="kb-nav-link" style="cursor:pointer;font-size:13px;color:#7d7268;">← Home</span>
+        </div>
+        <div style="font-size:13px;color:#8a857c;margin-top:4px;">Three choices, then run the model.</div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:22px 28px 28px;">
+
+        <!-- STEP 1 -->
+        <div style="margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="width:22px;height:22px;border-radius:50%;background:{{ s1col }};color:#0e0d08;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono';">1</span>
+            <span style="font-family:'Space Grotesk';font-weight:600;font-size:15px;color:#e8e0d2;">Pick a street</span>
+          </div>
+          <sc-if value="{{ noSel }}" hint-placeholder-val="{{ true }}">
+            <div style="border:1px dashed #3d3830;border-radius:12px;padding:18px;text-align:center;color:#7d7268;font-size:13px;line-height:1.6;">Click a street on the map.<br><span style="color:#5b5349;font-size:12px;">Brighter = busier with pedestrians.</span></div>
+          </sc-if>
+          <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px solid #2c2820;border-radius:12px;padding:14px 15px;background:rgba(141,180,200,.05);">
+              <div style="display:flex;align-items:flex-start;gap:9px;">
+                <span style="width:3px;align-self:stretch;border-radius:2px;background:{{ selColor }};"></span>
+                <div style="flex:1;">
+                  <div style="font-family:'Space Grotesk';font-weight:700;font-size:15px;color:#f1ece1;line-height:1.25;">{{ selArch }}</div>
+                  <div style="font-family:'Space Mono';font-size:11px;color:#8a857c;margin-top:3px;">{{ selMeta }}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:12px;">
+                <div style="flex:1;background:#0e0d08;border:1px solid #211e18;border-radius:8px;padding:8px 10px;">
+                  <div style="font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:#7d7268;">Avg pedestrians</div>
+                  <div style="font-family:'Space Grotesk';font-weight:700;font-size:18px;color:#e8e0d2;">{{ selPed }}<span style="font-size:11px;color:#7d7268;font-weight:400;"> /hr</span></div>
+                </div>
+                <div style="flex:1;background:#0e0d08;border:1px solid #211e18;border-radius:8px;padding:8px 10px;">
+                  <div style="font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:#7d7268;">Data source</div>
+                  <div style="font-family:'Space Grotesk';font-weight:700;font-size:14px;color:{{ selSrcCol }};margin-top:3px;">{{ selSrc }}</div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- STEP 2 -->
+        <div style="margin-bottom:24px;opacity:{{ s2op }};transition:opacity .25s;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="width:22px;height:22px;border-radius:50%;background:{{ s2col }};color:#0e0d08;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono';">2</span>
+            <span style="font-family:'Space Grotesk';font-weight:600;font-size:15px;color:#e8e0d2;">Choose an intervention</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="iv-card" onClick="{{ pickRestrict }}" style="cursor:pointer;border:1px solid {{ ivRestrictBorder }};border-radius:11px;padding:12px 14px;background:{{ ivRestrictBg }};">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="width:9px;height:9px;border-radius:2px;background:#e11d48;"></span>
+                <span style="font-weight:600;font-size:14px;color:#e8e0d2;flex:1;">Restrict parking</span>
+                <span style="font-size:16px;color:{{ ivRestrictTick }};">{{ ivRestrictMark }}</span>
+              </div>
+              <div style="font-size:12px;color:#8a857c;margin-top:5px;line-height:1.5;padding-left:19px;">Free the kerb of parked cars: space for walking, cycling, calmer streets.</div>
+            </div>
+            <div class="iv-card" onClick="{{ pickDining }}" style="cursor:pointer;border:1px solid {{ ivDiningBorder }};border-radius:11px;padding:12px 14px;background:{{ ivDiningBg }};">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="width:9px;height:9px;border-radius:2px;background:#f59e0b;"></span>
+                <span style="font-weight:600;font-size:14px;color:#e8e0d2;flex:1;">Outdoor dining extension</span>
+                <span style="font-size:16px;color:{{ ivDiningTick }};">{{ ivDiningMark }}</span>
+              </div>
+              <div style="font-size:12px;color:#8a857c;margin-top:5px;line-height:1.5;padding-left:19px;">License kerb space to alfresco dining (strongest lift in the evening).</div>
+            </div>
+            <div class="iv-card" onClick="{{ pickLoading }}" style="cursor:pointer;border:1px solid {{ ivLoadingBorder }};border-radius:11px;padding:12px 14px;background:{{ ivLoadingBg }};">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="width:9px;height:9px;border-radius:2px;background:#06b6d4;"></span>
+                <span style="font-weight:600;font-size:14px;color:#e8e0d2;flex:1;">Loading / drop-off zone</span>
+                <span style="font-size:16px;color:{{ ivLoadingTick }};">{{ ivLoadingMark }}</span>
+              </div>
+              <div style="font-size:12px;color:#8a857c;margin-top:5px;line-height:1.5;padding-left:19px;">Managed kerb for deliveries: frees turnover, modest footfall change.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div style="margin-bottom:22px;opacity:{{ s2op }};transition:opacity .25s;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="width:22px;height:22px;border-radius:50%;background:{{ s2col }};color:#0e0d08;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono';">3</span>
+            <span style="font-family:'Space Grotesk';font-weight:600;font-size:15px;color:#e8e0d2;">Set the window</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <div style="flex:1;">
+              <div style="font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:#7d7268;margin-bottom:5px;">Day</div>
+              <select class="kb-sel" onChange="{{ onDay }}" style="width:100%;border:1px solid #2c2820;color:#ddd5c8;font-size:13px;padding:9px 11px;border-radius:9px;font-family:inherit;">
+                <option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:#7d7268;margin-bottom:5px;">Duration</div>
+              <select class="kb-sel" onChange="{{ onDur }}" style="width:100%;border:1px solid #2c2820;color:#ddd5c8;font-size:13px;padding:9px 11px;border-radius:9px;font-family:inherit;">
+                <option value="2">2 hours</option><option value="4" selected="selected">4 hours</option><option value="6">6 hours</option><option value="8">8 hours</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+            <span style="font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:#7d7268;">Start time</span>
+            <span style="font-family:'Space Mono';font-size:13px;color:#8db4c8;font-weight:700;">{{ hourLabel }}</span>
+          </div>
+          <input type="range" class="kb-range" min="0" max="23" value="9" onInput="{{ onHour }}" style="width:100%;">
+        </div>
+
+        <!-- RUN -->
+        <div onClick="{{ run }}" data-dis="{{ runDis }}" class="kb-runbtn" style="cursor:{{ runCursor }};border-radius:12px;padding:15px;text-align:center;background:{{ runBg }};color:{{ runFg }};font-weight:700;font-size:15.5px;font-family:'Space Grotesk';letter-spacing:.2px;box-shadow:{{ runShadow }};">
+          {{ runLabel }}
+        </div>
+        <div style="text-align:center;font-size:11.5px;color:#5b5349;margin-top:10px;line-height:1.5;">{{ runHint }}</div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ================= RESULTS VIEW ================= -->
+  <sc-if value="{{ isResults }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;height:100vh;">
+    <!-- map with ripple -->
+    <div style="position:relative;flex:1;min-width:0;background:#0b0a05;">
+      <canvas id="cvMap" style="position:absolute;inset:0;width:100%;height:100%;display:block;"></canvas>
+      <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(130% 120% at 55% 50%,rgba(11,10,5,0) 58%,rgba(11,10,5,.5) 100%);"></div>
+      <!-- verdict banner -->
+      <div style="position:absolute;top:74px;left:24px;right:24px;z-index:5;">
+        <div style="background:rgba(14,13,8,.82);border:1px solid #2c2820;border-radius:14px;padding:16px 20px;backdrop-filter:blur(4px);animation:kbRise .5s cubic-bezier(.16,1,.3,1) both;max-width:560px;">
+          <div style="font-family:'Space Mono';font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:#8db4c8;margin-bottom:6px;">Scenario result · {{ resScenario }}</div>
+          <div style="font-family:'Space Grotesk';font-weight:700;font-size:24px;line-height:1.18;color:#f3ecde;letter-spacing:-.5px;">{{ resVerdict }}</div>
+        </div>
+      </div>
+      <!-- ripple legend -->
+      <div style="position:absolute;bottom:18px;left:18px;z-index:5;display:flex;gap:14px;font-size:11px;color:#9b9082;background:rgba(14,13,8,.6);border:1px solid #211e18;border-radius:10px;padding:9px 14px;">
+        <span style="display:flex;align-items:center;gap:6px;"><span style="width:9px;height:9px;border-radius:50%;background:#6a9e72;"></span>more footfall</span>
+        <span style="display:flex;align-items:center;gap:6px;"><span style="width:9px;height:9px;border-radius:50%;background:#b85c5c;"></span>displaced</span>
+        <span style="display:flex;align-items:center;gap:6px;"><span style="width:9px;height:9px;border-radius:50%;border:2px solid #8db4c8;"></span>treated street</span>
+      </div>
+    </div>
+
+    <!-- results panel -->
+    <div style="flex:0 0 416px;background:#16140f;border-left:1px solid #211e18;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="padding:74px 28px 16px;border-bottom:1px solid #211e18;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-family:'Space Grotesk';font-weight:700;font-size:19px;color:#f1ece1;">Results</div>
+          <span onClick="{{ goBuild }}" class="kb-nav-link" style="cursor:pointer;font-size:13px;color:#8db4c8;">↻ Run another</span>
+        </div>
+        <div style="font-family:'Space Mono';font-size:11.5px;color:#8a857c;margin-top:4px;">{{ selArch }} · {{ selMeta }}</div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:20px 28px 28px;">
+        <!-- treated metrics -->
+        <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7d7268;margin-bottom:10px;">On the treated street</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;background:#0e0d08;border:1px solid #211e18;border-radius:10px;padding:12px;">
+            <div style="font-family:'Space Grotesk';font-weight:700;font-size:24px;color:{{ resPedCol }};">{{ resAvgPed }}</div>
+            <div style="font-size:10px;color:#7d7268;margin-top:2px;line-height:1.3;">avg Δ pedestrians / hr</div>
+          </div>
+          <div style="flex:1;background:#0e0d08;border:1px solid #211e18;border-radius:10px;padding:12px;">
+            <div style="font-family:'Space Grotesk';font-weight:700;font-size:24px;color:#e8e0d2;">{{ resTotalPed }}</div>
+            <div style="font-size:10px;color:#7d7268;margin-top:2px;line-height:1.3;">extra walking trips</div>
+          </div>
+        </div>
+        <div style="background:#0e0d08;border:1px solid #211e18;border-radius:10px;padding:12px;margin-bottom:22px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;">
+            <span style="font-size:12px;color:#a99e8f;">Parking occupancy</span>
+            <span style="font-family:'Space Grotesk';font-weight:700;font-size:18px;color:{{ resParkCol }};">{{ resPark }}</span>
+          </div>
+          <div style="font-size:11px;color:#7d7268;margin-top:4px;line-height:1.5;">{{ resParkNote }}</div>
+        </div>
+
+        <!-- ped chart -->
+        <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7d7268;margin-bottom:8px;">Pedestrian flow · baseline vs treated</div>
+        <div style="position:relative;height:120px;margin-bottom:6px;">
+          <canvas id="chPed" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+        </div>
+        <div style="display:flex;gap:14px;font-size:11px;color:#8a857c;margin-bottom:22px;">
+          <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:2px;background:#5b5349;"></span>baseline</span>
+          <span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:2px;background:#8db4c8;"></span>treated</span>
+          <span style="margin-left:auto;font-family:'Space Mono';color:#5b5349;">24h</span>
+        </div>
+
+        <!-- parking chart -->
+        <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7d7268;margin-bottom:8px;">Parking occupancy · baseline vs treated</div>
+        <div style="position:relative;height:100px;margin-bottom:22px;">
+          <canvas id="chPark" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+        </div>
+
+        <!-- network impact -->
+        <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7d7268;margin-bottom:10px;">Network ripple · <span>{{ resNAffected }}</span> streets touched</div>
+        <div>{{ affectedList }}</div>
+
+        <div style="font-size:11px;color:#5b5349;margin-top:18px;line-height:1.6;border-top:1px solid #211e18;padding-top:14px;">Illustrative model for planning exploration. Propagates the treated change through the spatial graph with distance decay. Not a traffic forecast.</div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { view: 'home', stage: 0, sel: null, iv: 'restrict_park', day: 2, hour: 9, dur: 4, results: null };
+  }
+  componentDidMount() {
+    this._frames = {};
+    this._raf = 0; this._running = false;
+    this.t0 = performance.now();
+    this.layerA = {};           // per-scene live layer alphas
+    this.CCOL = ['#f97316', '#e11d48', '#14b8a6', '#8b5cf6', '#06b6d4'];
+    this.ARCH = {
+      major_pedestrian_corridor: 'Major pedestrian corridor',
+      parking_reallocation_priority: 'Parking-reallocation priority',
+      latent_morning_potential: 'Latent potential · morning',
+      latent_midday_potential: 'Latent potential · midday',
+      latent_evening_potential: 'Latent potential · evening',
+      latent_activation_potential: 'Latent activation potential',
+      evening_outdoor_dining: 'Evening dining street',
+      midday_retail_activation: 'Midday retail street',
+      morning_pedestrianisation: 'Morning commute corridor',
+      weekend_leisure: 'Weekend leisure street',
+      context_only: 'Context street (unsensored)',
+    };
+    this.boot();
+    this._onResize = () => { for (const k in this._frames) this._frames[k].dead = true; };
+    window.addEventListener('resize', this._onResize);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) this.startLoop(); });
+  }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); window.removeEventListener('resize', this._onResize); }
+
+  async boot() {
+    try { const r = await fetch('cbd_viz.json'); this.data = await r.json(); }
+    catch (e) { console.warn('Kerbside data load failed', e); return; }
+    // precompute selectable streets (have ped data) + projected nothing yet
+    this.selectable = this.data.streets.filter(s => s.mp != null);
+    this.pedMax = 0;
+    for (const s of this.data.streets) if (s.mp != null && s.mp > this.pedMax) this.pedMax = s.mp;
+    this.pedMax = this.pedMax || 100;
+    this.renderOnce(0);
+    this.startLoop();
+  }
+  startLoop() {
+    if (this._running || !this.data) return;
+    this._running = true;
+    const loop = (t) => {
+      if (document.hidden) { this._running = false; return; }
+      this.renderOnce((t - this.t0) / 1000);
+      this._raf = requestAnimationFrame(loop);
+    };
+    this._raf = requestAnimationFrame(loop);
+  }
+  renderOnce(t) {
+    if (!this.data) return;
+    try {
+      const v = this.state.view;
+      if (v === 'home') {
+        this.ensure('cvHero', { zoom: 1.62, ox: 10, oy: -6, kind: 'hero' });
+        this.drawScene('cvHero', t);
+        this.drawCubeAnim(t);
+      } else {
+        this.ensure('cvMap', { zoom: 1.62, ox: 0, oy: 0, kind: 'map' });
+        this.drawScene('cvMap', t);
+        if (v === 'results') this.drawCharts();
+      }
+    } catch (e) { /* element not ready */ }
+  }
+
+  // ---- canvas setup ----
+  ensure(id, cfg) {
+    const f = this._frames[id];
+    const cv = document.getElementById(id);
+    if (!cv || !cv.clientWidth) return;
+    if (f && f.cv === cv && !f.dead) return;
+    this.initFrame(id, cv, cfg);
+  }
+  fit(w, h, zoom, ox, oy) { const DW = 1000, DH = 800; const s = Math.max(w / DW, h / DH) * zoom; return { s, tx: (w - DW * s) / 2 + ox, ty: (h - DH * s) / 2 + oy }; }
+  initFrame(id, cv, cfg) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = cv.clientWidth, h = cv.clientHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const tf = this.fit(w, h, cfg.zoom, cfg.ox, cfg.oy);
+    const P = (x, y) => [x * tf.s + tf.tx, y * tf.s + tf.ty];
+    const F = { cv, ctx, w, h, dpr, tf, P, kind: cfg.kind, dead: false };
+    this.prerender(F);
+    // particles
+    const edges = this.data.graph.edges;
+    const np = cfg.kind === 'hero' ? 100 : 60;
+    F.parts = [];
+    for (let i = 0; i < np; i++) F.parts.push({ e: (Math.random() * edges.length) | 0, p: Math.random(), sp: 0.05 + Math.random() * 0.14 });
+    if (cfg.kind === 'map') {
+      // projected centroids for hit-testing selectable streets
+      F.pts = this.selectable.map(s => { const [x, y] = P(s.x, s.y); return { s, x, y }; });
+      cv.onclick = (e) => this.pickAt(F, e);
+    }
+    this._frames[id] = F;
+    if (!this.layerA[id]) this.layerA[id] = { grid: 1, ped: 0, clue: 0, graph: 0, cluster: 0, sensor: 0 };
+  }
+  prerender(F) {
+    const { w, h, dpr, P } = F;
+    const mk = () => { const c = document.createElement('canvas'); c.width = w * dpr; c.height = h * dpr; const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); return { c, g }; };
+    // grid
+    const grid = mk();
+    for (const s of this.data.streets) {
+      const pts = s.p; if (!pts || pts.length < 2) continue;
+      const art = s.t === 'Arterial' || s.t === 'Council Major';
+      grid.g.beginPath();
+      for (let i = 0; i < pts.length; i++) { const [px, py] = P(pts[i][0], pts[i][1]); i ? grid.g.lineTo(px, py) : grid.g.moveTo(px, py); }
+      grid.g.closePath();
+      grid.g.lineWidth = art ? 1.0 : 0.55;
+      grid.g.strokeStyle = art ? 'rgba(160,150,128,0.22)' : 'rgba(110,104,92,0.12)';
+      grid.g.stroke();
+    }
+    F.grid = grid.c;
+    // ped heat fills
+    const ped = mk();
+    for (const s of this.data.streets) {
+      if (s.mp == null) continue; const pts = s.p; if (!pts || pts.length < 3) continue;
+      ped.g.beginPath();
+      for (let i = 0; i < pts.length; i++) { const [px, py] = P(pts[i][0], pts[i][1]); i ? ped.g.lineTo(px, py) : ped.g.moveTo(px, py); }
+      ped.g.closePath();
+      ped.g.fillStyle = this.pedColor(s.mp, s.src === 'sensor' ? 0.85 : 0.5);
+      ped.g.fill();
+    }
+    F.ped = ped.c;
+    // cluster fills
+    const clu = mk();
+    for (const s of this.data.streets) {
+      if (s.cl == null || s.cl < 0) continue; const pts = s.p; if (!pts || pts.length < 3) continue;
+      clu.g.beginPath();
+      for (let i = 0; i < pts.length; i++) { const [px, py] = P(pts[i][0], pts[i][1]); i ? clu.g.lineTo(px, py) : clu.g.moveTo(px, py); }
+      clu.g.closePath();
+      const col = this.CCOL[s.cl] || '#8db4c8';
+      clu.g.fillStyle = this.hexA(col, 0.42); clu.g.fill();
+    }
+    F.cluster = clu.c;
+    // clue/landuse points (use sensors as proxy points) + snap lines
+    const clue = mk();
+    for (const sp of this.data.sensors) {
+      const [px, py] = P(sp.x, sp.y);
+      clue.g.fillStyle = sp.k ? 'rgba(244,114,182,0.5)' : 'rgba(249,115,22,0.45)';
+      clue.g.beginPath(); clue.g.arc(px, py, 1.3, 0, 7); clue.g.fill();
+    }
+    F.clue = clue.c;
+    // graph static (edges + nodes)
+    const gr = mk();
+    const nodes = this.data.graph.nodes, edges = this.data.graph.edges;
+    for (const [a, b] of edges) {
+      const na = nodes[a], nb = nodes[b]; const [ax, ay] = P(na.x, na.y), [bx, by] = P(nb.x, nb.y);
+      const dx = bx - ax, dy = by - ay; if (dx * dx + dy * dy > 120000) continue;
+      gr.g.beginPath(); gr.g.moveTo(ax, ay); gr.g.lineTo(bx, by);
+      gr.g.strokeStyle = 'rgba(141,180,200,0.16)'; gr.g.lineWidth = 0.7; gr.g.stroke();
+    }
+    for (const n of nodes) { const [x, y] = P(n.x, n.y); gr.g.fillStyle = n.s ? 'rgba(141,180,200,0.9)' : 'rgba(141,180,200,0.3)'; gr.g.beginPath(); gr.g.arc(x, y, n.s ? 1.8 : 1.1, 0, 7); gr.g.fill(); }
+    F.graphC = gr.c;
+    // sensors static
+    const sen = mk();
+    for (const sp of this.data.sensors) {
+      const [px, py] = P(sp.x, sp.y);
+      sen.g.fillStyle = sp.k ? 'rgba(244,114,182,0.85)' : 'rgba(107,157,179,0.7)';
+      sen.g.beginPath(); sen.g.arc(px, py, sp.k ? 2.2 : 1.3, 0, 7); sen.g.fill();
+    }
+    F.sensorC = sen.c;
+  }
+
+  // ---- colour helpers ----
+  pedColor(v, a) {
+    const t = Math.min(1, v / (this.pedMax * 0.75));
+    const stops = [[0, 30, 58, 95], [0.2, 29, 78, 216], [0.45, 8, 145, 178], [0.68, 16, 185, 129], [0.85, 245, 158, 11], [1, 239, 68, 68]];
+    let c = stops[stops.length - 1];
+    for (let i = 1; i < stops.length; i++) { if (t <= stops[i][0]) { const p = stops[i - 1], n = stops[i]; const f = (t - p[0]) / (n[0] - p[0] || 1); c = [0, p[1] + (n[1] - p[1]) * f, p[2] + (n[2] - p[2]) * f, p[3] + (n[3] - p[3]) * f]; break; } }
+    return `rgba(${c[1] | 0},${c[2] | 0},${c[3] | 0},${a})`;
+  }
+  hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
+
+  // ---- scene draw ----
+  lerpLayers(id, target, k) { const a = this.layerA[id]; for (const key in target) a[key] += (target[key] - a[key]) * k; }
+  drawScene(id, t) {
+    const F = this._frames[id]; if (!F) return;
+    const { ctx, w, h } = F;
+    // targets
+    let tgt;
+    if (F.kind === 'hero') tgt = { grid: 1, ped: 0.0, clue: 0, graph: 0.85, cluster: 0, sensor: 0.5 };
+    else if (F.kind === 'map') tgt = { grid: 1, ped: 0.7, clue: 0, graph: 0, cluster: 0, sensor: 0.3 };
+    else tgt = this.stageTargets(this.state.stage);
+    this.lerpLayers(id, tgt, 0.08);
+    const a = this.layerA[id];
+    ctx.clearRect(0, 0, w, h);
+    // fills first
+    if (a.ped > 0.01) { ctx.globalAlpha = a.ped; ctx.drawImage(F.ped, 0, 0, w, h); }
+    if (a.cluster > 0.01) { ctx.globalAlpha = a.cluster; ctx.drawImage(F.cluster, 0, 0, w, h); }
+    ctx.globalAlpha = a.grid; ctx.drawImage(F.grid, 0, 0, w, h);
+    if (a.clue > 0.01) { ctx.globalAlpha = a.clue; ctx.drawImage(F.clue, 0, 0, w, h); }
+    if (a.sensor > 0.01) { ctx.globalAlpha = a.sensor; ctx.drawImage(F.sensorC, 0, 0, w, h); }
+    if (a.graph > 0.01) { ctx.globalAlpha = a.graph; ctx.drawImage(F.graphC, 0, 0, w, h); }
+    ctx.globalAlpha = 1;
+    // animated sensor pulses
+    if (a.sensor > 0.2) this.drawPulses(F, t, a.sensor);
+    // graph particles + travelling highlights
+    if (a.graph > 0.25) this.drawFlow(F, t, a.graph);
+    // map: selection + ripple
+    if (F.kind === 'map') { this.drawSelection(F, t); if (this.state.view === 'results') this.drawRipple(F, t); }
+  }
+  stageTargets(s) {
+    return [
+      { grid: 1, ped: 0, clue: 0, graph: 0, cluster: 0, sensor: 1 },      // 0 sense
+      { grid: 1, ped: 0, clue: 1, graph: 0, cluster: 0, sensor: 0.5 },    // 1 context
+      { grid: 0.7, ped: 0, clue: 0.2, graph: 1, cluster: 0, sensor: 0.3 },// 2 connect
+      { grid: 0.6, ped: 0, clue: 0, graph: 0.25, cluster: 1, sensor: 0.2 },// 3 cluster
+      { grid: 0.8, ped: 0.85, clue: 0, graph: 0.15, cluster: 0, sensor: 0.25 },// 4 simulate
+    ][s] || { grid: 1, ped: 0, clue: 0, graph: 0, cluster: 0, sensor: 1 };
+  }
+  drawPulses(F, t, alpha) {
+    const { ctx, P } = F; const nodes = this.data.graph.nodes;
+    let n = 0;
+    for (let i = 0; i < nodes.length && n < 60; i++) {
+      if (!nodes[i].s) continue; n++;
+      const [x, y] = P(nodes[i].x, nodes[i].y);
+      const ph = (t * 0.7 + i * 0.21) % 1;
+      const r = 3 + ph * 16; const op = (1 - ph) * 0.4 * alpha;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.strokeStyle = `rgba(141,180,200,${op})`; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+  drawFlow(F, t, alpha) {
+    const { ctx, P } = F; const nodes = this.data.graph.nodes, edges = this.data.graph.edges;
+    for (const pt of F.parts) {
+      pt.p += pt.sp * 0.016; if (pt.p > 1) { pt.p = 0; pt.e = (Math.random() * edges.length) | 0; }
+      const [a, b] = edges[pt.e]; const na = nodes[a], nb = nodes[b];
+      const [ax, ay] = P(na.x, na.y), [bx, by] = P(nb.x, nb.y);
+      const dx = bx - ax, dy = by - ay; if (dx * dx + dy * dy > 120000) continue;
+      const x = ax + dx * pt.p, y = ay + dy * pt.p;
+      const col = pt.e % 3 === 0 ? '244,114,182' : '141,180,200';
+      const rg = ctx.createRadialGradient(x, y, 0, x, y, 3); rg.addColorStop(0, `rgba(${col},${0.9 * alpha})`); rg.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(x, y, 3, 0, 7); ctx.fill();
+    }
+  }
+  drawSelection(F, t) {
+    const sel = this.state.sel; if (!sel) return;
+    const { ctx, P } = F; const pts = sel.p; if (!pts) return;
+    const pulse = 0.6 + 0.4 * Math.sin(t * 3);
+    ctx.save();
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) { const [px, py] = P(pts[i][0], pts[i][1]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.closePath();
+    ctx.fillStyle = `rgba(141,180,200,${0.18 + pulse * 0.12})`; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = `rgba(173,206,224,${0.6 + pulse * 0.4})`; ctx.shadowColor = 'rgba(141,180,200,0.8)'; ctx.shadowBlur = 12; ctx.stroke();
+    ctx.restore();
+    const [cx, cy] = P(sel.x, sel.y);
+    const rr = 6 + ((t * 0.8) % 1) * 26; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.strokeStyle = `rgba(141,180,200,${(1 - ((t * 0.8) % 1)) * 0.5})`; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  drawRipple(F, t) {
+    const res = this.state.results; if (!res) return;
+    const { ctx, P } = F;
+    const elapsed = (performance.now() - res.t0) / 1000;
+    const [cx, cy] = P(res.sel.x, res.sel.y);
+    // expanding wavefront from treated street
+    const maxR = 230; const speed = 90;
+    for (let k = 0; k < 2; k++) {
+      const rr = ((elapsed * speed + k * 60) % (maxR + 60));
+      const op = Math.max(0, (1 - rr / maxR)) * 0.4;
+      ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.strokeStyle = `rgba(141,180,200,${op})`; ctx.lineWidth = 2; ctx.stroke();
+    }
+    // light up neighbours as the front passes
+    for (const nb of res.neighbours) {
+      const [nx, ny] = P(nb.s.x, nb.s.y);
+      const d = Math.hypot(nx - cx, ny - cy);
+      const front = elapsed * speed;
+      const reached = Math.min(1, Math.max(0, (front - d) / 40));
+      if (reached <= 0) continue;
+      const pos = nb.delta >= 0;
+      const col = pos ? '106,158,114' : '184,92,92';
+      const glow = reached * (0.35 + 0.25 * Math.sin(t * 2 + d));
+      const rad = 5 + Math.abs(nb.delta) * 0.9;
+      const rg = ctx.createRadialGradient(nx, ny, 0, nx, ny, rad * 3);
+      rg.addColorStop(0, `rgba(${col},${0.5 * glow + 0.2})`); rg.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(nx, ny, rad * 3, 0, 7); ctx.fill();
+      ctx.fillStyle = `rgba(${col},0.9)`; ctx.beginPath(); ctx.arc(nx, ny, 2.2, 0, 7); ctx.fill();
+    }
+    // treated street bloom
+    const pts = res.sel.p;
+    if (pts) {
+      ctx.save(); ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) { const [px, py] = P(pts[i][0], pts[i][1]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.closePath();
+      const bloom = 0.55 + 0.45 * Math.sin(t * 2.5);
+      ctx.fillStyle = `rgba(141,180,200,${0.2 + bloom * 0.18})`; ctx.fill();
+      ctx.lineWidth = 2.4; ctx.strokeStyle = `rgba(190,220,236,${0.7 + bloom * 0.3})`; ctx.shadowColor = 'rgba(141,180,200,0.9)'; ctx.shadowBlur = 16; ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ---- charts ----
+  drawCharts() {
+    const res = this.state.results; if (!res) return;
+    this.lineChart('chPed', res.baseP, res.treatP, res.window);
+    this.barChart('chPark', res.baseK, res.treatK, res.window);
+  }
+  chCtx(id) {
+    const cv = document.getElementById(id); if (!cv || !cv.clientWidth) return null;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (cv.width !== cv.clientWidth * dpr) { cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr; }
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: cv.clientWidth, h: cv.clientHeight };
+  }
+  lineChart(id, base, treat, win) {
+    const c = this.chCtx(id); if (!c) return; const { ctx, w, h } = c;
+    ctx.clearRect(0, 0, w, h);
+    const pad = { l: 4, r: 4, t: 8, b: 14 };
+    const max = Math.max(...base, ...treat) * 1.1 || 1;
+    const X = i => pad.l + (i / 23) * (w - pad.l - pad.r);
+    const Y = v => h - pad.b - (v / max) * (h - pad.t - pad.b);
+    // window band
+    ctx.fillStyle = 'rgba(141,180,200,0.07)'; ctx.fillRect(X(win[0]), pad.t, X(win[1]) - X(win[0]), h - pad.t - pad.b);
+    // gridline baseline
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad.l, h - pad.b); ctx.lineTo(w - pad.r, h - pad.b); ctx.stroke();
+    const plot = (arr, col, fill) => {
+      ctx.beginPath();
+      arr.forEach((v, i) => { const x = X(i), y = Y(v); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      if (fill) { ctx.lineTo(X(23), h - pad.b); ctx.lineTo(X(0), h - pad.b); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); }
+      else { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); }
+    };
+    plot(treat, null, 'rgba(141,180,200,0.12)');
+    plot(base, '#5b5349'); plot(treat, '#8db4c8');
+    // hour ticks
+    ctx.fillStyle = '#5b5349'; ctx.font = "9px 'Space Mono', monospace";
+    [0, 6, 12, 18, 23].forEach(hh => { ctx.fillText(hh, X(hh) - 4, h - 3); });
+  }
+  barChart(id, base, treat, win) {
+    const c = this.chCtx(id); if (!c) return; const { ctx, w, h } = c;
+    ctx.clearRect(0, 0, w, h);
+    const pad = { l: 4, r: 4, t: 8, b: 14 };
+    const max = 100;
+    const n = 24; const bw = (w - pad.l - pad.r) / n;
+    const Y = v => h - pad.b - (v / max) * (h - pad.t - pad.b);
+    for (let i = 0; i < n; i++) {
+      const x = pad.l + i * bw; const inWin = i >= win[0] && i < win[1];
+      ctx.fillStyle = 'rgba(120,114,104,0.35)'; ctx.fillRect(x + 1, Y(base[i]), bw - 2, (h - pad.b) - Y(base[i]));
+      ctx.fillStyle = inWin ? 'rgba(141,180,200,0.85)' : 'rgba(141,180,200,0.4)'; ctx.fillRect(x + 1, Y(treat[i]), bw - 2, (h - pad.b) - Y(treat[i]));
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.beginPath(); ctx.moveTo(pad.l, h - pad.b); ctx.lineTo(w - pad.r, h - pad.b); ctx.stroke();
+    ctx.fillStyle = '#5b5349'; ctx.font = "9px 'Space Mono', monospace";
+    [0, 6, 12, 18, 23].forEach(hh => { ctx.fillText(hh, pad.l + hh * bw - 2, h - 3); });
+  }
+
+  // ---- data cube heartbeat animation (step 07) ----
+  // ---- data cube heartbeat animation (step 07) ----
+  drawCubeAnim(t) {
+    const cv = document.getElementById('cvCube');
+    if (!cv || !cv.clientWidth) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    if (!this._cb || !this.data || !this._frames['cvHero']) {
+      this._cb = { bin: 0, phase: 0, phaseStart: t, hero: null, cubes: [] };
+    }
+    const cb = this._cb;
+    const heroF = this._frames['cvHero'];
+    
+    if (!cb.hero && this.data && this.data.sensors.length > 0) {
+      cb.hero = this.data.sensors[Math.floor(Math.random() * Math.min(50, this.data.sensors.length))];
+      cb.phaseStart = t;
+    }
+
+    const LW = W * 0.43;
+    const MAX_BINS = 46;
+    let pt = t - cb.phaseStart;
+
+    // Phase 0: Micro view (3.0s)
+    // Phase 1: Ripple (1.5s)
+    // Phase 2: Flight (2.0s)
+    // Phase 3: Insertion (0.6s)
+    if (cb.phase === 0 && pt > 3.0) {
+      cb.phase = 1; cb.phaseStart = t; pt = 0;
+    } else if (cb.phase === 1 && pt > 1.5) {
+      cb.phase = 2; cb.phaseStart = t; pt = 0;
+      cb.cubes = [];
+      const hpos = heroF ? heroF.P(cb.hero.x, cb.hero.y) : null;
+      const [hpx, hpy] = hpos ? [hpos[0] / heroF.w * LW, hpos[1] / heroF.h * H] : [0,0];
+      for (let i = 0; i < this.data.sensors.length; i += 3) {
+         const s = this.data.sensors[i];
+         const pos = heroF.P(s.x, s.y);
+         if (!pos) continue;
+         const px = pos[0] / heroF.w * LW, py = pos[1] / heroF.h * H;
+         if (px > 3 && px < LW - 3 && py > 3 && py < H - 3) {
+             const dist = Math.hypot(px - hpx, py - hpy);
+             cb.cubes.push({ px, py, s, delay: (dist / 300) * 0.5 });
+         }
+      }
+    } else if (cb.phase === 2 && pt > 2.0) {
+      cb.phase = 3; cb.phaseStart = t; pt = 0;
+    } else if (cb.phase === 3 && pt > 0.6) {
+      cb.phase = 0; cb.phaseStart = t; pt = 0;
+      cb.bin = (cb.bin + 1) % MAX_BINS;
+      cb.hero = this.data.sensors[Math.floor(Math.random() * Math.min(50, this.data.sensors.length))];
+    }
+
+    this._cbLeft(ctx, t, LW, H, cb, pt, heroF);
+    
+    ctx.strokeStyle = '#1a1810'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(LW, 14); ctx.lineTo(LW, H - 14); ctx.stroke();
+    
+    this._cbRight(ctx, t, LW, W - LW, H, cb, pt, MAX_BINS);
+    
+    this._cbFlying(ctx, LW, W - LW, H, cb, pt, MAX_BINS);
+  }
+
+  drawSmallCube(ctx, x, y, size, alpha) {
+    ctx.save(); ctx.globalAlpha = alpha;
+    const s8 = size * 0.866, s5 = size * 0.5;
+    ctx.fillStyle = '#8db4c8'; ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x + s8, y - s5); ctx.lineTo(x, y); ctx.lineTo(x - s8, y - s5); ctx.fill();
+    ctx.fillStyle = '#4a7488'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + s8, y - s5); ctx.lineTo(x + s8, y + s5); ctx.lineTo(x, y + size); ctx.fill();
+    ctx.fillStyle = '#2c4a5c'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + size); ctx.lineTo(x - s8, y + s5); ctx.lineTo(x - s8, y - s5); ctx.fill();
+    ctx.restore();
+  }
+
+  _cbLeft(ctx, t, LW, H, cb, pt, heroF) {
+    if (heroF && heroF.grid) {
+      ctx.save(); ctx.globalAlpha = 0.25;
+      ctx.drawImage(heroF.grid, 0, 0, LW, H);
+      ctx.restore();
+    }
+    const P = (s) => {
+      if (!heroF) return null;
+      const [hx, hy] = heroF.P(s.x, s.y);
+      const px = hx / heroF.w * LW, py = hy / heroF.h * H;
+      return (px > 3 && px < LW - 3 && py > 3 && py < H - 3) ? [px, py] : null;
+    };
+    
+    let hpos = [LW/2, H/2];
+    if (cb.hero) {
+       const pos = P(cb.hero);
+       if (pos) hpos = pos;
+    }
+    
+    if (this.data) {
+       for (const s of this.data.sensors) {
+         const pos = P(s); if (!pos) continue;
+         const [px, py] = pos;
+         const dist = Math.hypot(px - hpos[0], py - hpos[1]);
+         let alpha = 0.4;
+         if (cb.phase === 1) {
+            const rFront = pt * 350;
+            if (dist < rFront) alpha = 0.9;
+         } else if (cb.phase === 2) {
+            alpha = 0.9;
+         } else if (cb.phase === 3) {
+            alpha = 0.4;
+         }
+         ctx.fillStyle = s.k ? `rgba(244,114,182,${alpha})` : `rgba(141,180,200,${alpha})`;
+         ctx.beginPath(); ctx.arc(px, py, 1.5, 0, 7); ctx.fill();
+         
+         if (cb.phase === 1) {
+            const rFront = pt * 350;
+            if (dist < rFront && s.id % 3 === 0) {
+                const pop = Math.min(1, (rFront - dist) / 60);
+                this.drawSmallCube(ctx, px, py - 6 * pop, 3 * pop, pop);
+            }
+         }
+       }
+    }
+    
+    if (cb.phase === 0 || cb.phase === 1) {
+       const [hx, hy] = hpos;
+       const p = (t * 2) % 1;
+       ctx.strokeStyle = `rgba(141,180,200,${1 - p})`;
+       ctx.beginPath(); ctx.arc(hx, hy, 4 + p * 15, 0, 7); ctx.stroke();
+       
+       const bob = Math.sin(t * 3) * 3;
+       this.drawSmallCube(ctx, hx, hy - 10 + bob, 6, 1);
+       
+       if (cb.phase === 0) {
+          const pop = Math.min(1, pt * 3);
+          ctx.save(); ctx.globalAlpha = pop;
+          const boxX = hx + 15, boxY = Math.max(20, hy - 40);
+          ctx.fillStyle = 'rgba(14,13,8,0.85)'; ctx.strokeStyle = 'rgba(141,180,200,0.5)'; ctx.lineWidth = 1;
+          ctx.fillRect(boxX, boxY, 130, 52); ctx.strokeRect(boxX, boxY, 130, 52);
+          ctx.fillStyle = '#8db4c8'; ctx.font = '700 9px "Space Mono",monospace'; ctx.fillText('23 FEATURES', boxX + 6, boxY + 12);
+          ctx.fillStyle = '#cdc2b2'; ctx.font = '400 9px "Space Mono",monospace'; 
+          ctx.fillText(`Pedestrians: ${100 + Math.floor(Math.abs(Math.sin(t))*400)}`, boxX + 6, boxY + 25);
+          ctx.fillText(`Parking Occ: ${40 + Math.floor(Math.abs(Math.cos(t))*50)}%`, boxX + 6, boxY + 36);
+          ctx.fillStyle = '#7d7268';
+          ctx.fillText(`+ 20 other features`, boxX + 6, boxY + 47);
+          ctx.restore();
+       }
+    }
+    
+    if (cb.phase === 1) {
+       const rFront = pt * 350;
+       ctx.strokeStyle = `rgba(141,180,200,${Math.max(0, 1 - pt/1.5)})`;
+       ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(hpos[0], hpos[1], rFront, 0, 7); ctx.stroke();
+    }
+    
+    const ms = new Date(2025, 10, 1).getTime() + cb.bin * 15 * 60000;
+    const d = new Date(ms);
+    const DAY = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
+    ctx.textBaseline = 'bottom';
+    ctx.font = '700 12px "Space Mono",monospace'; ctx.fillStyle = '#8db4c8';
+    ctx.fillText(`${DAY[d.getDay()]} ${hh}:${mm}`, 14, H - 12);
+  }
+
+  _cbRight(ctx, t, LX, RW, H, cb, pt, MAX_BINS) {
+    const PL = 22, PR = 16, PT = 36, PB = 36;
+    const cW = RW - PL - PR, cH = H - PT - PB - 18;
+    const cX = LX + PL, cY = PT + 18;
+    const DX = cW * 0.055, DY = -12;
+    const colW = cW / MAX_BINS;
+    const ROWS = 20;
+
+    ctx.fillStyle = '#101008';
+    ctx.beginPath(); ctx.moveTo(cX, cY); ctx.lineTo(cX + cW, cY); ctx.lineTo(cX + cW + DX, cY + DY); ctx.lineTo(cX + DX, cY + DY); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#222018'; ctx.lineWidth = 0.7; ctx.stroke();
+    
+    ctx.fillStyle = '#0b0a07';
+    ctx.beginPath(); ctx.moveTo(cX + cW, cY); ctx.lineTo(cX + cW, cY + cH); ctx.lineTo(cX + cW + DX, cY + cH + DY); ctx.lineTo(cX + cW + DX, cY + DY); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#222018'; ctx.lineWidth = 0.7; ctx.stroke();
+    
+    ctx.fillStyle = '#070605'; ctx.fillRect(cX, cY, cW, cH);
+    const rowH = cH / ROWS;
+    ctx.strokeStyle = '#111008'; ctx.lineWidth = 0.3;
+    for (let r = 1; r < ROWS; r++) { ctx.beginPath(); ctx.moveTo(cX, cY + r * rowH); ctx.lineTo(cX + cW, cY + r * rowH); ctx.stroke(); }
+    
+    const BANDS = [[141,180,200],[141,180,200],[244,114,182],[244,114,182],[245,158,11],[245,158,11],[100,175,135],[100,175,135],[155,130,200]];
+    
+    for (let col = 0; col < cb.bin; col++) {
+      const x = cX + col * colW;
+      for (let row = 0; row < ROWS; row++) {
+        const y = cY + row * rowH;
+        const bi = Math.floor(row / ROWS * BANDS.length);
+        const [r, g, b] = BANDS[Math.min(bi, BANDS.length - 1)];
+        const alpha = Math.max(0.022, 0.26 - (cb.bin - col) * 0.005);
+        ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+        ctx.fillRect(x + 0.5, y + 0.5, colW - 1, rowH - 0.5);
+      }
+    }
+    
+    if (cb.phase === 3) {
+      const x = cX + cb.bin * colW;
+      const alphaBase = 0.2 + (1 - pt/0.6) * 0.6;
+      for (let row = 0; row < ROWS; row++) {
+        const y = cY + row * rowH;
+        const bi = Math.floor(row / ROWS * BANDS.length);
+        const [r, g, b] = BANDS[Math.min(bi, BANDS.length - 1)];
+        ctx.fillStyle = `rgba(${r},${g},${b},${alphaBase})`;
+        ctx.fillRect(x + 0.5, y + 0.5, colW - 1, rowH - 0.5);
+      }
+      ctx.fillStyle = `rgba(141,180,200,${1 - pt/0.6})`;
+      ctx.fillRect(x + colW - 1.5, cY, 2, cH);
+    }
+
+    ctx.strokeStyle = '#2a2820'; ctx.lineWidth = 0.8; ctx.strokeRect(cX, cY, cW, cH);
+    
+    ctx.font = '400 9px "Space Mono",monospace'; ctx.fillStyle = '#363330'; ctx.textBaseline = 'top';
+    ctx.fillText('time', cX + 3, cY + cH + 8);
+    ctx.fillText('14,400 bins · 15 min each', cX + cW - 162, cY + cH + 8);
+    ctx.textBaseline = 'alphabetic';
+    ctx.save(); ctx.translate(cX - 12, cY + cH / 2); ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center'; ctx.fillText('N = 1,397 streets', 0, 0); ctx.restore(); ctx.textAlign = 'left';
+    
+    const fakeBin = Math.min(14400, cb.bin * 335 + 1);
+    ctx.font = '700 11px "Space Grotesk",sans-serif';
+    ctx.fillStyle = cb.phase === 3 ? '#fff' : '#8db4c8';
+    ctx.fillText(`bin ${String(fakeBin).padStart(5, ' ')} / 14,400`, cX, cY - 6);
+  }
+
+  _cbFlying(ctx, LX, RW, H, cb, pt, MAX_BINS) {
+    if (cb.phase !== 2 || !cb.cubes) return;
+    const PL = 22, PR = 16, PT = 36, PB = 36;
+    const cW = RW - PL - PR, cH = H - PT - PB - 18;
+    const cX = LX + PL, cY = PT + 18;
+    const colW = cW / MAX_BINS;
+    
+    const tx = cX + cb.bin * colW + colW/2;
+    for (const c of cb.cubes) {
+       let age = pt - c.delay;
+       if (age > 0) {
+          let prog = Math.min(1, age / 0.8);
+          prog = prog < 0.5 ? 2 * prog * prog : 1 - Math.pow(-2 * prog + 2, 2) / 2;
+          const row = c.s.id % 20;
+          const ty = cY + (row + 0.5) * (cH / 20);
+          
+          const fx = c.px + (tx - c.px) * prog;
+          const fy = c.py + (ty - c.py) * prog - Math.sin(prog * Math.PI) * 60;
+          
+          const size = 3 * (1 - prog) + 1.5 * prog;
+          const alpha = prog < 0.9 ? 1 : (1 - prog)/0.1;
+          this.drawSmallCube(ctx, fx, fy, size, alpha);
+       } else {
+          this.drawSmallCube(ctx, c.px, c.py - 6, 3, 1);
+       }
+    }
+  }
+
+  // ---- scroll stage ----
+  updateStage() {
+    const steps = document.querySelectorAll('[data-step]'); if (!steps.length) return;
+    const mid = window.innerHeight * 0.5; let best = 0, bestD = 1e9;
+    steps.forEach(el => { const r = el.getBoundingClientRect(); const c = r.top + r.height / 2; const d = Math.abs(c - mid); if (d < bestD) { bestD = d; best = +el.dataset.step; } });
+    if (best !== this.state.stage) this.setState({ stage: best });
+  }
+
+  // ---- interaction ----
+  pickAt(F, e) {
+    const rect = F.cv.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    let best = null, bd = 26 * 26;
+    for (const p of F.pts) { const d = (p.x - mx) ** 2 + (p.y - my) ** 2; if (d < bd) { bd = d; best = p.s; } }
+    if (best) this.setState({ sel: best, results: null });
+  }
+  setView(v) { this.setState({ view: v }); }
+
+  // ---- model ----
+  baselineCurve(street) {
+    const base = street.mp || 18; const it = street.it || '';
+    let peak = 13, eve = false, morn = false;
+    if (/morning/.test(it)) { peak = 8; morn = true; }
+    else if (/evening|dining/.test(it)) { peak = 19; eve = true; }
+    else if (/midday|retail/.test(it)) peak = 13;
+    else if (/corridor/.test(it)) peak = 13;
+    const arr = [];
+    for (let h = 0; h < 24; h++) {
+      const d1 = Math.exp(-((h - peak) ** 2) / 16);
+      const d2 = /corridor/.test(it) ? 0.55 * Math.exp(-((h - 18) ** 2) / 22) : (eve ? 0.3 * Math.exp(-((h - 12) ** 2) / 20) : 0);
+      const night = h < 6 ? 0.05 : (h > 22 ? 0.25 : 1);
+      arr.push(Math.max(0, base * (0.25 + 1.7 * (d1 + d2)) * night));
+    }
+    return arr;
+  }
+  parkCurve(street) {
+    const arr = []; for (let h = 0; h < 24; h++) { const day = Math.exp(-((h - 13) ** 2) / 36); arr.push(Math.min(96, 18 + 74 * day + (h > 17 && h < 21 ? 10 : 0))); }
+    return arr;
+  }
+  runModel() {
+    const sel = this.state.sel; if (!sel) return null;
+    const iv = this.state.iv, start = this.state.hour, dur = this.state.dur;
+    const win = [start, Math.min(24, start + dur)];
+    const baseP = this.baselineCurve(sel); const baseK = this.parkCurve(sel);
+    const mult = { restrict_park: 1.12, outdoor_dining: 1.26, loading_zone: 1.05 }[iv];
+    const parkDrop = { restrict_park: -42, outdoor_dining: -16, loading_zone: -8 }[iv];
+    const treatP = baseP.map((v, h) => { if (h >= win[0] && h < win[1]) { let m = mult; if (iv === 'outdoor_dining' && h >= 17) m += 0.14; if (iv === 'restrict_park' && h >= 7 && h <= 10) m += 0.05; return v * m; } return v; });
+    const treatK = baseK.map((v, h) => { if (h >= win[0] && h < win[1]) return Math.max(2, v + parkDrop); return v; });
+    let sum = 0, cnt = 0; for (let h = win[0]; h < win[1]; h++) { sum += treatP[h] - baseP[h]; cnt++; }
+    const avgPed = sum / (cnt || 1); const totalPed = Math.round(sum);
+    let pk = 0; for (let h = win[0]; h < win[1]; h++) pk += treatK[h] - baseK[h]; pk = pk / (cnt || 1);
+    // neighbours
+    const here = sel; const cand = this.selectable.filter(s => s.id !== here.id);
+    cand.forEach(s => s._d = (s.x - here.x) ** 2 + (s.y - here.y) ** 2);
+    cand.sort((a, b) => a._d - b._d);
+    const k = 7; const neighbours = [];
+    for (let i = 0; i < k && i < cand.length; i++) {
+      const s = cand[i]; const dist = Math.sqrt(s._d); const decay = Math.exp(-dist / 70);
+      let sign = 1; if (iv === 'restrict_park' && i < 2) sign = -1; if (iv === 'loading_zone') sign = i % 2 ? -1 : 1;
+      const delta = sign * avgPed * decay * (0.5 + Math.random() * 0.4);
+      if (Math.abs(delta) < 0.4) continue;
+      neighbours.push({ s, delta });
+    }
+    return { sel, iv, win, window: win, baseP, treatP, baseK, treatK, avgPed, totalPed, parkDelta: pk, neighbours, t0: performance.now() };
+  }
+
+  // ---- formatting / renderVals ----
+  fmtSigned(n, d) { const v = (n >= 0 ? '+' : '') + n.toFixed(d == null ? 0 : d); return v; }
+  renderVals() {
+    const st = this.state; const sel = st.sel; const has = !!sel;
+    const archKey = sel ? (sel.it || 'context_only') : '';
+    const arch = sel ? (this.ARCH[archKey] || 'CBD street') : '';
+    const ccol = sel ? (sel.cl != null && sel.cl >= 0 ? (this.CCOL[sel.cl] || '#8db4c8') : '#7d7268') : '#7d7268';
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const ivLabel = { restrict_park: 'Restrict parking', outdoor_dining: 'Outdoor dining', loading_zone: 'Loading zone' }[st.iv];
+    const h12 = (h) => { const ap = h < 12 ? 'am' : 'pm'; let x = h % 12; if (x === 0) x = 12; return x + ap; };
+    const runDis = has ? 0 : 1;
+    const res = st.results;
+
+    const ivState = (key) => ({
+      border: st.iv === key ? '#8db4c8' : '#2c2820',
+      bg: st.iv === key ? 'rgba(141,180,200,0.08)' : '#0e0d08',
+      tick: st.iv === key ? '#8db4c8' : 'transparent',
+      mark: st.iv === key ? '●' : '○',
+    });
+    const r = ivState('restrict_park'), d = ivState('outdoor_dining'), l = ivState('loading_zone');
+
+    let affectedNodes = null, resVals = {};
+    if (res) {
+      const sorted = [...res.neighbours].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+      affectedNodes = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '5px' } },
+        sorted.map((nb, i) => {
+          const pos = nb.delta >= 0;
+          return React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: '#0e0d08', border: '1px solid #211e18', borderRadius: '8px' } },
+            React.createElement('span', { style: { width: '7px', height: '7px', borderRadius: '50%', background: pos ? '#6a9e72' : '#b85c5c', flexShrink: 0 } }),
+            React.createElement('span', { style: { flex: 1, fontSize: '12px', color: '#a99e8f', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, (this.ARCH[nb.s.it] || 'CBD street') ),
+            React.createElement('span', { style: { fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: '13px', color: pos ? '#6a9e72' : '#b85c5c' } }, this.fmtSigned(nb.delta, 1))
+          );
+        })
+      );
+      const verdictWord = res.avgPed >= 0 ? 'more' : 'fewer';
+      const parkOk = res.parkDelta < -5 ? 'freed up significantly' : (res.parkDelta < 0 ? 'eased' : 'held steady');
+      resVals = {
+        resScenario: ivLabel + ' · ' + dayNames[st.day] + ' ' + h12(res.win[0]),
+        resVerdict: this.fmtSigned(res.totalPed) + ' walking trips, parking ' + parkOk + '.',
+        resAvgPed: this.fmtSigned(res.avgPed, 1),
+        resPedCol: res.avgPed >= 0 ? '#6a9e72' : '#b85c5c',
+        resTotalPed: this.fmtSigned(res.totalPed),
+        resPark: this.fmtSigned(res.parkDelta) + ' pts',
+        resParkCol: res.parkDelta <= 0 ? '#6a9e72' : '#b85c5c',
+        resParkNote: res.parkDelta < 0 ? 'Occupancy falls during the window. Kerb space released for the intervention.' : 'Little change to parking demand here.',
+        resNAffected: res.neighbours.length,
+        affectedList: affectedNodes,
+      };
+    }
+
+    return {
+      isHome: st.view === 'home', isBuild: st.view === 'build', isResults: st.view === 'results',
+      goHome: () => this.setView('home'),
+      goBuild: () => this.setState({ view: 'build', results: null }),
+      // build
+      noSel: !has, hasSel: has,
+      selArch: arch, selColor: ccol,
+      selMeta: sel ? ('Street ' + sel.id + ' · ' + (sel.t || 'CBD')) : '',
+      selPed: sel ? Math.round(sel.mp || 0) : '',
+      selSrc: sel ? (sel.src === 'sensor' ? 'Measured' : 'Estimated') : '',
+      selSrcCol: sel ? (sel.src === 'sensor' ? '#6a9e72' : '#d6a84a') : '#7d7268',
+      s1col: has ? '#6a9e72' : '#4a7488',
+      s2col: has ? '#6a9e72' : '#3d3830',
+      s2op: has ? '1' : '0.45',
+      ivRestrictBorder: r.border, ivRestrictBg: r.bg, ivRestrictTick: r.tick, ivRestrictMark: r.mark,
+      ivDiningBorder: d.border, ivDiningBg: d.bg, ivDiningTick: d.tick, ivDiningMark: d.mark,
+      ivLoadingBorder: l.border, ivLoadingBg: l.bg, ivLoadingTick: l.tick, ivLoadingMark: l.mark,
+      pickRestrict: () => this.setState({ iv: 'restrict_park' }),
+      pickDining: () => this.setState({ iv: 'outdoor_dining' }),
+      pickLoading: () => this.setState({ iv: 'loading_zone' }),
+      onDay: (e) => this.setState({ day: +e.target.value }),
+      onDur: (e) => this.setState({ dur: +e.target.value }),
+      onHour: (e) => this.setState({ hour: +e.target.value }),
+      hourLabel: h12(st.hour) + ' – ' + h12(Math.min(23, st.hour + st.dur)),
+      runDis, runCursor: has ? 'pointer' : 'not-allowed',
+      runBg: has ? '#8db4c8' : '#221f1a', runFg: has ? '#0e1110' : '#5b5349',
+      runShadow: has ? '0 10px 30px -10px rgba(141,180,200,0.6)' : 'none',
+      runLabel: has ? 'Run scenario →' : 'Pick a street first',
+      runHint: has ? 'The model simulates the change and its ripple across nearby streets.' : 'Select a street on the map to enable the model.',
+      run: () => { if (!this.state.sel) return; const res = this.runModel(); this.setState({ results: res, view: 'results' }); },
+      ...resVals,
+    };
+  }
+}
+</script>
+</body>
+</html>

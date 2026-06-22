@@ -77,6 +77,45 @@ def run() -> dict[str, Path]:
         eval_dst.write_text(eval_src.read_text())
         log.info(f"  Copied model_eval.json to processed/")
 
+    # ── Time-Series Aggregation ───────────────────────────────────────────────
+    log.info("  Aggregating time-series data...")
+    try:
+        # Load datasets
+        ped_df = pd.read_parquet(PROCESSED_DIR / "ped_complete.parquet")
+        prk_df = pd.read_parquet(PROCESSED_DIR / "parking_occupancy.parquet")
+
+        # Filter ped data to only physical sensors
+        ped_df = ped_df[ped_df["source"] == "sensor"]
+
+        # Extract hour from UTC time_bin
+        ped_df["hour"] = ped_df["time_bin"].dt.hour
+        prk_df["hour"] = prk_df["time_bin"].dt.hour
+
+        # Group by street and hour, calculating mean
+        ped_agg = ped_df.groupby(["street_id", "hour"])["ped_flow"].mean().unstack(fill_value=0)
+        prk_agg = prk_df.groupby(["street_id", "hour"])["occupancy_rate"].mean().unstack(fill_value=0)
+
+        timeseries_dict = {}
+        all_streets = set(ped_agg.index) | set(prk_agg.index)
+
+        for sid in all_streets:
+            ped_vals = ped_agg.loc[sid].tolist() if sid in ped_agg.index else [0.0] * 24
+            prk_vals = prk_agg.loc[sid].tolist() if sid in prk_agg.index else [0.0] * 24
+
+            # Format to 2 decimal places to save space
+            ped_vals = [round(v, 2) for v in ped_vals]
+            prk_vals = [round(v, 2) for v in prk_vals]
+
+            # We only store the street if it actually has measured data for either ped or parking
+            # (If it's in the index, it has data)
+            timeseries_dict[str(sid)] = {"ped": ped_vals, "park": prk_vals}
+
+        ts_path = PROCESSED_DIR / "street_timeseries.json"
+        ts_path.write_text(json.dumps(timeseries_dict))
+        log.info(f"  Saved street_timeseries.json ({len(timeseries_dict)} streets)")
+    except Exception as e:
+        log.error(f"  Failed to aggregate time-series data: {e}")
+
     log.info(f"  Saved opportunities_summary.json ({sum(len(v) for v in summary.values())} records)")
     log.info("Step 12 complete.")
     return {

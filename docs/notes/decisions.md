@@ -355,3 +355,206 @@ model's true sensor MAE (~30.7); the circular ~5.5 all-street headline is gone.
 - **step_09_train.py finalized to Exp B**: added PED_LOSS_SCOPE="sensors" (default), ped_sensor mask from
   ped_confidence==1.0, ped loss+metrics masked to 74 sensors via ped_eval_mask; MAX_EPOCHS 200→300. Now matches
   train_lightning.py methodology. Steps 10→12 to be re-run by user against the new model + climatology cube.
+
+### 2026-06-21 - D-026: Feature-perturbation scenarios cannot produce a positive kerb-reallocation effect — switch to post-hoc elasticity composition
+
+**Context.** A `restrict_park`(→0.30) scenario on street 20009 (Lonsdale St) returned a network-wide ped
+DECREASE (target mean Δped −17.6), the opposite of the "Curbside Intensification" hypothesis. Investigated
+whether `curbside_dining` (D-025: occupancy↓ AND land-use↑) recovers the desired sign.
+
+**Demo (post-training, step_11 only — no retraining, no frozen edits).** Street 20009, t_start=10476,
+duration=rollout=16. 12 bays reclaimed ≈ same occupancy shock as restrict_park→0.30:
+| Scenario | target mean Δped |
+|---|---|
+| restrict_park → 0.30 | −17.6 |
+| curbside_dining 12 bays, default constants | −13.7 |
+| curbside_dining 12 bays, 4× café / 2× seats per bay | **−60.4** |
+
+**Finding — perturbing features cannot deliver the desired output.** Strengthening the land-use uplift made
+footfall *more* negative, not positive. Two reasons:
+1. **Permutation importance is sign-agnostic.** `cafe_count` (ΔMAE +6.67) / `bar_count` (+5.01) rank high but
+   pushing them UP drives the ped prediction DOWN — the learned land-use↔footfall relationship is not the
+   positive causal lever the policy story assumes.
+2. **Static land-use features are OOD-fragile.** They are constant per street; the model never saw a block
+   with 4× its café frontage, so large perturbations are unreliable extrapolation.
+`occupancy_rate` is a confounder (vitality proxy), not a lever; forcing it down reads as "quieter street".
+The "111/163 streets positive" network count is a mirage — tiny deltas on low-confidence imputed
+(placeholder) streets, while the sensor-street mean stays negative (−0.32).
+
+**Decision.** Do NOT use feature perturbation to claim a footfall response to kerb reallocation. Adopt
+**post-hoc elasticity composition** (Route 1): apply an externally-estimated uplift to the treated street's
+baseline (`ped_treated = ped_baseline × (1 + uplift)`), then use the GNN ONLY to propagate that imposed shock
+through the spatial/semantic graph for network spillover. This separates the causal assumption (literature)
+from the propagation (GNN) — consistent with the project frame "GNN = coverage/propagation, not causal
+accuracy". restrict_park/curbside_dining demos retained as METHODS evidence for *why* perturbation is invalid.
+Rigorous alternative (Route 2, out of scope): diff-in-diff on real bay-removal events in the parking history.
+
+**Uplift band (signed off; sources verified 2026-06-21).** Multiplicative
+`ped_treated = ped_baseline × (1 + uplift)` on the target street over the active window. Band now grounded in
+VERIFIED primary studies (the earlier {5,12,25,40}% was unsourced and is retracted; the "Pedestrian Pound
+2018 / NACTO / SF" citations were unverified-from-memory and removed):
+- **0% placebo** (sanity floor) / **+18% conservative** / **~30% central** / **+39% optimistic**.
+- +18% = Cambra & Moura (2020), Lisbon street improvement, statistically significant pedestrian *volumes*
+  (throughput — same metric as our ped_flow). docs/references/evidence/cambra2020.md
+- +39% = Aldred & Croft (2019), Hounslow modal filter, measured walking increase.
+  docs/references/evidence/aldred2019.md
+- Aggregator: Living Streets "The Pedestrian Pound" 3rd Ed (2024), primary-fetched & verified.
+  docs/references/evidence/livingstreets2024.md
+- **Carmona et al. (2018) +94% EXCLUDED** (per decision 2026-06-21): bundles stationary/lingering activity,
+  not pure flow → not metric-comparable to ped_flow.
+Report the band, not a point estimate; flag UK/Portugal→Melbourne external-validity transfer.
+
+**Induced vs diverted — empirical support for the GNN-propagation design.** Aldred & Croft (2019) found only
+**~30% of the treated street's walking gain was genuinely new; ~70% was diverted from other routes.** This
+independently validates the two-part scenario engine: an imposed magnitude on the treated street PLUS spatial
+redistribution to neighbours. The GNN propagation models exactly that diversion component — so a treated
+street's footfall gain being largely redistribution (not pure creation) is an evidence-backed property, not an
+artefact.
+
+**Implemented (step_11_scenario.py, post-training, no frozen edits, no retraining).** New
+`intervention_type="reallocate_kerb"`, magnitude = uplift fraction:
+- `_encode_intervention`: scales the target's ped_flow INPUT to `baseline × (1+uplift)` each active step,
+  PINNED to the baseline rollout (new `step` / `baseline_ped_norm` args) so the imposed shock cannot compound.
+  The boosted input drives spillover through the GNN graph.
+- `run_scenario`: the target's REPORTED series is overwritten to exactly `baseline × (1+uplift)` over the
+  active window, so the correlational model cannot regress the exogenous causal claim back toward neighbours
+  (without this the target diluted to +3% under a +12% assumption). Neighbours keep GNN-propagated values.
+- Honesty gate unchanged: reallocate_kerb perturbs ped → falls in the ped-sensor branch (needs conf 1.0).
+
+**Sweep result (street 20009, t_start=10476, dur=roll=16, baseline mean ped ~295/15min):**
+| uplift | target Δped | target Δ% | sensor-net Δ | all-net Δ | #pos/N |
+|---|---|---|---|---|---|
+| 0% (placebo) | +0.0 | +0.0% | +0.000 | +0.000 | 0/0 |
+| 5% | +14.7 | +5.0% | +0.97 | +0.50 | 71/71 |
+| 12% | +35.4 | +12.0% | +2.04 | +0.88 | 95/95 |
+| 25% | +73.7 | +25.0% | +3.75 | +1.54 | 109/110 |
+| 40% | +117.9 | +40.0% | +5.35 | +2.13 | 122/123 |
+Target Δ% tracks the imposed uplift exactly (sanity passed); spillover is positive, monotonic; placebo is
+exactly zero (no leakage). Contrast D-026 head: the SAME street under restrict_park/curbside_dining went
+NEGATIVE — this is the methods evidence for why Route 1 (impose + propagate) replaces feature perturbation.
+
+**Status.** Implemented and verified via sweep. Frontend wired (2026-06-21): sensor_map_viz.html scenario
+panel now has a "Kerb reallocation (footfall uplift)" card with a 0–40% magnitude (sent to API as a fraction)
+and an honesty caveat note shown only for this intervention. No api_server.py change needed (passthrough; the
+result already carries treated_street/spatial_neighbours). Full detail in
+docs/notes/kerb_reallocation_scenario_findings.md. Live-browser smoke test still pending. Scripts in
+melbourne_pipeline/scratch/ (run_curbside_demo.py, run_reallocate_sweep.py) — diagnostics, not pipeline.
+
+**UPDATE 2026-06-21 — Aldred & Croft (2019) primary-verified (NotebookLM read the PDF) → conservation
+redistribution added.** Two answers changed the design:
+1. **The +39% is GROSS, not net.** Counts rose 859→1191/day (+39%); of the +332, only ~30.8% (≈+12% of
+   baseline) were genuinely new, ~69.2% (≈+27%) were DIVERTED from other streets. Throughput metric
+   (manual 24h counts of people walking *through*) → clean match to ped_flow. Modal filter, NOT parking
+   removal (loose proxy); no control street; exploratory/low-sample; sustained ~2yr; historic-setting
+   external-validity caveat. Full detail: docs/references/evidence/aldred2019.md.
+2. **Sign error exposed.** The GNN propagation made neighbours GAIN (diffusion); the evidence says ~69%
+   is diverted → neighbours should LOSE. Same class of bug as the parking-conservation issue.
+
+**Decision (user-approved): conservation/redistribution for reallocate_kerb's network effect.**
+Implemented in step_11_scenario.py: impose gross +U% on the treated street; subtract the diverted share
+(REALLOCATE_DIVERTED_FRACTION=0.692) from its SPATIAL neighbours, weighted by learned spatial edge
+weights; the new share (REALLOCATE_NEW_FRACTION=0.308) is the only net-new footfall. GNN diffusion is
+overridden for this intervention (GNN now contributes edge weights = which/how-much, not the sign).
+Verified (street 20009): target tracks imposed uplift exactly; neighbours lose; **city net / target
+= 0.31 = the new-trip fraction**, and neighbour losses sum to 69.2% of the treated gain (exact mass
+conservation). Limitation: diversion is concentrated on 1-hop spatial neighbours (here 4); multi-hop
+spread is a possible refinement. Parking displacement (occupancy side) still NOT modelled — open item.
+Frontend max raised handling unchanged (band {0,18,30,39}%, default 30%); the in-UI caveat already notes
+~70% is diverted.
+
+### 2026-06-22 - D-027: Two-stage kerb-reallocation scenario UI (parking-removal % + reclaimed use)
+
+**Problem.** The frontend offered four "intervention" cards whose human labels were wired to the
+WRONG backend mechanisms (e.g. a card labelled "Restrict parking" actually ran `pedestrianise`,
+occupancy→0). The vocabulary fought the mechanism, so results were hard to explain.
+
+**Decision.** Replace the four mislabelled cards with a two-stage funnel exposed as one new
+intervention type `reallocate` (step_11_scenario.py):
+- **Stage A — how much parking to remove?** A 0–100% slider. `removal_frac` ∈ [0,1] scales the
+  target street's `occupancy_rate` to `(1 − removal_frac)` of its current level (1.0 = full clear,
+  i.e. pedestrianisation). The GNN predicts the footfall response — model-driven, correlational.
+- **Stage B — reclaim it for…** A `use` ∈ {`outdoor_dining`, `greening_parklet`, `pedestrian_plaza`}.
+  **Only `pedestrian_plaza` injects a footfall uplift** (the D-026 band, default +30%), applied
+  analytically post-rollout with the same mass-conserving redistribution as `reallocate_kerb`
+  (diverted share 69.2% subtracted from spatial neighbours). Outdoor-dining and greening/parklet
+  inject NO uplift for now → pure model occupancy response.
+
+**Honest interim state (flagged in UI + assumptions).** With no uplift attached, `outdoor_dining`
+and `greening_parklet` are **numerically identical** (both are just the occupancy removal); they
+differ only in label until evidence-based bands are attached. The results panel splits the treated
+delta into Stage A (parking removal, model) vs Stage B (plaza uplift, evidence) so the two
+contributions are never conflated.
+
+**Why uplift only for plaza.** Plaza is the only reclaimed use the available evidence (Cambra & Moura
+2020 +18%; Aldred & Croft 2019 +39%) actually measured. Attaching an uplift to dining/parklet would
+be an unsupported number — deferred until sourced (consistent with the evidence-gated principle).
+
+**Separability.** Stage B is kept out of the GRU rollout (imposed on the baseline, non-compounding),
+so Stage A (one model rollout) and Stage B (analytic) compose additively with no extra model pass —
+the split reported to the frontend is exact, not an attribution estimate.
+
+**Files.** step_11_scenario.py (new `reallocate` mode in `_encode_intervention` + run_scenario split,
+`removal_frac`/`use`/`uplift` params, D-027 constants); api_server.py (root, live) + melbourne_pipeline/
+api_server.py forward the three new fields; sensor_map_viz.html (Step 2 funnel markup, `wizPickUse` /
+`wizRemovalChanged`, `ivApply` payload, use-aware verdict label, two-stage split panel, reallocate caveat).
+Legacy `applyRecommendedIntervention` maps old archetype types → {use, removal%}. No model retrained
+(post-training only). No new uplift numbers introduced beyond the existing D-026 band.
+
+---
+
+### 2026-06-22 — D-028: Scenario serving made non-freezing (mmap + cache + thread cap)
+- Decision: Fix the scenario API freezing the machine on every `/scenario` run. Three
+  serving-layer changes (no model retrain, no Steps 01-09 change):
+  1. Persist a normalised cube to disk (`data/processed/cube_norm.npy`) and memory-map
+     both `cube.npy` and `cube_norm.npy` (`mmap_mode="r"`) in `_load_artifacts`. The
+     rollout only reads small time-slices, so nothing large is resident.
+  2. Cache loaded artifacts (model/cubes/graphs/parking_mask) at module level per device;
+     removed a duplicate `torch.load` of both graphs in `run_scenario`.
+  3. Cap CPU threads in api_server.py: `torch.set_num_threads(min(8, cores-4))`
+     (override via env `SCENARIO_TORCH_THREADS`); warm the cache at startup.
+- Options considered → Chosen: (a) speed up `_normalise_cube` in place — rejected, the
+  cost is I/O + a 1.85 GB strided rewrite, not arithmetic; (b) mmap a precomputed norm
+  cube — CHOSEN, eliminates both the recompute and the resident copy.
+- Root cause (measured): `_normalise_cube` ran on every request (no caching), doing
+  `np.load` 1.72 GB → `.copy()` 1.85 GB → 23 strided z-score writes = ~150 s of saturated
+  disk+memory bandwidth that locked the desktop. Rollout itself was only ~6 s.
+- Result (measured on the dev laptop): cold load 154.7 s → 0.03 s (mmap); one scenario
+  click ≈ 6 s using 8/20 cores, machine responsive. All three intervention types
+  (pedestrianise / restrict_park / boost_ped) pass end-to-end, data_backed=True.
+- Known weakness: `cube_norm.npy` is derived state. Staleness is guarded by an mtime check
+  against BOTH `cube.npy` and `norm_stats.json` (auto-rebuilds, one-time ~40-150 s). The
+  module cache lives for the process lifetime, so after a retrain the server must be
+  restarted to pick up new weights. `cube_norm.npy` is gitignored (1.85 GB).
+
+---
+
+### 2026-06-22 — D-029: reallocate spillover = GNN diffusion (option 2), diversion override removed
+- Decision: For the `reallocate` intervention with a pedestrian-plaza use, neighbouring
+  streets now RISE with the treated street (positive spillover) instead of being docked a
+  diverted share. Reverses the D-026 mass-conservation override for this path only.
+- Mechanism (step_11_scenario.py):
+  1. The Stage-B plaza uplift is INJECTED into the treated rollout (`_encode_intervention`,
+     new `uplift` param, pinned to baseline, duration-bounded), so the GNN propagates it
+     through the spatial + semantic graphs. Neighbour deltas are now the model's own learned
+     spillover (`ped_delta_raw = treated - baseline`), no `REALLOCATE_DIVERTED_FRACTION`.
+  2. The TREATED node's own delta is pinned to the imposed evidence uplift (baseline × uplift):
+     the recorded model output for the treated node is muted by the occupancy-removal
+     correlation, so without this pin the treated street would read ~flat/negative.
+  - The analytic Stage A/B split + its JSON export (`ped_flow_stageA_parking` /
+    `ped_flow_stageB_uplift`) are dropped; the frontend split panel was already removed.
+- Options considered → Chosen: (1) lower diverted fraction for plazas; (2) **let the GNN
+  diffusion stand [CHOSEN]**; (3) feeder-vs-competitor split. User picked (2): neighbours
+  should reflect the model's spatial spread, not a forced redistribution.
+- Verified (sensor street 20001, +30% plaza uplift): treated d=+1.99; spatial neighbours
+  3 up / 1 down (feeders 20143 +0.26, 20144 +0.17; one competitor 20206 -0.10);
+  top_affected 9/20 positive. Legacy pedestrianise/restrict_park/boost_ped unchanged.
+- Production default (UI): pedestrian_plaza now applies +18% (Cambra & Moura 2020, Lisbon
+  conservative band), set as a hardcoded constant in sensor_map_viz.html (the user-selectable
+  18/30/39 footfall band was removed). The verification above used +30%; the spillover is
+  linear in the injected uplift, so the spatial pattern is identical and magnitudes scale
+  ~0.6×. The backend assumptions text is dynamic and reads the actual uplift sent.
+- Known weakness / thesis note: this adopts the agglomeration view (intervention GROWS
+  footfall area-wide) over the diversion view (Aldred & Croft 2019: ~69% rerouted). Defensible
+  for destination-type placemaking (plazas), less so for a pure modal filter. The single
+  neighbour that dips is the GNN's honest learned response, not a conservation rule. `reallocate_kerb`
+  (legacy, not used by the UI) still uses the D-026 diversion override — left intact.

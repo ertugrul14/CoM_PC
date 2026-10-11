@@ -1,11 +1,4 @@
-Street ID	Relationship	Mean Ped Delta	Confidence	Weighted Score
-20222	Semantic Neighbour	+0.14	1.0 (Real Sensor)	+0.14
-20001	Treated Street	+0.16	0.5 (Imputed)	+0.08
-20121	Semantic Neighbour	+0.12	0.5 (Imputed)	+0.06
-20143	Spatial Neighbour	-0.09	0.5 (Imputed)	-0.04
-20138	Unknown	+0.06	0.5 (Imputed)	+0.03 
 
-what do you mean by imputed here? imputed with whaT?
 # Melbourne CBD Street Analysis Pipeline
 
 > **Master's Thesis Project** — Spatio-Temporal Graph Neural Network for Urban Street Behaviour Modelling and Counterfactual Intervention Analysis in Melbourne CBD.
